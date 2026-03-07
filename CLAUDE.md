@@ -450,6 +450,41 @@ ollama pull <new-model-name>
 Call `RAGSystem.add_world_lore(lore_text, lore_id)` inside
 `SaveLoadManager.create_new_game()` after the RAGSystem is initialized.
 
+### Seed D&D 5e SRD rules into game_rules RAG (Section 6.1)
+```bash
+# 1. Download the SRD JSON files (soryy708/dnd5-srd on GitHub)
+git clone https://github.com/soryy708/dnd5-srd /tmp/dnd5-srd
+cp /tmp/dnd5-srd/src/5e-SRD-*.json data/srd/
+
+# 2. Run the seeder (idempotent — safe to re-run)
+python tools/seed_srd.py
+
+# 3. Optionally limit to specific categories
+python tools/seed_srd.py --categories monsters spells
+```
+
+`tools/seed_srd.py` calls `RAGSystem.seed_from_srd_json()`, which converts
+each SRD entry (monster stat blocks, spell descriptions, equipment details)
+to a text chunk and upserts it into the `game_rules` ChromaDB collection.
+
+### Generate LoRA fine-tuning data (Section 5.2 + 6.2)
+```bash
+# Generate 200 scenarios with default model (Alpaca format):
+python tools/gen_lora_data.py --samples 200
+
+# Use a stronger model on a 4090 for higher-quality training data:
+python tools/gen_lora_data.py --model qwen2.5:32b --samples 1000 --format chatml
+
+# Output: data/lora_training/trpg_train.jsonl  (2 records per scenario)
+```
+
+Each generated scenario pairs a randomised character + action with:
+1. A labelled `parse_intent` training record (Guided Thinking JSON output)
+2. A labelled `render_narrative` training record (scene-typed Narrative Event)
+
+Fine-tune with Unsloth, LLaMA-Factory, or Axolotl on the output JSONL to
+teach a smaller local model the engine's exact JSON schema and DM voice.
+
 ---
 
 ## Combat Rule Engine (Section 3.3)
@@ -507,16 +542,61 @@ past early events.
 
 ---
 
+## RAG + LoRA Hybrid Strategy (Section 5.2)
+
+These two techniques solve different problems and are complementary:
+
+| Technique | Purpose | TRPG application |
+|---|---|---|
+| **RAG** | External, dynamic, exact knowledge retrieval | D&D 5e SRD rules (monsters, spells), player history, item details |
+| **LoRA** | Teach output format, DM tone, domain reasoning | Strict JSON schema, fantasy DM voice, TRPG action classification |
+
+**Recommended workflow:**
+1. Seed `game_rules` RAG with the D&D 5e SRD JSON (`tools/seed_srd.py`)
+2. Generate synthetic training data (`tools/gen_lora_data.py`)
+3. Fine-tune with LoRA (Unsloth / LLaMA-Factory / Axolotl)
+4. Deploy the LoRA-adapted model via Ollama; RAG provides the dynamic content
+
+**Dataset sources for LoRA fine-tuning (Section 6.2):**
+- `hieunguyenminh/roleplay` — roleplay dialogue, multiple character archetypes
+- `LimaRP` / `PIPPA` — long-form multi-turn RP with emotion and action descriptions
+- `Smoltalk-chinese` (OpenCSG) — Chinese instruction-following for bilingual DMs
+- Synthetic data from `tools/gen_lora_data.py` — generated using this engine's own schema
+
+**Embedding model fine-tuning (Section 6.1):**
+The Datapizza AI Lab RAG Evaluation Dataset (D&D 5e SRD QA pairs, JSON/Parquet)
+can be used to fine-tune a BGE-family embedding model for better D&D terminology
+retrieval. Point `GameConfig.EMBEDDING_MODEL` to the fine-tuned model directory.
+
+---
+
+## Repository Layout (updated)
+
+```
+DND-like_RPG/
+├── tools/
+│   ├── seed_srd.py         # D&D 5e SRD JSON → game_rules RAG (Section 6.1)
+│   └── gen_lora_data.py    # Synthetic LoRA training data generator (Section 6.2)
+├── data/
+│   ├── srd/                # Place 5e-SRD-*.json files here for seed_srd.py
+│   └── lora_training/      # gen_lora_data.py writes JSONL here
+```
+
+---
+
 ## What Does Not Exist Yet
 
 - **No tests** — no pytest, unittest, or test fixtures.
 - **No requirements.txt / pyproject.toml** — dependencies are implicit.
 - **No CI/CD** — no GitHub Actions or similar pipelines.
 - **No audio** — `AudioGenerator` is a stub with placeholder methods only.
-- **No D&D 5e SRD data** — `game_rules` RAG collection exists but is empty;
-  seed it with the soryy708/dnd5-srd JSON database converted to markdown.
-- **No LoRA fine-tuning** — the model is used as-is; LoRA adapters for TRPG
-  JSON output style and narrative tone are a future enhancement.
+- **No D&D 5e SRD data** — download JSON from soryy708/dnd5-srd and run
+  `python tools/seed_srd.py` to populate the `game_rules` RAG collection.
+- **No LoRA adapters** — run `tools/gen_lora_data.py` to generate training
+  data, then fine-tune with Unsloth/LLaMA-Factory on the output JSONL.
+- **No custom embedding model** — default ChromaDB embedding (MiniLM-L6-v2)
+  is used. Set `GameConfig.EMBEDDING_MODEL` after fine-tuning a BGE model on
+  the Datapizza D&D SRD QA dataset for better rule retrieval accuracy.
 
 When adding any of the above, follow the existing style conventions and keep
 changes minimal and focused.

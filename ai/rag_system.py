@@ -160,6 +160,68 @@ class RAGSystem:
         return "\n".join(context)
 
     # ------------------------------------------------------------------
+    # SRD bulk seeding  (Section 6.1)
+    # ------------------------------------------------------------------
+
+    def seed_from_srd_json(self, entries, category="srd"):
+        """
+        Bulk-seed the game_rules collection from a D&D 5e SRD JSON dataset
+        (soryy708/dnd5-srd format or any list of dicts with a 'name' key).
+
+        This is the Section 6.1 recommendation: convert the SRD JSON database
+        to retrievable text chunks so the rule engine and narrative generator
+        can look up exact spell/monster/equipment details at play time instead
+        of hallucinating them.
+
+        Supports three SRD entry types detected by key presence:
+          Monsters: hit_points, armor_class, challenge_rating, actions …
+          Spells:   level, school, range, components, duration, desc …
+          Equipment/items: cost, weight, desc …
+
+        Args:
+            entries (list[dict]): Parsed JSON list from an SRD file.
+            category (str): Label prefix used in ChromaDB IDs (e.g. 'monsters',
+                            'spells', 'equipment') to avoid ID collisions.
+
+        Returns:
+            (int, int): (seeded_count, skipped_count)
+        """
+        seeded = 0
+        skipped = 0
+        for entry in entries:
+            name = entry.get('name') or entry.get('index') or ''
+            if not name:
+                skipped += 1
+                continue
+            doc_id = f"srd_{category}_{name.lower().replace(' ', '_')}"
+            text = _srd_entry_to_text(entry, category)
+            if not text.strip():
+                skipped += 1
+                continue
+            try:
+                self.rules_collection.add(
+                    documents=[text],
+                    ids=[doc_id],
+                    metadatas=[{"type": "srd", "category": category, "name": name}],
+                )
+                seeded += 1
+            except Exception:
+                # Duplicate ID = already seeded; skip silently
+                skipped += 1
+        return seeded, skipped
+
+    def srd_category_seeded(self, category):
+        """Return True if any SRD entries for this category are already in game_rules."""
+        try:
+            result = self.rules_collection.get(
+                where={"$and": [{"type": {"$eq": "srd"}}, {"category": {"$eq": category}}]},
+                limit=1,
+            )
+            return len(result['ids']) > 0
+        except Exception:
+            return False
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
@@ -184,3 +246,117 @@ class RAGSystem:
 def _entity_id(entity_name):
     """Canonical ChromaDB ID for an entity stat block entry."""
     return "entity_" + entity_name.lower().strip().replace(' ', '_')
+
+
+def _srd_entry_to_text(entry, category):
+    """
+    Convert a single SRD JSON entry dict to a retrievable markdown-style text block.
+
+    Handles the three main soryy708/dnd5-srd entry shapes:
+      - Monsters:   hit_points, armor_class, speed, actions, special_abilities, …
+      - Spells:     level, school, range, components, duration, desc, higher_level, …
+      - Equipment:  cost, weight, properties, desc, damage, …
+
+    Returns a plain-text string suitable for ChromaDB embedding.
+    """
+    name = entry.get('name', 'Unknown')
+    parts = [f"{category.rstrip('s').capitalize()}: {name}."]
+
+    # -- Monster fields --
+    if 'hit_points' in entry:
+        hp    = entry.get('hit_points', '?')
+        hp_d  = entry.get('hit_points_roll', '')
+        ac    = entry.get('armor_class', [{}])
+        ac_v  = ac[0].get('value', '?') if isinstance(ac, list) and ac else ac
+        cr    = entry.get('challenge_rating', '?')
+        size  = entry.get('size', '')
+        mtype = entry.get('type', '')
+        align = entry.get('alignment', '')
+        parts.append(
+            f"Type: {size} {mtype}, {align}. CR: {cr}. "
+            f"HP: {hp} ({hp_d}). AC: {ac_v}."
+        )
+        # Stats
+        stats = {k: entry.get(k) for k in
+                 ('strength','dexterity','constitution','intelligence','wisdom','charisma')
+                 if entry.get(k) is not None}
+        if stats:
+            stat_str = ', '.join(f"{k[:3].upper()} {v}" for k, v in stats.items())
+            parts.append(f"Stats: {stat_str}.")
+        # Speed
+        speed = entry.get('speed', {})
+        if speed:
+            sp_str = ', '.join(f"{k} {v}" for k, v in speed.items())
+            parts.append(f"Speed: {sp_str}.")
+        # Actions
+        for action in (entry.get('actions') or [])[:3]:
+            a_name = action.get('name', '')
+            a_desc = action.get('desc', '')[:120]
+            if a_name:
+                parts.append(f"Action — {a_name}: {a_desc}")
+        # Special abilities
+        for sa in (entry.get('special_abilities') or [])[:2]:
+            sa_name = action.get('name', '') if False else sa.get('name', '')
+            sa_desc = sa.get('desc', '')[:100]
+            if sa_name:
+                parts.append(f"Ability — {sa_name}: {sa_desc}")
+
+    # -- Spell fields --
+    elif 'spell_school' in entry or ('level' in entry and 'components' in entry):
+        level      = entry.get('level', 0)
+        school_d   = entry.get('school', {})
+        school     = school_d.get('name', school_d) if isinstance(school_d, dict) else school_d
+        spell_range = entry.get('range', '?')
+        duration   = entry.get('duration', '?')
+        cast_time  = (entry.get('casting_time') or '?')
+        conc       = entry.get('concentration', False)
+        ritual     = entry.get('ritual', False)
+        comps      = entry.get('components', [])
+        desc_list  = entry.get('desc', [])
+        desc_text  = ' '.join(desc_list[:2])[:200] if isinstance(desc_list, list) else str(desc_list)[:200]
+        hl_list    = entry.get('higher_level', [])
+        hl_text    = (' '.join(hl_list[:1])[:100]) if hl_list else ''
+        flags      = []
+        if conc:
+            flags.append('concentration')
+        if ritual:
+            flags.append('ritual')
+        parts.append(
+            f"Level {level} {school} spell. "
+            f"Cast time: {cast_time}. Range: {spell_range}. Duration: {duration}. "
+            f"Components: {', '.join(comps)}."
+            + (f" [{', '.join(flags)}]" if flags else '')
+        )
+        parts.append(desc_text)
+        if hl_text:
+            parts.append(f"At Higher Levels: {hl_text}")
+
+    # -- Equipment / items (fallback) --
+    else:
+        cost_d = entry.get('cost', {})
+        if isinstance(cost_d, dict):
+            cost = f"{cost_d.get('quantity', '')} {cost_d.get('unit', '')}".strip()
+        else:
+            cost = str(cost_d)
+        weight     = entry.get('weight', '')
+        desc_list  = entry.get('desc', [])
+        desc_text  = ' '.join(desc_list[:2])[:200] if isinstance(desc_list, list) else str(desc_list)[:200]
+        props      = [p.get('name', p) if isinstance(p, dict) else p
+                      for p in (entry.get('properties') or [])]
+        dmg_d      = entry.get('damage', {})
+        dmg_str    = ''
+        if dmg_d:
+            dice  = dmg_d.get('damage_dice', '')
+            dtype = (dmg_d.get('damage_type') or {})
+            dtype_name = dtype.get('name', '') if isinstance(dtype, dict) else str(dtype)
+            dmg_str = f"Damage: {dice} {dtype_name}."
+        if cost:
+            parts.append(f"Cost: {cost}." + (f" Weight: {weight} lb." if weight else ''))
+        if props:
+            parts.append(f"Properties: {', '.join(props)}.")
+        if dmg_str:
+            parts.append(dmg_str)
+        if desc_text:
+            parts.append(desc_text)
+
+    return ' '.join(parts)
