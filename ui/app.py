@@ -23,6 +23,25 @@ if 'save_manager' not in st.session_state:
     st.session_state.event_manager   = None
 
 # ---------------------------------------------------------------------------
+# Scene type styling (Waidrin-inspired Narrative Event labelling)
+# ---------------------------------------------------------------------------
+_SCENE_ICONS = {
+    'combat':      '⚔️',
+    'social':      '💬',
+    'exploration': '🗺️',
+    'puzzle':      '🧩',
+    'rest':        '🏕️',
+}
+
+_SCENE_COLOURS = {
+    'combat':      '#8B0000',
+    'social':      '#1a3a5c',
+    'exploration': '#1a4a1a',
+    'puzzle':      '#4a3a00',
+    'rest':        '#2a2a4a',
+}
+
+# ---------------------------------------------------------------------------
 # Main Menu
 # ---------------------------------------------------------------------------
 
@@ -62,7 +81,6 @@ def main_menu():
         if not saves:
             st.info("No saves found.")
         else:
-            # Show save name, location, and turn count in the selector label
             save_labels  = [f"{s['name']} — {s['location']} (turn {s['turns']})" for s in saves]
             save_names   = [s['name'] for s in saves]
             selected_idx = st.selectbox("Select Save", range(len(saves)),
@@ -86,27 +104,66 @@ def main_menu():
                     st.error("Failed to load save file.")
 
 # ---------------------------------------------------------------------------
-# Game Loop
+# Game Loop helpers
 # ---------------------------------------------------------------------------
 
 def _render_dice_result(dice_result):
-    """Display a dice roll banner when a skill check occurred."""
+    """Colour-coded dice roll banner shown before DM narrative on skill checks."""
     if dice_result is None:
         return
     outcome = dice_result['outcome']
-    colour_map = {
+    icon_map = {
         'critical_success': '🟡',
         'success':          '🟢',
         'failure':          '🔴',
         'critical_failure': '💀',
     }
-    icon = colour_map.get(outcome, '🎲')
+    icon  = icon_map.get(outcome, '🎲')
     label = outcome.replace('_', ' ').upper()
     st.info(
         f"{icon} **Dice Roll:** {dice_result['notation']} = "
         f"{dice_result['raw_roll']} + {dice_result['modifier']} "
         f"= **{dice_result['total']}** vs DC {dice_result['dc']} — **{label}**"
     )
+
+def _render_scene_label(scene_type):
+    """Small scene-type badge before DM narrative (Waidrin Narrative Event tagging)."""
+    icon  = _SCENE_ICONS.get(scene_type, '🗺️')
+    label = scene_type.capitalize()
+    st.caption(f"{icon} *{label} scene*")
+
+def _render_npc_tracker(state):
+    """Sidebar widget: show NPC affinity, mood, and goal for all tracked relationships."""
+    rels = state.relationships or {}
+    if not rels:
+        return
+    st.sidebar.markdown("---")
+    st.sidebar.write("**NPCs & Factions**")
+    for name, data in rels.items():
+        if isinstance(data, dict):
+            affinity = data.get('affinity', 0)
+            mood     = data.get('state', 'Neutral')
+            goal     = data.get('goal', '')
+        else:
+            # legacy flat integer
+            affinity, mood, goal = int(data), 'Neutral', ''
+
+        bar = _affinity_bar(affinity)
+        st.sidebar.write(f"**{name}**")
+        st.sidebar.write(f"  {bar} {affinity:+d} · {mood}")
+        if goal:
+            st.sidebar.caption(f"  Goal: {goal}")
+
+def _affinity_bar(affinity):
+    """ASCII affinity bar: ████░░░░ style, centred on zero."""
+    clamped = max(-100, min(100, affinity))
+    filled  = round((clamped + 100) / 200 * 10)
+    empty   = 10 - filled
+    return '█' * filled + '░' * empty
+
+# ---------------------------------------------------------------------------
+# Game Loop
+# ---------------------------------------------------------------------------
 
 def game_loop():
     player = st.session_state.player
@@ -115,17 +172,28 @@ def game_loop():
     # --- Sidebar: character sheet ---
     st.sidebar.title("Character Sheet")
     st.sidebar.write(f"**Name:** {player.name} ({player.race} {player.char_class})")
-    st.sidebar.write(f"**HP:** {player.hp}/{player.max_hp} | **MP:** {player.mp}/{player.max_mp}")
+
+    hp_pct = int((player.hp / max(player.max_hp, 1)) * 100)
+    mp_pct = int((player.mp / max(player.max_mp, 1)) * 100)
+    st.sidebar.write(f"**HP** {player.hp}/{player.max_hp}")
+    st.sidebar.progress(hp_pct)
+    st.sidebar.write(f"**MP** {player.mp}/{player.max_mp}")
+    st.sidebar.progress(mp_pct)
+
     st.sidebar.write(f"**ATK:** {player.atk} | **DEF:** {player.def_stat} | **MOV:** {player.mov}")
     st.sidebar.write(f"**Gold:** {player.gold}")
-    st.sidebar.write(f"**Turn:** {state.turn_count or 0} "
-                     f"(memory: last {config.SESSION_MEMORY_WINDOW})")
+    st.sidebar.write(f"**Turn:** {state.turn_count or 0}  "
+                     f"*(memory: last {config.SESSION_MEMORY_WINDOW})*")
 
     if player.inventory:
-        st.sidebar.write("**Inventory:**")
+        st.sidebar.markdown("---")
+        st.sidebar.write("**Inventory**")
         for item in player.inventory:
             name = item.get('name', item) if isinstance(item, dict) else item
             st.sidebar.write(f"  • {name}")
+
+    # NPC / faction tracker (enriched relationship data)
+    _render_npc_tracker(state)
 
     if st.sidebar.button("Save & Quit"):
         st.session_state.current_session.commit()
@@ -147,7 +215,10 @@ def game_loop():
         if item['role'] == 'player':
             st.markdown(f"**You:** {item['content']}")
         else:
-            # Show dice result banner before DM narrative when a roll occurred
+            # Scene type badge (Waidrin Narrative Event style)
+            scene_type = item.get('scene_type', 'exploration')
+            _render_scene_label(scene_type)
+            # Dice result banner (if a skill check occurred)
             _render_dice_result(item.get('dice_result'))
             st.markdown(f"**DM:** {item['content']}")
             if item.get('image'):
@@ -185,7 +256,6 @@ def game_loop():
     if action_taken:
         st.session_state.history.append({"role": "player", "content": action_taken})
         with st.spinner("The DM is thinking..."):
-            # process_turn now returns 4 values including the dice result
             response, choices, turn_data, dice_result = (
                 st.session_state.event_manager.process_turn(action_taken, state, player)
             )
@@ -204,6 +274,7 @@ def game_loop():
                 "role":        "dm",
                 "content":     response,
                 "choices":     choices,
+                "scene_type":  turn_data.get('scene_type', 'exploration'),
                 "dice_result": dice_result,
                 "image":       scene_image,
             })
