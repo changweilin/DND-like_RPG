@@ -54,6 +54,12 @@ class GameState(Base):
     # Each entry: {"turn": int, "player_action": str, "narrative": str, "outcome": str}
     session_memory = Column(JSON, default=lambda: [])
 
+    # Dynamically generated entity stat blocks, keyed by entity name (lower).
+    # Format: {name: {type, hp, max_hp, atk, def_stat, skills, special_ability,
+    #                 description, loot, alive}}
+    # Written on first encounter; HP updated live during combat; alive=False when dead.
+    known_entities = Column(JSON, default=lambda: {})
+
 class DatabaseManager:
     def __init__(self, db_path="savegame.db"):
         self.engine = create_engine(f'sqlite:///{db_path}')

@@ -233,6 +233,104 @@ class LLMClient:
             return _validated_stat_block({}, entity_name)
 
     # ------------------------------------------------------------------
+    # NPC generative agent reactions  (Section 3.5)
+    # ------------------------------------------------------------------
+
+    def evaluate_npc_reactions(self, event_summary, npc_states, language):
+        """
+        After a social/NPC-involved turn, ask the LLM how each NPC reacts
+        *independently* — their goals, moods, and relationships shift based on
+        what just happened.  Only NPCs whose state changes are returned.
+
+        Inspired by Park et al. (2023) Generative Agents: each NPC is treated
+        as a tiny autonomous agent with a persistent goal and emotional state,
+        not a static affinity integer.
+
+        Returns a dict: {npc_name: {affinity_delta, state, goal}}
+        Only NPCs whose state changes meaningfully are included.
+        """
+        npc_list = "\n".join(
+            f"- {name}: affinity={d.get('affinity', 0):+d}, state={d.get('state', 'Neutral')}, "
+            f"goal={d.get('goal', '')}"
+            for name, d in npc_states.items()
+        ) or "(no tracked NPCs)"
+
+        system_prompt = (
+            "You are simulating autonomous NPC reactions in a TRPG.\n"
+            "Based on the event, decide how each NPC's emotional state and goal changes.\n"
+            "Return ONLY NPCs whose state changes meaningfully — omit unchanged NPCs.\n"
+            "Respond ONLY with valid JSON, no markdown.\n\n"
+            "Schema:\n"
+            '{\n'
+            '  "NPC Name": {\n'
+            '    "affinity_delta": <integer -30 to +30>,\n'
+            '    "state": "<Friendly|Suspicious|Fearful|Hostile|Neutral|Grateful|Angry|...>",\n'
+            '    "goal": "<updated short-term goal for this NPC>"\n'
+            '  }\n'
+            '}\n\n'
+            f"Current NPC states:\n{npc_list}\n\n"
+            f"CRITICAL: Write all goal text EXCLUSIVELY in {language or 'English'}."
+        )
+        try:
+            response = ollama.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": f"Event that just occurred:\n{event_summary}"},
+                ],
+                format='json',
+            )
+            raw = _repair_json(response.message.content)
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                return data
+            return {}
+        except Exception as e:
+            print(f"NPC reaction evaluation error: {e}")
+            return {}
+
+    # ------------------------------------------------------------------
+    # Memory summarization  (Section 3.1)
+    # ------------------------------------------------------------------
+
+    def summarize_memory_segment(self, turns, language):
+        """
+        When the session_memory sliding window overflows, the oldest turns are
+        summarized into a single paragraph and stored in world_lore RAG as a
+        'chapter summary' — so long-term story continuity is never truly lost.
+
+        'turns' is a list of turn dicts:
+            {turn, player_action, narrative, outcome}
+
+        Returns a plain-text summary string.
+        """
+        lines = [
+            f"Turn {t.get('turn', '?')}: {t.get('player_action', '')} → {t.get('outcome', '')}"
+            for t in turns
+        ]
+        turns_text = "\n".join(lines)
+
+        system_prompt = (
+            "You are a historian summarizing past events in a TRPG campaign.\n"
+            "Write a single concise paragraph (3-5 sentences) summarizing the story\n"
+            "events listed below. Focus on narrative consequences, not mechanical details.\n"
+            f"Write EXCLUSIVELY in {language or 'English'}. Return plain text only, no JSON."
+        )
+        try:
+            response = ollama.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": f"Events to summarize:\n{turns_text}"},
+                ],
+            )
+            return response.message.content.strip()
+        except Exception as e:
+            print(f"Memory summarization error: {e}")
+            # Fallback: concatenate the last turn's player action only
+            return f"Earlier: {turns[-1].get('player_action', '')}..." if turns else ""
+
+    # ------------------------------------------------------------------
     # Legacy compatibility
     # ------------------------------------------------------------------
 

@@ -42,6 +42,8 @@ class SaveLoadManager:
                 "Village Elder": {"affinity": 10, "state": "Friendly", "goal": "Protect the village"}
             },
             session_memory=[],
+            # Dynamically generated entity stat blocks for live HP tracking
+            known_entities={},
         )
         session.add(game_state)
         session.commit()

@@ -100,13 +100,17 @@ ui/app.py                   ← Streamlit session state, rendering, dice banners
             └── engine/game_state.py ← SQLAlchemy ORM / DB sessions
 ```
 
-### One full turn (EventManager.process_turn) — 8 steps
+### One full turn (EventManager.process_turn) — 10 steps
 
 1. **RAG retrieval** — semantic search across `story_events`, `world_lore`,
    and `game_rules` collections
-2. **Intent parsing** — `LLMClient.parse_intent()` → structured intent:
+2. **World lore seeding** — on turn 0, chunk `world_context` into sentences
+   and seed `world_lore` RAG for future semantic retrieval (TaskingAI style)
+3. **Intent parsing** — `LLMClient.parse_intent()` → structured intent with
+   `thought_process` FIRST (Guided Thinking / One Trillion and One Nights):
    ```json
    {
+     "thought_process": "Player wants to leap — Acrobatics, medium difficulty",
      "action_type": "skill_check",
      "requires_roll": true,
      "skill": "acrobatics",
@@ -115,12 +119,20 @@ ui/app.py                   ← Streamlit session state, rendering, dice banners
      "summary": "Player attempts to leap over the lava trench"
    }
    ```
-3. **Dice roll** (if `requires_roll`) — `DiceRoller.roll_skill_check(dc, modifier)`
-   returns `{raw_roll, modifier, total, dc, outcome, notation}`
-4. **Narrative rendering** — `LLMClient.render_narrative()` receives the
-   dice result as hard facts and produces:
+4. **Dynamic entity stat block** — on first encounter with a named target,
+   generate a TRPG-compliant stat block via LLM, cache in `game_rules` RAG
+   and `known_entities` DB column (Infinite Monster Engine)
+5. **Combat rule engine** (if `action_type == 'attack'`) — fully deterministic:
+   attack roll `1d20 + ATK modifier` vs `target DEF`; on hit, roll weapon
+   damage (class-based dice + ATK modifier); critical (raw 20) doubles dice;
+   net damage after `DEF // 2` reduction; entity HP decremented in `known_entities`
+6. **Skill check dice roll** (if `requires_roll` and not combat) —
+   `DiceRoller.roll_skill_check(dc, modifier)` → `{raw_roll, modifier, total, dc, outcome, notation}`
+7. **Narrative rendering** — `LLMClient.render_narrative()` receives all
+   mechanical facts as structured text and produces:
    ```json
    {
+     "scene_type": "combat",
      "narrative": "...",
      "choices": ["...", "..."],
      "damage_taken": 0, "hp_healed": 0, "mp_used": 0,
@@ -128,13 +140,15 @@ ui/app.py                   ← Streamlit session state, rendering, dice banners
      "npc_relationship_changes": {}
    }
    ```
-5. **Apply mechanics** — `CharacterLogic` mutates HP, MP, inventory;
+8. **Apply mechanics** — `CharacterLogic` mutates HP, MP, inventory;
    `WorldManager` updates location and NPC states
-6. **Session memory update** — append turn to sliding window, trim to
-   `SESSION_MEMORY_WINDOW` (default 15), persist to SQLite
-7. **RAG persistence** — `RAGSystem.add_story_event()` stores the turn
-   in ChromaDB long-term memory
-8. Return `(narrative, choices, turn_data, dice_result)` to UI
+9. **NPC generative agent reactions** (social/NPC turns only) —
+   `LLMClient.evaluate_npc_reactions()` lets each NPC independently update
+   their goal and emotional state (Generative Agents, Park et al. 2023)
+10. **Session memory update + RAG persistence** — append turn to sliding
+    window, trim to `SESSION_MEMORY_WINDOW`; overflowed turns are summarized
+    via LLM and stored as chapter summaries in `world_lore` RAG; current
+    turn stored in `story_events` RAG; return to UI
 
 ---
 
@@ -145,16 +159,16 @@ ui/app.py                   ← Streamlit session state, rendering, dice banners
 | `GameConfig` | `engine/config.py` | Central constants — edit here for model/path/memory changes |
 | `DatabaseManager` | `engine/game_state.py` | SQLAlchemy session factory and table creation |
 | `Character` | `engine/game_state.py` | ORM model: name, race, class, HP/MP/ATK/DEF/MOV |
-| `GameState` | `engine/game_state.py` | ORM model: location, context, difficulty, language, session_memory |
+| `GameState` | `engine/game_state.py` | ORM model: location, context, difficulty, language, session_memory, known_entities |
 | `DiceRoller` | `engine/dice.py` | Authoritative TRPG dice roller — the only source of randomness |
-| `CharacterLogic` | `engine/character.py` | Stat mutations + skill modifier calculation |
+| `CharacterLogic` | `engine/character.py` | Stat mutations + skill modifiers + weapon damage notation |
 | `SaveLoadManager` | `engine/save_load.py` | Create new game or load existing save |
 | `WorldManager` | `engine/world.py` | Location updates + rich NPC entity tracking |
-| `LLMClient` | `ai/llm_client.py` | Ollama wrapper: `parse_intent()` + `render_narrative()` |
+| `LLMClient` | `ai/llm_client.py` | Ollama wrapper: `parse_intent()`, `render_narrative()`, `evaluate_npc_reactions()`, `summarize_memory_segment()` |
 | `RAGSystem` | `ai/rag_system.py` | ChromaDB: world_lore / story_events / game_rules collections |
 | `ImageGenerator` | `ai/image_gen.py` | SDXL-Turbo pipeline with VRAM load/unload |
 | `AudioGenerator` | `ai/audio_gen.py` | Stub — no real implementation yet |
-| `EventManager` | `logic/events.py` | 4-step neuro-symbolic turn orchestrator |
+| `EventManager` | `logic/events.py` | 10-step neuro-symbolic turn orchestrator |
 
 ---
 
@@ -221,6 +235,7 @@ Two SQLite tables managed by SQLAlchemy (auto-created on first run):
 | language | String | Narrative language (e.g., "繁體中文") |
 | relationships | JSON | `{npc: {affinity, state, goal}}` — see NPC Entity Tracking |
 | session_memory | JSON | Sliding window of last N turns — see Session Memory |
+| known_entities | JSON | `{name_lower: {type, hp, max_hp, atk, def_stat, alive, …}}` — live combat HP tracking |
 
 ---
 
@@ -325,17 +340,29 @@ ollama serve
 **Phase 1 — Intent Parsing:**
 ```python
 intent = llm.parse_intent(player_action, game_context_summary)
-# intent = {action_type, requires_roll, skill, dc, target, summary}
+# intent = {thought_process, action_type, requires_roll, skill, dc, target, summary}
 ```
 
 **Phase 2 — Narrative Rendering:**
 ```python
 turn_data = llm.render_narrative(system_prompt, outcome_context, rag_context)
-# turn_data = {narrative, choices, damage_taken, hp_healed, mp_used,
+# turn_data = {scene_type, narrative, choices, damage_taken, hp_healed, mp_used,
 #              items_found, location_change, npc_relationship_changes}
 ```
 
-Both methods include JSON repair (`_repair_json`) and key-defaulting
+**NPC Generative Agent Reactions (social turns):**
+```python
+reactions = llm.evaluate_npc_reactions(event_summary, npc_states, language)
+# reactions = {npc_name: {affinity_delta, state, goal}}  — only changed NPCs
+```
+
+**Memory Summarization (overflow turns):**
+```python
+summary = llm.summarize_memory_segment(turns, language)
+# summary = plain-text paragraph — stored in world_lore RAG as chapter summary
+```
+
+All methods include JSON repair (`_repair_json`) and key-defaulting
 (`_validated_intent`, `_validated_narrative`) so a malformed response never
 crashes the game loop.
 
@@ -422,6 +449,61 @@ ollama pull <new-model-name>
 ### Add world lore at game start
 Call `RAGSystem.add_world_lore(lore_text, lore_id)` inside
 `SaveLoadManager.create_new_game()` after the RAGSystem is initialized.
+
+---
+
+## Combat Rule Engine (Section 3.3)
+
+All combat is deterministic — the LLM only narrates; never adjudicates.
+
+```
+Attack roll: 1d20 + (ATK - 10) // 2  vs  target.def_stat
+  Critical (raw 20): doubles dice component of damage
+  Hit: roll weapon damage notation (class-based, see _CLASS_DAMAGE_MAP)
+  Net damage: raw_damage - (target.def_stat // 2), minimum 0
+Entity HP is tracked in known_entities[name_lower]['hp']
+  On defeat: known_entities[name_lower]['alive'] = False
+```
+
+`CharacterLogic.get_weapon_damage_notation()` returns the full notation
+string including ATK modifier, e.g. `"1d8+2"` for a Warrior with ATK 14.
+
+`CharacterLogic._CLASS_DAMAGE_MAP`:
+| Class | Dice |
+|---|---|
+| warrior | 1d8 |
+| mage | 1d4 |
+| rogue | 1d6 |
+| cleric | 1d6 |
+
+---
+
+## NPC Generative Agent Behavior (Section 3.5)
+
+After social scenes or turns with NPC relationship changes,
+`EventManager._evaluate_npc_reactions()` calls
+`LLMClient.evaluate_npc_reactions()`.
+
+Each NPC is treated as an autonomous agent with a persistent goal and
+emotional state (inspired by Park et al. 2023 "Generative Agents").
+Only NPCs whose state changes are returned — unchanged NPCs are omitted.
+
+The returned deltas are applied via `WorldManager.update_relationship()`.
+
+---
+
+## Memory Summarization (Section 3.1)
+
+When `session_memory` overflows (exceeds `SESSION_MEMORY_WINDOW`), the
+discarded turns are summarized via `LLMClient.summarize_memory_segment()`
+and stored as a chapter summary in the `world_lore` RAG collection:
+
+```
+[Chapter Summary — turns 1–15] Earlier in the adventure, ...
+```
+
+This ensures long-term story continuity even after the sliding window moves
+past early events.
 
 ---
 
