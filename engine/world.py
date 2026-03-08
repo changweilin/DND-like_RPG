@@ -1,3 +1,4 @@
+from sqlalchemy.orm.attributes import flag_modified
 from engine.game_state import GameState
 
 class WorldManager:
@@ -33,7 +34,7 @@ class WorldManager:
         if isinstance(existing, (int, float)):
             existing = {"affinity": int(existing), "state": "Neutral", "goal": ""}
 
-        existing["affinity"] = existing.get("affinity", 0) + affinity_delta
+        existing["affinity"] = max(-100, min(100, existing.get("affinity", 0) + affinity_delta))
         if state is not None:
             existing["state"] = state
         if goal is not None:
@@ -41,6 +42,9 @@ class WorldManager:
 
         rels[entity_name] = existing
         self.state.relationships = rels
+        # flag_modified is required: SQLAlchemy cannot detect in-place mutations
+        # to JSON columns without an explicit signal
+        flag_modified(self.state, 'relationships')
         self.session.commit()
 
     def get_relationship(self, entity_name):

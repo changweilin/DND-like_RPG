@@ -1,4 +1,5 @@
 import time
+from sqlalchemy.orm.attributes import flag_modified
 from engine.dice import DiceRoller
 from engine.character import CharacterLogic
 from engine.world import WorldManager
@@ -275,6 +276,7 @@ class EventManager:
             entry['alive'] = False
         known[key] = entry
         current_state.known_entities = known
+        flag_modified(current_state, 'known_entities')
         self.session.commit()
 
     # ------------------------------------------------------------------
@@ -406,6 +408,7 @@ class EventManager:
 
         current_state.session_memory = memory
         current_state.turn_count     = turn_number
+        flag_modified(current_state, 'session_memory')
         self.session.commit()
 
     def _seed_world_lore(self, current_state):
@@ -481,4 +484,5 @@ class EventManager:
                 'alive':           True,
             }
             current_state.known_entities = known
+            flag_modified(current_state, 'known_entities')
             self.session.commit()

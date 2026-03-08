@@ -188,6 +188,9 @@ class RAGSystem:
         """
         seeded = 0
         skipped = 0
+
+        # Build candidate (id, text, name) tuples first
+        candidates = []
         for entry in entries:
             name = entry.get('name') or entry.get('index') or ''
             if not name:
@@ -198,6 +201,23 @@ class RAGSystem:
             if not text.strip():
                 skipped += 1
                 continue
+            candidates.append((doc_id, text, name))
+
+        if not candidates:
+            return seeded, skipped
+
+        # Batch-check which IDs already exist (avoids relying on exception behavior
+        # which varies across ChromaDB versions)
+        candidate_ids = [c[0] for c in candidates]
+        try:
+            existing = set(self.rules_collection.get(ids=candidate_ids, include=[])['ids'])
+        except Exception:
+            existing = set()
+
+        for doc_id, text, name in candidates:
+            if doc_id in existing:
+                skipped += 1
+                continue
             try:
                 self.rules_collection.add(
                     documents=[text],
@@ -206,7 +226,6 @@ class RAGSystem:
                 )
                 seeded += 1
             except Exception:
-                # Duplicate ID = already seeded; skip silently
                 skipped += 1
         return seeded, skipped
 
