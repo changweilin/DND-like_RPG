@@ -133,6 +133,48 @@ def _render_model_switcher():
 # Main Menu
 # ---------------------------------------------------------------------------
 
+def _render_world_selector(form_key_prefix=""):
+    """World setting selectbox + info card. Returns (world_id, world_lore_override)."""
+    ws_labels = [
+        f"[{ws['category']}] {ws['name']}" for ws in config.WORLD_SETTINGS
+    ]
+    ws_ids = [ws['id'] for ws in config.WORLD_SETTINGS]
+
+    selected_ws_idx = st.selectbox(
+        "World Setting",
+        range(len(config.WORLD_SETTINGS)),
+        format_func=lambda i: ws_labels[i],
+        key=f"{form_key_prefix}world_setting_select",
+    )
+    ws = config.WORLD_SETTINGS[selected_ws_idx]
+
+    # World info card
+    with st.expander(f"ℹ️ About: {ws['name']}", expanded=False):
+        st.caption(ws.get('tone', ''))
+        tm = ws.get('term_map', {})
+        st.markdown(
+            f"| Stat | Term |\n|---|---|\n"
+            f"| HP | **{tm.get('hp_name', 'HP')}** |\n"
+            f"| MP / Magic resource | **{tm.get('mp_name', 'MP')}** |\n"
+            f"| Currency | **{tm.get('gold_name', 'gold')}** |\n"
+            f"| Fighter | **{tm.get('warrior_class', 'Warrior')}** |\n"
+            f"| Mage | **{tm.get('mage_class', 'Mage')}** |\n"
+            f"| Rogue | **{tm.get('rogue_class', 'Rogue')}** |\n"
+            f"| Healer | **{tm.get('cleric_class', 'Cleric')}** |\n"
+            f"| GM title | **{tm.get('dm_title', 'Game Master')}** |"
+        )
+        st.caption(f"Starting location: *{ws['starting_location']}*")
+
+    # Optional custom world lore override
+    custom_lore = st.text_area(
+        "Custom World Lore (optional — leave blank to use setting default)",
+        placeholder=ws.get('world_lore', '')[:200] + "...",
+        key=f"{form_key_prefix}world_lore",
+        height=80,
+    )
+    return ws['id'], custom_lore
+
+
 def main_menu():
     _check_model_updates()
     _render_model_switcher()
@@ -153,6 +195,34 @@ def main_menu():
             difficulty     = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"])
             language       = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"])
 
+            # World setting selector (outside form to enable dynamic info card)
+            st.markdown("**World Setting**")
+
+            ws_labels = [f"[{ws['category']}] {ws['name']}" for ws in config.WORLD_SETTINGS]
+            ws_ids    = [ws['id'] for ws in config.WORLD_SETTINGS]
+            ws_idx    = st.selectbox(
+                "Universe",
+                range(len(config.WORLD_SETTINGS)),
+                format_func=lambda i: ws_labels[i],
+                key="new_game_ws_select",
+            )
+            ws = config.WORLD_SETTINGS[ws_idx]
+            tm = ws.get('term_map', {})
+            st.caption(
+                f"**{ws['name']}** — {ws['description']}  \n"
+                f"HP→*{tm.get('hp_name','HP')}* · "
+                f"MP→*{tm.get('mp_name','MP')}* · "
+                f"Currency→*{tm.get('gold_name','gold')}* · "
+                f"GM=*{tm.get('dm_title','Game Master')}*"
+            )
+
+            custom_lore = st.text_area(
+                "Custom World Lore (optional — leave blank to use setting default)",
+                placeholder=ws.get('world_lore', '')[:180] + "...",
+                height=70,
+                key="new_game_lore",
+            )
+
             if st.form_submit_button("Start Adventure"):
                 if not save_name or not character_name:
                     st.error("Save Name and Character Name are required.")
@@ -160,9 +230,11 @@ def main_menu():
                     player, game_state, session = st.session_state.save_manager.create_new_game(
                         save_name, character_name, race, char_class,
                         appearance, personality, difficulty, language,
+                        world_context=custom_lore,
+                        world_setting=ws_ids[ws_idx],
                     )
                     if player is not None:
-                        st.success("Save created! Please load it to play.")
+                        st.success(f"Save created in the **{ws['name']}** setting! Load it to play.")
                     else:
                         st.error(f"Save name '{save_name}' already exists. Choose a different name.")
 
@@ -305,13 +377,17 @@ def game_loop():
 
     st.title(f"Location: {state.current_location}")
 
-    # Active model badge
+    # World setting + active model badges
+    ws_id = getattr(state, 'world_setting', None) or 'dnd5e'
+    ws    = config.get_world_setting(ws_id)
     active_preset = next(
         (p for p in config.MODEL_PRESETS if p['id'] == st.session_state.active_model_id),
         None,
     )
+    badge_parts = [f"🌍 **{ws['name']}**"]
     if active_preset:
-        st.caption(f"🤖 DM powered by **{active_preset['name']}** ({active_preset['category']})")
+        badge_parts.append(f"🤖 {active_preset['name']}")
+    st.caption("  ·  ".join(badge_parts))
 
     # --- Chat history ---
     if 'history' not in st.session_state:

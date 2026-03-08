@@ -60,11 +60,30 @@ class GameState(Base):
     # Written on first encounter; HP updated live during combat; alive=False when dead.
     known_entities = Column(JSON, default=lambda: {})
 
+    # World setting id — matches a key in GameConfig.WORLD_SETTINGS.
+    # Controls vocabulary, tone, starting location, and world lore seeded into RAG.
+    # Defaults to 'dnd5e' for classic Forgotten Realms experience.
+    world_setting = Column(String, default='dnd5e')
+
 class DatabaseManager:
     def __init__(self, db_path="savegame.db"):
         self.engine = create_engine(f'sqlite:///{db_path}')
         Base.metadata.create_all(self.engine)
+        self._migrate(self.engine)
         self.Session = sessionmaker(bind=self.engine)
+
+    def _migrate(self, engine):
+        """Add columns introduced after initial schema creation (non-destructive)."""
+        with engine.connect() as conn:
+            try:
+                conn.execute(
+                    __import__('sqlalchemy').text(
+                        "ALTER TABLE game_state ADD COLUMN world_setting VARCHAR DEFAULT 'dnd5e'"
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass  # column already exists
 
     def get_session(self):
         return self.Session()

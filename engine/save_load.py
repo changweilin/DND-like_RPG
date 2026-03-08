@@ -1,6 +1,6 @@
 import os
 from engine.game_state import DatabaseManager, GameState, Character
-from engine.config import config
+from engine.config import config, GameConfig
 
 class SaveLoadManager:
     """Handles creating, saving, and loading game sessions."""
@@ -15,13 +15,24 @@ class SaveLoadManager:
     def create_new_game(self, save_name, character_name, race, char_class,
                         appearance, personality,
                         difficulty="Normal", language="English",
-                        world_context="The world is a blank slate, waiting for heroes."):
+                        world_context="",
+                        world_setting="dnd5e"):
         session = self.db_manager.get_session()
 
         existing = session.query(GameState).filter_by(save_name=save_name).first()
         if existing:
             session.close()
             return None, None, None
+
+        # Pull world-setting defaults (starting location, NPC, lore)
+        ws = GameConfig.get_world_setting(world_setting)
+        starting_location = ws['starting_location']
+        starting_npc      = ws.get('starting_npc', {
+            "name": "Village Elder", "affinity": 10, "state": "Friendly",
+            "goal": "Protect the settlement",
+        })
+        # Use caller-supplied world_context; fall back to the world's built-in lore
+        effective_world_context = world_context.strip() or ws.get('world_lore', 'A world waiting to be explored.')
 
         player = Character(
             name=character_name,
@@ -39,20 +50,24 @@ class SaveLoadManager:
         session.add(player)
         session.commit()
 
+        npc_name = starting_npc['name']
         game_state = GameState(
             save_name=save_name,
-            current_location="Starting Village",
-            world_context=world_context,
+            current_location=starting_location,
+            world_context=effective_world_context,
             difficulty=difficulty,
             language=language,
+            world_setting=world_setting,
             player_id=player.id,
             turn_count=0,
-            # NPC entity format: {name: {affinity, state, goal}}
             relationships={
-                "Village Elder": {"affinity": 10, "state": "Friendly", "goal": "Protect the village"}
+                npc_name: {
+                    "affinity": starting_npc.get('affinity', 0),
+                    "state":    starting_npc.get('state', 'Neutral'),
+                    "goal":     starting_npc.get('goal', ''),
+                }
             },
             session_memory=[],
-            # Dynamically generated entity stat blocks for live HP tracking
             known_entities={},
         )
         session.add(game_state)

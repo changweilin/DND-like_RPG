@@ -322,14 +322,18 @@ class EventManager:
     # ------------------------------------------------------------------
 
     def _build_system_prompt(self, character, current_state):
-        npc_context = self._format_npc_state(current_state)
+        npc_context   = self._format_npc_state(current_state)
+        world_context = self._format_world_setting(current_state)
         return (
-            "You are a creative and strict Dungeon Master for a text RPG.\n"
+            f"{world_context}"
             f"The player is {character.name}, a {character.race} {character.char_class}.\n"
-            f"HP: {character.hp}/{character.max_hp}, MP: {character.mp}/{character.max_mp}, "
-            f"ATK: {character.atk}, DEF: {character.def_stat}.\n"
+            f"{config.get_world_setting(getattr(current_state, 'world_setting', None) or 'dnd5e')['term_map']['hp_name']}: "
+            f"{character.hp}/{character.max_hp}  "
+            f"{config.get_world_setting(getattr(current_state, 'world_setting', None) or 'dnd5e')['term_map']['mp_name']}: "
+            f"{character.mp}/{character.max_mp}  "
+            f"ATK: {character.atk}  DEF: {character.def_stat}.\n"
             f"Location: {current_state.current_location}.\n"
-            f"World: {current_state.world_context}\n"
+            f"World lore: {current_state.world_context}\n"
             f"Difficulty: {current_state.difficulty}\n"
             f"{npc_context}"
             f"CRITICAL: Write ALL narrative and choices EXCLUSIVELY in "
@@ -337,6 +341,27 @@ class EventManager:
             "Do NOT invent dice rolls or mechanical outcomes — "
             "those are provided to you as hard structured facts."
         )
+
+    def _format_world_setting(self, current_state):
+        """Build a vocabulary + tone block from the active world setting."""
+        ws_id = getattr(current_state, 'world_setting', None) or 'dnd5e'
+        ws    = config.get_world_setting(ws_id)
+        tm    = ws.get('term_map', {})
+        lines = [
+            f"You are a {tm.get('dm_title', 'Game Master')} running a {ws['name']} campaign.",
+            f"Tone: {ws.get('tone', '')}",
+            "Vocabulary — always use these setting-specific terms instead of generic DnD words:",
+            f"  HP → {tm.get('hp_name', 'HP')} | "
+            f"MP → {tm.get('mp_name', 'MP')} | "
+            f"Currency → {tm.get('gold_name', 'gold')}",
+            f"  Fighter class → {tm.get('warrior_class', 'Warrior')} | "
+            f"Mage class → {tm.get('mage_class', 'Mage')} | "
+            f"Rogue class → {tm.get('rogue_class', 'Rogue')} | "
+            f"Cleric class → {tm.get('cleric_class', 'Cleric')}",
+            f"  Ability checks → '{tm.get('skill_check', 'skill check')}'",
+            "",
+        ]
+        return "\n".join(lines) + "\n"
 
     def _format_npc_state(self, current_state):
         """Format current NPC relationships as a concise DM context block."""
