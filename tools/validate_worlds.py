@@ -1648,6 +1648,172 @@ def test_map_position_full_row_overflow():
 
 
 # ---------------------------------------------------------------------------
+# F — Player handbook (engine/manual.py) tests
+# ---------------------------------------------------------------------------
+
+def test_manual_chapter_count():
+    """build_manual_chapters() must return exactly 8 chapters for every world setting."""
+    _section("F1 · build_manual_chapters() — 8 chapters for all 14 worlds")
+    from engine.manual import build_manual_chapters
+
+    errors = 0
+    EXPECTED = 8
+    for ws in config.WORLD_SETTINGS:
+        chapters = build_manual_chapters(ws)
+        n = len(chapters)
+        if n != EXPECTED:
+            _fail(f"{ws['id']}: {n} chapters, expected {EXPECTED}")
+            errors += 1
+        else:
+            _ok(f"{ws['id']}: {n} chapters ✓")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_manual_chapter_structure():
+    """Every chapter must have non-empty icon, title, content, and tags list."""
+    _section("F2 · Chapter structure — icon, title, content, tags present")
+    from engine.manual import build_manual_chapters
+
+    errors = 0
+    ws = config.get_world_setting('dnd5e')
+    chapters = build_manual_chapters(ws)
+
+    for i, ch in enumerate(chapters):
+        if not ch.get('icon', '').strip():
+            _fail(f"Chapter {i}: empty icon")
+            errors += 1
+        if not ch.get('title', '').strip():
+            _fail(f"Chapter {i}: empty title")
+            errors += 1
+        if len(ch.get('content', '')) < 50:
+            _fail(f"Chapter {i} '{ch.get('title')}': content too short ({len(ch.get('content', ''))} chars)")
+            errors += 1
+        if not isinstance(ch.get('tags', None), list) or len(ch.get('tags', [])) < 2:
+            _fail(f"Chapter {i} '{ch.get('title')}': tags missing or too few")
+            errors += 1
+        else:
+            _ok(f"Chapter {i} '{ch['title']}': icon={ch['icon']}, "
+                f"len={len(ch['content'])}, tags={len(ch['tags'])}")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_manual_vocabulary_substitution():
+    """Setting-specific vocabulary must appear in chapter content (not default DnD terms)."""
+    _section("F3 · Vocabulary substitution — setting terms appear in content")
+    from engine.manual import build_manual_chapters
+
+    # Pick worlds with clearly distinct vocabulary
+    test_cases = [
+        ('wh40k',            'hp_name',      'Wounds',               'combat'),
+        ('shadowrun',        'gold_name',     'nuyen',                'vocabulary'),
+        ('blades_in_the_dark','hp_name',      'Harm',                 'combat'),
+        ('hearts_of_wulin',  'gold_name',     'silver taels',         'vocabulary'),
+        ('deadlands',        'dm_title',      'Marshal',              'ai'),
+        ('call_of_cthulhu',  'mp_name',       'Sanity',               'dice'),
+        ('l5r',              'warrior_class', 'Bushi',                'classes'),
+    ]
+
+    errors = 0
+    for ws_id, tm_key, expected_term, chapter_hint in test_cases:
+        ws = config.get_world_setting(ws_id)
+        if not ws:
+            _fail(f"{ws_id}: world setting not found")
+            errors += 1
+            continue
+
+        actual_val = ws.get('term_map', {}).get(tm_key, '')
+        if not actual_val:
+            _warn(f"{ws_id}.{tm_key}: not set in config, skipping")
+            continue
+
+        chapters = build_manual_chapters(ws)
+        # Search all chapter content for the world-specific term
+        found_in = [ch['title'] for ch in chapters if actual_val.lower() in ch['content'].lower()]
+        if found_in:
+            _ok(f"{ws_id} · {tm_key}={actual_val!r}: appears in {found_in}")
+        else:
+            _fail(f"{ws_id} · {tm_key}={actual_val!r}: NOT found in any chapter content")
+            errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_manual_search_tags():
+    """Common gameplay keywords must exist in at least one chapter's tags."""
+    _section("F4 · Keyword search tags — gameplay keywords indexable")
+    from engine.manual import build_manual_chapters
+
+    # These are typical player search queries
+    search_keywords = [
+        'attack', 'damage', 'dice', 'dc', 'stealth', 'arcana',
+        'warrior', 'mage', 'cleric', 'rogue', 'ai', 'exploration',
+        'map', 'combat', 'skill', 'vocabulary',
+    ]
+
+    errors = 0
+    ws = config.get_world_setting('dnd5e')
+    chapters = build_manual_chapters(ws)
+
+    for kw in search_keywords:
+        # Tag or content match (mirrors what the search bar does)
+        hits = [
+            ch for ch in chapters
+            if kw in ch.get('content', '').lower()
+            or any(kw in t for t in ch.get('tags', []))
+        ]
+        if hits:
+            _ok(f"'{kw}': found in {[ch['title'] for ch in hits[:2]]}")
+        else:
+            _fail(f"'{kw}': not found in any chapter content or tags")
+            errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_manual_world_differentiation():
+    """Chapter content must differ meaningfully across different world settings."""
+    _section("F5 · World content differentiation — distinct chapters per setting")
+    from engine.manual import build_manual_chapters
+
+    errors = 0
+    # Compare dnd5e vs 5 other settings on combat + vocabulary chapters
+    base_ws  = config.get_world_setting('dnd5e')
+    base_chapters = build_manual_chapters(base_ws)
+    base_combat   = next(ch['content'] for ch in base_chapters if '戰鬥' in ch['title'])
+    base_vocab    = next(ch['content'] for ch in base_chapters if '術語' in ch['title'])
+
+    check_ids = ['wh40k', 'shadowrun', 'call_of_cthulhu', 'hearts_of_wulin', 'deadlands']
+    for ws_id in check_ids:
+        ws = config.get_world_setting(ws_id)
+        if not ws:
+            continue
+        chs     = build_manual_chapters(ws)
+        combat  = next(ch['content'] for ch in chs if '戰鬥' in ch['title'])
+        vocab   = next(ch['content'] for ch in chs if '術語' in ch['title'])
+
+        if combat == base_combat:
+            _fail(f"{ws_id}: combat chapter identical to dnd5e (vocabulary not substituted)")
+            errors += 1
+        else:
+            _ok(f"{ws_id}: combat chapter differs from dnd5e ✓")
+
+        if vocab == base_vocab:
+            _fail(f"{ws_id}: vocabulary chapter identical to dnd5e")
+            errors += 1
+        else:
+            _ok(f"{ws_id}: vocabulary chapter differs from dnd5e ✓")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+# ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
 # ---------------------------------------------------------------------------
 
@@ -1685,7 +1851,7 @@ if __name__ == '__main__':
     print()
     print("╔══════════════════════════════════════════════════════════════════════════╗")
     print("║  DND-like RPG — World Setting Validator                                  ║")
-    print("║  A: text diff · B: flow · C: multi-player · D: AI+6p · E: board        ║")
+    print("║  A: text diff · B: flow · C: multi-player · D: AI+6p · E: board · F: manual ║")
     print("╚══════════════════════════════════════════════════════════════════════════╝")
 
     results = {}
@@ -1727,6 +1893,13 @@ if __name__ == '__main__':
     results['E3 default row=3 settlement']        = test_assign_map_position_settlement_default()
     results['E4 build_map_html structure']        = test_build_map_html_structure()
     results['E5 overflow to adjacent row']        = test_map_position_full_row_overflow()
+
+    # F — Player handbook (manual.py)
+    results['F1 chapter count all worlds']        = test_manual_chapter_count()
+    results['F2 chapter structure fields']        = test_manual_chapter_structure()
+    results['F3 vocabulary substitution']         = test_manual_vocabulary_substitution()
+    results['F4 keyword search tags']             = test_manual_search_tags()
+    results['F5 world content differentiation']   = test_manual_world_differentiation()
 
     # Bonus table
     print_vocabulary_diff_table()

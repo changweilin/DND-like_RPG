@@ -792,144 +792,98 @@ def _render_characters_tab(party, state, active_char):
                     st.caption(f"性格: {char.personality}")
 
 # ---------------------------------------------------------------------------
-# Rules tab — combat, DC table, vocabulary, class reference
+# Rules tab — full world-aware player handbook with chapter navigation + search
 # ---------------------------------------------------------------------------
 
 def _render_rules_tab(state):
-    """Tab 4 — 規則: combat rules, DC table, vocabulary, class reference."""
+    """Tab 4 — 📜 規則: world-aware player handbook with search and chapter nav."""
+    from engine.manual import build_manual_chapters
+
     ws_id = getattr(state, 'world_setting', None) or 'dnd5e'
     ws    = config.get_world_setting(ws_id)
-    tm    = ws.get('term_map', {})
+    chapters = build_manual_chapters(ws)
 
-    r_combat, r_dice, r_vocab, r_classes, r_ai = st.tabs(
-        ["⚔️ 戰鬥", "🎲 骰子", "📚 詞彙", "🧙 職業", "🤖 AI玩家"]
+    # ── Keyword search ──────────────────────────────────────────────────────
+    search = st.text_input(
+        "🔍 搜尋手冊關鍵字",
+        key="manual_search",
+        placeholder="輸入關鍵字，例如：attack、骰子、stealth…",
     )
 
-    with r_combat:
-        st.markdown(f"""### ⚔️ 戰鬥規則 ({ws['name']})
-
-**攻擊判定:**
-```
-攻擊骰: 1d20 + ATK修正  ≥  目標DEF → 命中
-ATK修正 = (ATK − 10) ÷ 2  (向下取整)
-```
-
-**傷害計算:**
-```
-傷害 = 傷害骰 + ATK修正
-淨傷害 = 傷害 − (目標DEF ÷ 2)   (最低 0)
-```
-
-**致命一擊 (自然20):**
-```
-骰子部分 × 2 + ATK修正
-```
-
-**職業武器傷害骰:**
-
-| 職業 | 傷害骰 |
-|:---|:---:|
-| {tm.get('warrior_class','Warrior')} | 1d8 |
-| {tm.get('mage_class','Mage')} | 1d4 |
-| {tm.get('rogue_class','Rogue')} | 1d6 |
-| {tm.get('cleric_class','Cleric')} | 1d6 |
-
-**NPC狀態:** HP由規則引擎追蹤。擊敗後標記 `alive = False`，LLM僅負責敘述。
-""")
-
-    with r_dice:
-        st.markdown("""### 🎲 技能檢定與難度等級
-
-| DC | 難度 | 說明 |
-|:---:|:---:|:---|
-| 5 | 極易 | 幾乎任何人都能完成 |
-| 10 | 容易 | 有技能者通常成功 |
-| 15 | 中等 | 需要專注與技巧 |
-| 20 | 困難 | 只有精英才能穩定通過 |
-| 25 | 極難 | 幾乎是英雄壯舉 |
-| 30 | 近乎不可能 | |
-
-**結果判定:**
-
-| 骰面 | 結果 |
-|:---:|:---|
-| 自然 20 | 💛 **致命成功** |
-| ≥ DC | 💚 **成功** |
-| < DC | 🔴 **失敗** |
-| 自然 1 | 💀 **致命失敗** |
-
-**技能修正公式:**
-```
-修正值 = (對應能力值 − 10) ÷ 2  (向下取整)
-```
-骰子引擎完全獨立於 LLM — 所有隨機結果由 Python 計算，LLM 僅負責敘述結果。
-""")
-
-    with r_vocab:
-        st.markdown(f"### 📚 {ws['name']} 世界詞彙對照表")
-        vocab_rows = [
-            {"通用術語": "HP (生命值)",     "本世界設定": tm.get('hp_name', 'HP')},
-            {"通用術語": "MP (魔力/資源)",  "本世界設定": tm.get('mp_name', 'MP')},
-            {"通用術語": "金幣 (貨幣)",     "本世界設定": tm.get('gold_name', 'gold')},
-            {"通用術語": "戰士 (職業)",     "本世界設定": tm.get('warrior_class', 'Warrior')},
-            {"通用術語": "法師 (職業)",     "本世界設定": tm.get('mage_class', 'Mage')},
-            {"通用術語": "盜賊 (職業)",     "本世界設定": tm.get('rogue_class', 'Rogue')},
-            {"通用術語": "牧師 (職業)",     "本世界設定": tm.get('cleric_class', 'Cleric')},
-            {"通用術語": "遊戲主持人",      "本世界設定": tm.get('dm_title', 'Game Master')},
-            {"通用術語": "技能檢定",        "本世界設定": tm.get('skill_check', 'skill check')},
+    if search.strip():
+        query = search.lower()
+        matched = [
+            (i, ch) for i, ch in enumerate(chapters)
+            if query in ch['content'].lower()
+            or query in ch['title'].lower()
+            or any(query in t for t in ch.get('tags', []))
         ]
-        st.dataframe(vocab_rows, use_container_width=True, hide_index=True)
-        st.caption(f"📖 設定描述: {ws.get('description', '')}")
-        st.caption(f"🎭 敘事基調: {ws.get('tone', '')}")
+        if matched:
+            st.success(f"找到 **{len(matched)}** 個章節包含「{search}」")
+            for _, ch in matched:
+                with st.expander(f"{ch['icon']} {ch['title']}", expanded=True):
+                    st.markdown(ch['content'])
+        else:
+            st.warning(f"未找到包含「{search}」的章節。請嘗試其他關鍵字。")
+        return
 
-    with r_classes:
-        st.markdown("### 🧙 職業基礎數值與角色定位")
-        class_icons = {'warrior': '⚔️', 'mage': '🔮', 'rogue': '🗡️', 'cleric': '✨'}
-        for cls, base in config.CLASS_BASE_STATS.items():
-            icon = class_icons.get(cls, '👤')
-            with st.expander(f"{icon} {cls.title()} — {base.get('role', '')}", expanded=False):
-                s_cols = st.columns(5)
-                for col, (label, val) in zip(s_cols, [
-                    ('HP', base['hp']), ('MP', base['mp']),
-                    ('ATK', base['atk']), ('DEF', base['def_stat']), ('MOV', base['mov']),
-                ]):
-                    col.metric(label, val)
-                st.caption(
-                    f"💰 初始金幣: {base.get('gold', '?')}  ·  "
-                    f"⚖ 終局獎勵權重: ×{base.get('reward_weight', 1.0):.2f}"
-                )
+    # ── Chapter navigation ──────────────────────────────────────────────────
+    if 'manual_chapter_idx' not in st.session_state:
+        st.session_state.manual_chapter_idx = 0
 
-    with r_ai:
-        st.markdown("### 🤖 AI 玩家系統說明")
-        st.markdown("#### 性格特質 (Personality)")
-        for p_key, p_cfg in config.AI_PERSONALITIES.items():
-            with st.expander(f"**{p_cfg['name']}**"):
-                st.write(p_cfg['description'])
-                st.caption(
-                    f"action_bias={p_cfg.get('action_bias')}  ·  "
-                    f"heal_threshold={p_cfg.get('heal_threshold')}"
-                )
+    idx = min(st.session_state.manual_chapter_idx, len(chapters) - 1)
+    n   = len(chapters)
+    chapter_labels = [f"{ch['icon']} {ch['title']}" for ch in chapters]
 
-        st.markdown("#### 難度等級 (Difficulty)")
-        for d_key, d_cfg in config.AI_DIFFICULTIES.items():
-            with st.expander(f"**{d_cfg['name']}**"):
-                st.write(d_cfg['description'])
-                st.caption(
-                    f"use_decision_tree={d_cfg.get('use_decision_tree')}  ·  "
-                    f"use_llm={d_cfg.get('use_llm')}"
-                )
+    # Nav bar: ◀  chapter selector  ▶
+    col_prev, col_sel, col_next = st.columns([1, 7, 1])
+    with col_prev:
+        if st.button("◀", key="manual_prev", disabled=(idx == 0),
+                     use_container_width=True):
+            st.session_state.manual_chapter_idx = idx - 1
+            st.rerun()
+    with col_sel:
+        sel = st.selectbox(
+            "章節",
+            range(n),
+            index=idx,
+            format_func=lambda i: chapter_labels[i],
+            key="manual_chapter_sel",
+            label_visibility="collapsed",
+        )
+        if sel != idx:
+            st.session_state.manual_chapter_idx = sel
+            st.rerun()
+    with col_next:
+        if st.button("▶", key="manual_next", disabled=(idx == n - 1),
+                     use_container_width=True):
+            st.session_state.manual_chapter_idx = idx + 1
+            st.rerun()
 
-        st.markdown("""#### 決策流程 (Decision Tree Priority)
-```
-1. Aggressive 性格且有敵人 → 立即攻擊最強敵人
-2. HP 極低 (< threshold×0.5) + MP 充足 → 自我治療
-3. Support 性格或 Cleric + 隊友 HP 低 → 治療隊友
-4. HP 低 (< threshold) + 非 Aggressive → 自我治療
-5. 有存活敵人 → 攻擊 (Tactical 選最弱, Aggressive 選最強)
-6. HP 低且無敵人 → 防禦退場
-7. 預設 → 探索場景
-```
-""")
+    # Progress dots  ● ○ ○ ...
+    dots = ''.join('● ' if i == idx else '○ ' for i in range(n))
+    st.caption(f"第 {idx + 1} / {n} 章　{dots.strip()}")
+    st.divider()
+
+    # Chapter content
+    ch = chapters[idx]
+    st.markdown(ch['content'])
+
+    st.divider()
+
+    # ── Table of Contents (collapsible) ────────────────────────────────────
+    with st.expander("📋 目錄 — 點擊快速跳章", expanded=False):
+        toc_cols = st.columns(2)
+        for i, c in enumerate(chapters):
+            btn_label = f"{c['icon']} {c['title']}"
+            active    = "**" if i == idx else ""
+            if toc_cols[i % 2].button(
+                f"{active}{btn_label}{active}",
+                key=f"toc_btn_{i}",
+                use_container_width=True,
+            ):
+                st.session_state.manual_chapter_idx = i
+                st.rerun()
 
 # ---------------------------------------------------------------------------
 # Main game loop (tabbed layout)
