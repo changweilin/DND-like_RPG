@@ -177,16 +177,31 @@ def _render_world_selector(form_key_prefix=""):
 
 
 def _player_config_fields(idx, key_prefix):
-    """Render name/race/class/appearance/personality fields for one party member."""
-    label = "Player 1 (Party Leader)" if idx == 0 else f"Player {idx + 1}"
+    """
+    Render config fields for one party member.
+
+    Slot 0 is always human (party leader). Slots 1-5 may be AI-controlled.
+    Returns (name, race, char_class, appearance, personality,
+             is_ai, ai_personality, ai_difficulty).
+    """
+    flag  = config.PLAYER_FLAGS[idx] if idx < len(config.PLAYER_FLAGS) else '👤'
+    label = f"{flag} Player 1 (Party Leader)" if idx == 0 else f"{flag} Player {idx + 1}"
     st.markdown(f"**{label}**")
+
+    # AI toggle — only for slots 1+; party leader is always human
+    is_ai          = False
+    ai_personality = 'tactical'
+    ai_difficulty  = 'normal'
+    if idx > 0:
+        is_ai = st.checkbox("🤖 AI-controlled", key=f"{key_prefix}_is_ai_{idx}", value=False)
+
     cols = st.columns([2, 1, 1])
     name       = cols[0].text_input("Name",  key=f"{key_prefix}_name_{idx}")
     race       = cols[1].selectbox("Race", ["Human", "Elf", "Dwarf", "Orc", "Halfling"],
                                    key=f"{key_prefix}_race_{idx}")
     char_class = cols[2].selectbox("Class", ["Warrior", "Mage", "Rogue", "Cleric"],
                                    key=f"{key_prefix}_class_{idx}")
-    # Show balanced base stats for selected class
+
     base = config.CLASS_BASE_STATS.get(char_class.lower(), {})
     st.caption(
         f"HP {base.get('max_hp','?')} · MP {base.get('max_mp','?')} · "
@@ -194,11 +209,42 @@ def _player_config_fields(idx, key_prefix):
         f"MOV {base.get('mov','?')} · "
         f"⚖ reward×{base.get('reward_weight',1.0):.2f} — *{base.get('role','')}*"
     )
-    appearance  = st.text_input("Appearance", key=f"{key_prefix}_app_{idx}",
-                                placeholder="A brave adventurer.")
-    personality = st.text_input("Personality", key=f"{key_prefix}_per_{idx}",
-                                placeholder="Courageous and kind.")
-    return name, race, char_class, appearance, personality
+
+    if is_ai:
+        # AI config: personality + difficulty selectors
+        ai_cols = st.columns(2)
+        personalities      = list(config.AI_PERSONALITIES.keys())
+        personality_labels = [config.AI_PERSONALITIES[p]['name'] for p in personalities]
+        ai_p_idx = ai_cols[0].selectbox(
+            "AI Personality",
+            range(len(personalities)),
+            format_func=lambda i: personality_labels[i],
+            key=f"{key_prefix}_ai_pers_{idx}",
+        )
+        ai_personality = personalities[ai_p_idx]
+
+        difficulties      = list(config.AI_DIFFICULTIES.keys())
+        difficulty_labels = [config.AI_DIFFICULTIES[d]['name'] for d in difficulties]
+        ai_d_idx = ai_cols[1].selectbox(
+            "AI Difficulty",
+            range(len(difficulties)),
+            format_func=lambda i: difficulty_labels[i],
+            key=f"{key_prefix}_ai_diff_{idx}",
+        )
+        ai_difficulty = difficulties[ai_d_idx]
+
+        p_desc = config.AI_PERSONALITIES.get(ai_personality, {}).get('description', '')
+        d_desc = config.AI_DIFFICULTIES.get(ai_difficulty, {}).get('description', '')
+        st.caption(f"🧠 {p_desc}  ·  ⚡ {d_desc}")
+        appearance  = ""
+        personality_text = ""
+    else:
+        appearance       = st.text_input("Appearance",  key=f"{key_prefix}_app_{idx}",
+                                         placeholder="A brave adventurer.")
+        personality_text = st.text_input("Personality", key=f"{key_prefix}_per_{idx}",
+                                         placeholder="Courageous and kind.")
+
+    return name, race, char_class, appearance, personality_text, is_ai, ai_personality, ai_difficulty
 
 
 def main_menu():
@@ -239,11 +285,11 @@ def main_menu():
                 height=60, key="new_game_lore",
             )
 
-            # Party size selector
+            # Party size selector (1-6 players; unfilled slots can be AI)
             st.markdown("---")
-            st.markdown("**Party (1-4 players)**")
+            st.markdown("**Party (1-6 players)**")
             num_players = st.selectbox(
-                "Number of players", [1, 2, 3, 4], key="new_game_num_players"
+                "Number of players", list(range(1, 7)), key="new_game_num_players"
             )
 
             # Per-player config fields
@@ -261,10 +307,17 @@ def main_menu():
                     st.error("Save Name and Player 1 Name are required.")
                 else:
                     extra = []
-                    for name, race, char_class, app, per in player_fields[1:]:
-                        extra.append({'name': name or f'Adventurer {len(extra)+2}',
-                                      'race': race, 'char_class': char_class,
-                                      'appearance': app, 'personality': per})
+                    for name, race, char_class, app, per, is_ai, ai_pers, ai_diff in player_fields[1:]:
+                        extra.append({
+                            'name':           name or f'Adventurer {len(extra)+2}',
+                            'race':           race,
+                            'char_class':     char_class,
+                            'appearance':     app,
+                            'personality':    per,
+                            'is_ai':          is_ai,
+                            'ai_personality': ai_pers,
+                            'ai_difficulty':  ai_diff,
+                        })
                     party, game_state, session = (
                         st.session_state.save_manager.create_new_game(
                             save_name, lead[0], lead[1], lead[2], lead[3], lead[4],
@@ -276,8 +329,10 @@ def main_menu():
                     )
                     if party is not None:
                         names = ", ".join(c.name for c in party)
+                        ai_count = sum(1 for e in extra if e.get('is_ai'))
+                        suffix   = f" ({ai_count} AI)" if ai_count else ""
                         st.success(
-                            f"Party [{names}] created in **{ws['name']}**! Load it to play."
+                            f"Party [{names}]{suffix} created in **{ws['name']}**! Load it to play."
                         )
                     else:
                         st.error(f"Save name '{save_name}' already exists.")
@@ -383,22 +438,65 @@ def _affinity_bar(affinity):
 # ---------------------------------------------------------------------------
 
 def _render_party_sidebar(party, state, active_char):
-    """Sidebar: compact card per party member; active player highlighted."""
-    ws_id = getattr(state, 'world_setting', None) or 'dnd5e'
-    tm    = config.get_world_setting(ws_id)['term_map']
+    """Sidebar: compact card per party member with flag, AI badge, and active highlight."""
+    ws_id  = getattr(state, 'world_setting', None) or 'dnd5e'
+    tm     = config.get_world_setting(ws_id)['term_map']
     hp_lbl = tm.get('hp_name', 'HP')
     mp_lbl = tm.get('mp_name', 'MP')
+    ai_cfgs = getattr(state, 'ai_configs', None) or {}
 
     st.sidebar.title("Party")
-    for char in party:
-        is_active  = (char.id == active_char.id)
-        is_dead    = (char.hp <= 0)
-        prefix     = "⚔️ " if is_active else "   "
-        status_sfx = " ☠" if is_dead else (" ◀" if is_active else "")
-        st.sidebar.markdown(
-            f"**{prefix}{char.name}**{status_sfx}  "
-            f"*{char.race} {char.char_class}*"
-        )
+
+    # CSS for the flashing active-player highlight (injected once per render)
+    st.sidebar.markdown(
+        "<style>"
+        "@keyframes pulse-active{"
+        "  0%,100%{background:#1a4a1a;}"
+        "  50%{background:#2d6b2d;}"
+        "}"
+        ".active-slot{animation:pulse-active 1.8s ease-in-out infinite;"
+        "  border-left:4px solid #4caf50;padding:4px 6px;border-radius:4px;margin:2px 0;}"
+        ".dead-slot{border-left:4px solid #8b0000;padding:4px 6px;border-radius:4px;margin:2px 0;"
+        "  background:#2a0a0a;}"
+        "</style>",
+        unsafe_allow_html=True,
+    )
+
+    for i, char in enumerate(party):
+        flag      = config.PLAYER_FLAGS[i] if i < len(config.PLAYER_FLAGS) else '👤'
+        is_active = (char.id == active_char.id)
+        is_dead   = (char.hp <= 0)
+        ai_cfg    = ai_cfgs.get(str(i), {})
+        is_ai     = ai_cfg.get('is_ai', False)
+        ai_badge  = " 🤖" if is_ai else ""
+
+        if is_dead:
+            st.sidebar.markdown(
+                f"<div class='dead-slot'>"
+                f"<b>{flag}{ai_badge} {char.name}</b> ☠<br/>"
+                f"<i style='font-size:0.85em'>{char.race} {char.char_class}</i>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        elif is_active:
+            personality_label = ""
+            if is_ai:
+                p = ai_cfg.get('personality', '')
+                personality_label = f" · {config.AI_PERSONALITIES.get(p, {}).get('name', p)}"
+            st.sidebar.markdown(
+                f"<div class='active-slot'>"
+                f"<b>{flag}{ai_badge} {char.name}</b>{personality_label}"
+                f" <span style='color:#4caf50'>▶ ACTIVE</span><br/>"
+                f"<i style='font-size:0.85em'>{char.race} {char.char_class}</i>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.sidebar.markdown(
+                f"**{flag}{ai_badge} {char.name}**  "
+                f"*{char.race} {char.char_class}*"
+            )
+
         if not is_dead:
             hp_pct = int(char.hp / max(char.max_hp, 1) * 100)
             mp_pct = int(char.mp / max(char.max_mp, 1) * 100)
@@ -410,13 +508,11 @@ def _render_party_sidebar(party, state, active_char):
                 f"ATK {char.atk} · DEF {char.def_stat} · MOV {char.mov} · "
                 f"{tm.get('gold_name','gold')}: {char.gold}"
             )
-        else:
-            st.sidebar.error("DEFEATED")
 
         if char.inventory:
             inv_names = [
-                i.get('name', i) if isinstance(i, dict) else i
-                for i in char.inventory
+                it.get('name', it) if isinstance(it, dict) else it
+                for it in char.inventory
             ]
             st.sidebar.caption("Inventory: " + ", ".join(inv_names))
         st.sidebar.markdown("---")
@@ -472,7 +568,15 @@ def game_loop():
     if active_preset:
         badge_parts.append(f"🤖 {active_preset['name']}")
     if len(party) > 1:
-        badge_parts.append(f"👥 {len(party)} players")
+        ai_count = sum(
+            1 for i in range(len(party))
+            if (getattr(state, 'ai_configs', None) or {}).get(str(i), {}).get('is_ai', False)
+        )
+        human_count = len(party) - ai_count
+        party_badge = f"👥 {human_count}H"
+        if ai_count:
+            party_badge += f"+{ai_count}🤖"
+        badge_parts.append(party_badge)
     st.caption("  ·  ".join(badge_parts))
 
     # --- Chat history ---
@@ -494,13 +598,43 @@ def game_loop():
             if item.get('image'):
                 st.image(item['image'], caption="Scene visualization")
 
+    # --- Auto-run AI turns before showing human input ---
+    ai_cfgs    = getattr(state, 'ai_configs', None) or {}
+    active_ai  = ai_cfgs.get(str(active_idx), {})
+    is_ai_turn = active_ai.get('is_ai', False) and active_char.hp > 0
+
+    if is_ai_turn:
+        flag         = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else '🤖'
+        personality  = active_ai.get('personality', 'tactical')
+        p_name       = config.AI_PERSONALITIES.get(personality, {}).get('name', personality.title())
+        spinner_msg  = f"🤖 {flag} {active_char.name} ({p_name}) is deciding..."
+        with st.spinner(spinner_msg):
+            action_text, response, choices, turn_data, dice_result = (
+                st.session_state.event_manager.run_ai_turn(state, party)
+            )
+        st.session_state.history.append({
+            "role":    "player",
+            "actor":   f"{flag} 🤖 {active_char.name}",
+            "content": action_text,
+        })
+        st.session_state.history.append({
+            "role":        "dm",
+            "content":     response,
+            "choices":     choices,
+            "scene_type":  turn_data.get('scene_type', 'exploration'),
+            "dice_result": dice_result,
+            "image":       None,
+        })
+        st.rerun()
+
     # --- Input area ---
-    # Multi-player: show whose turn it is
+    # Multi-player: show whose turn it is with flag indicator
+    flag = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else ''
     if active_char.hp <= 0:
         st.warning(f"**{active_char.name}** has been defeated! Waiting for next living player…")
     else:
         if len(party) > 1:
-            st.markdown(f"### ⚔️ {active_char.name}'s turn — what do you do?")
+            st.markdown(f"### {flag} {active_char.name}'s turn — what do you do?")
         else:
             st.markdown("### What do you do next?")
 
@@ -525,7 +659,7 @@ def game_loop():
             col_input, col_submit = st.columns([4, 1])
             with col_input:
                 prompt_text = (
-                    f"{active_char.name} chooses to..." if len(party) > 1
+                    f"{flag} {active_char.name} chooses to..." if len(party) > 1
                     else "I choose to..."
                 )
                 action_taken = st.text_input(prompt_text, key="action_input")

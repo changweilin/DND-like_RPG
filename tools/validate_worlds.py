@@ -735,21 +735,23 @@ def test_class_balance_budget():
 
 
 def test_party_creation_sizes():
-    """create_new_game() must succeed for party sizes 1-4 across several worlds."""
-    _section("C2 · Multi-player party creation (sizes 1–4)")
+    """create_new_game() must succeed for party sizes 1-6 across several worlds."""
+    _section("C2 · Multi-player party creation (sizes 1–6)")
     slm, tmp_path = _make_in_memory_db()
     errors = 0
 
     party_configs = [
-        {'name': 'Aric', 'race': 'Human', 'char_class': 'Warrior', 'appearance': '', 'personality': ''},
-        {'name': 'Lyra', 'race': 'Elf',   'char_class': 'Mage',    'appearance': '', 'personality': ''},
-        {'name': 'Dax',  'race': 'Dwarf', 'char_class': 'Rogue',   'appearance': '', 'personality': ''},
-        {'name': 'Sera', 'race': 'Human', 'char_class': 'Cleric',  'appearance': '', 'personality': ''},
+        {'name': 'Aric',  'race': 'Human', 'char_class': 'Warrior', 'appearance': '', 'personality': ''},
+        {'name': 'Lyra',  'race': 'Elf',   'char_class': 'Mage',    'appearance': '', 'personality': ''},
+        {'name': 'Dax',   'race': 'Dwarf', 'char_class': 'Rogue',   'appearance': '', 'personality': ''},
+        {'name': 'Sera',  'race': 'Human', 'char_class': 'Cleric',  'appearance': '', 'personality': ''},
+        {'name': 'Orin',  'race': 'Orc',   'char_class': 'Warrior', 'appearance': '', 'personality': ''},
+        {'name': 'Vessa', 'race': 'Elf',   'char_class': 'Mage',    'appearance': '', 'personality': ''},
     ]
     sample_worlds = ['dnd5e', 'wh40k', 'call_of_cthulhu', 'hearts_of_wulin']
 
     for ws_id in sample_worlds:
-        for n in range(1, 5):
+        for n in range(1, 7):
             configs = party_configs[:n]
             lead    = configs[0]
             extra   = configs[1:]
@@ -977,7 +979,7 @@ def test_multiplay_load_restore():
     slm, tmp_path = _make_in_memory_db()
     errors = 0
 
-    for n in [2, 3, 4]:
+    for n in [2, 3, 4, 5, 6]:
         all_cfg = [
             {'name': f'P{i+1}', 'race': 'Human',
              'char_class': ['Warrior','Mage','Rogue','Cleric'][i % 4]}
@@ -1051,6 +1053,365 @@ def test_class_stats_differ():
 
 
 # ---------------------------------------------------------------------------
+# D) AI PLAYER & 6-PLAYER EXPANSION TESTS
+# ---------------------------------------------------------------------------
+
+def test_six_player_creation():
+    """create_new_game() must succeed for full 6-player party."""
+    _section("D1 · 6-player party creation and config storage")
+    slm, tmp_path = _make_in_memory_db()
+    errors = 0
+
+    # Build 6 configs: slots 0,2,4 human; slots 1,3,5 AI with varied personalities
+    ai_personalities = list(config.AI_PERSONALITIES.keys())
+    ai_difficulties  = list(config.AI_DIFFICULTIES.keys())
+
+    extra_cfgs = []
+    for i in range(1, 6):
+        extra_cfgs.append({
+            'name':           f'Member{i+1}',
+            'race':           'Human',
+            'char_class':     ['Mage','Rogue','Cleric','Warrior','Mage'][i-1],
+            'appearance':     '',
+            'personality':    '',
+            'is_ai':          (i % 2 == 1),   # slots 1,3,5 are AI
+            'ai_personality': ai_personalities[i % len(ai_personalities)],
+            'ai_difficulty':  ai_difficulties[i % len(ai_difficulties)],
+        })
+
+    party, state, session = slm.create_new_game(
+        "six_player_test", "Leader", "Dwarf", "Warrior", "", "",
+        world_setting='dnd5e',
+        extra_players=extra_cfgs,
+    )
+
+    if party is None:
+        _fail("create_new_game returned None for 6-player party")
+        errors += 1
+    else:
+        if len(party) != 6:
+            _fail(f"Expected 6 members, got {len(party)}")
+            errors += 1
+        else:
+            _ok(f"6 members created: {[c.name for c in party]}")
+
+        # Verify ai_configs stored correctly
+        ai_cfgs = state.ai_configs or {}
+        expected_ai_slots = {str(i) for i in [1, 3, 5]}
+        stored_ai_slots   = {k for k, v in ai_cfgs.items() if v.get('is_ai')}
+        if stored_ai_slots != expected_ai_slots:
+            _fail(f"ai_configs slots {stored_ai_slots} ≠ expected {expected_ai_slots}")
+            errors += 1
+        else:
+            _ok(f"AI slots stored correctly: {sorted(stored_ai_slots)}")
+
+        # Verify each AI slot has personality + difficulty
+        for slot_key, cfg_entry in ai_cfgs.items():
+            if cfg_entry.get('is_ai'):
+                p = cfg_entry.get('personality', '')
+                d = cfg_entry.get('difficulty', '')
+                if p not in config.AI_PERSONALITIES:
+                    _fail(f"Slot {slot_key}: unknown personality '{p}'")
+                    errors += 1
+                elif d not in config.AI_DIFFICULTIES:
+                    _fail(f"Slot {slot_key}: unknown difficulty '{d}'")
+                    errors += 1
+                else:
+                    _ok(f"Slot {slot_key}: is_ai=True · personality={p} · difficulty={d}")
+
+        # Verify slot 0 (leader) is NOT in ai_configs
+        if ai_cfgs.get('0', {}).get('is_ai', False):
+            _fail("Slot 0 (party leader) must never be AI-controlled")
+            errors += 1
+        else:
+            _ok("Slot 0 (leader) correctly marked as human")
+
+        if session:
+            session.close()
+
+    try:
+        os.remove(tmp_path)
+    except Exception:
+        pass
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_ai_player_decision_tree():
+    """AIPlayerController must produce valid action strings for all personalities and difficulties."""
+    _section("D2 · AIPlayerController decision tree — all personalities × difficulties")
+    from logic.events import AIPlayerController
+    import types
+
+    errors = 0
+    controller = AIPlayerController()
+
+    # Build mock character and state objects
+    def _mock_char(name, char_class, hp, max_hp, mp, max_mp, char_id=1):
+        c = types.SimpleNamespace(
+            id=char_id, name=name, char_class=char_class,
+            hp=hp, max_hp=max_hp, mp=mp, max_mp=max_mp,
+        )
+        return c
+
+    def _mock_state(enemies=None):
+        return types.SimpleNamespace(
+            known_entities=(
+                {e: {'type': 'monster', 'hp': 30, 'alive': True} for e in (enemies or [])}
+            ),
+            world_setting='dnd5e',
+        )
+
+    personalities = list(config.AI_PERSONALITIES.keys())
+    difficulties  = list(config.AI_DIFFICULTIES.keys())
+
+    # Test every personality × difficulty combination
+    for personality in personalities:
+        for difficulty in difficulties:
+            ai_config = {'is_ai': True, 'personality': personality, 'difficulty': difficulty}
+
+            # Scenario A: full HP, no enemies → explore or support
+            char_a  = _mock_char("Tester", "Warrior", 150, 150, 20, 20)
+            state_a = _mock_state(enemies=[])
+            action_a = controller.decide_action(char_a, state_a, [char_a], ai_config)
+            if not isinstance(action_a, str) or not action_a.strip():
+                _fail(f"{personality}/{difficulty} (no enemies): empty action returned")
+                errors += 1
+
+            # Scenario B: enemies present → should include attack actions
+            char_b  = _mock_char("Fighter", "Warrior", 150, 150, 20, 20)
+            state_b = _mock_state(enemies=['goblin', 'orc'])
+            action_b = controller.decide_action(char_b, state_b, [char_b], ai_config)
+            if not isinstance(action_b, str) or not action_b.strip():
+                _fail(f"{personality}/{difficulty} (with enemies): empty action returned")
+                errors += 1
+
+            # Scenario C: critical HP → should lean toward heal/retreat
+            char_c  = _mock_char("Cleric", "Cleric", 10, 110, 60, 70, char_id=2)
+            state_c = _mock_state(enemies=[])
+            action_c = controller.decide_action(char_c, state_c, [char_c], ai_config)
+            if not isinstance(action_c, str) or not action_c.strip():
+                _fail(f"{personality}/{difficulty} (low HP): empty action returned")
+                errors += 1
+
+        _ok(f"{personality}: all {len(difficulties)} difficulties produced valid actions")
+
+    # Aggressive should prefer attacking (most actions should mention attacking)
+    attack_actions = 0
+    for _ in range(20):
+        ai_config = {'personality': 'aggressive', 'difficulty': 'normal'}
+        char  = _mock_char("Brute", "Warrior", 150, 150, 20, 20)
+        state = _mock_state(enemies=['dragon'])
+        action = controller.decide_action(char, state, [char], ai_config)
+        if any(word in action.lower() for word in ('attack', 'strike', 'charge')):
+            attack_actions += 1
+
+    if attack_actions >= 15:
+        _ok(f"Aggressive personality: {attack_actions}/20 actions were attacks (bias confirmed)")
+    else:
+        _warn(f"Aggressive personality: only {attack_actions}/20 were attacks (lower than expected)")
+
+    # Support/Cleric healing ally detection
+    healer   = _mock_char("Sera", "Cleric", 110, 110, 70, 70, char_id=10)
+    wounded  = _mock_char("Aric", "Warrior", 20, 150, 20, 20, char_id=11)
+    state_h  = _mock_state(enemies=[])
+    ai_cfg_s = {'personality': 'support', 'difficulty': 'normal'}
+    party_h  = [healer, wounded]
+    heal_actions = 0
+    for _ in range(10):
+        action = controller.decide_action(healer, state_h, party_h, ai_cfg_s)
+        if any(word in action.lower() for word in ('heal', 'spell on', 'tend')):
+            heal_actions += 1
+    if heal_actions >= 7:
+        _ok(f"Support personality: {heal_actions}/10 actions healed wounded ally ✓")
+    else:
+        _warn(f"Support personality: {heal_actions}/10 healed ally (may need tuning)")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_mixed_party_save_load():
+    """Mixed human+AI party must round-trip correctly through save/load."""
+    _section("D3 · Mixed human+AI party save/load round-trip")
+    slm, tmp_path = _make_in_memory_db()
+    errors = 0
+
+    for n_ai in [1, 2, 3, 5]:  # number of AI slots (out of 6 total)
+        n_total = 6
+        extra = []
+        for i in range(1, n_total):
+            is_ai = (i <= n_ai)
+            extra.append({
+                'name':           f'Slot{i+1}',
+                'race':           'Human',
+                'char_class':     ['Mage','Rogue','Cleric','Warrior','Mage'][i-1],
+                'appearance':     '',
+                'personality':    '',
+                'is_ai':          is_ai,
+                'ai_personality': 'tactical',
+                'ai_difficulty':  'normal',
+            })
+
+        save_nm = f"mixed_{n_ai}ai"
+        party, state, session = slm.create_new_game(
+            save_nm, "Leader", "Human", "Warrior", "", "",
+            world_setting='dnd5e', extra_players=extra,
+        )
+        if not party:
+            _fail(f"{n_ai} AI slots: create_new_game failed")
+            errors += 1
+            continue
+
+        orig_ai_cfgs = dict(state.ai_configs or {})
+        session.close()
+
+        # Reload and compare
+        party2, state2, session2 = slm.load_game(save_nm)
+        if not party2:
+            _fail(f"{n_ai} AI slots: load_game failed")
+            errors += 1
+            continue
+
+        loaded_ai_cfgs = state2.ai_configs or {}
+        if len(party2) != n_total:
+            _fail(f"{n_ai} AI: reloaded {len(party2)} members, expected {n_total}")
+            errors += 1
+        elif loaded_ai_cfgs != orig_ai_cfgs:
+            _fail(f"{n_ai} AI: ai_configs mismatch after load\n  orig:   {orig_ai_cfgs}\n  loaded: {loaded_ai_cfgs}")
+            errors += 1
+        else:
+            ai_slots = [k for k, v in loaded_ai_cfgs.items() if v.get('is_ai')]
+            _ok(f"{n_ai} AI slots: party={len(party2)} · ai_slots={sorted(ai_slots)} ✓")
+
+        session2.close()
+
+    try:
+        os.remove(tmp_path)
+    except Exception:
+        pass
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_player_flags():
+    """PLAYER_FLAGS must cover all 6 slots and contain distinct non-empty emoji."""
+    _section("D4 · Player flag emoji — completeness and uniqueness")
+    errors = 0
+    flags  = config.PLAYER_FLAGS
+
+    if len(flags) < config.MAX_PARTY_SIZE:
+        _fail(f"Only {len(flags)} flags for MAX_PARTY_SIZE={config.MAX_PARTY_SIZE}")
+        errors += 1
+    else:
+        _ok(f"{len(flags)} flags defined for {config.MAX_PARTY_SIZE} max party slots")
+
+    if len(set(flags)) != len(flags):
+        _fail("Duplicate flag entries detected")
+        errors += 1
+    else:
+        _ok("All flags are unique")
+
+    for i, flag in enumerate(flags):
+        if not flag.strip():
+            _fail(f"Slot {i}: empty flag")
+            errors += 1
+        else:
+            _ok(f"Slot {i}: '{flag}'")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_ai_run_turn_interface():
+    """EventManager.run_ai_turn() must return 5-tuple with valid action string."""
+    _section("D5 · run_ai_turn() interface and return type")
+    from logic.events import EventManager
+    import types
+
+    errors = 0
+    slm, tmp_path = _make_in_memory_db()
+
+    # Create a 3-player party: slot 0 human, slots 1+2 AI
+    extra = [
+        {'name': 'AIRogue',  'race': 'Elf',   'char_class': 'Rogue',  'appearance': '',
+         'personality': '', 'is_ai': True, 'ai_personality': 'aggressive', 'ai_difficulty': 'normal'},
+        {'name': 'AICleric', 'race': 'Human', 'char_class': 'Cleric', 'appearance': '',
+         'personality': '', 'is_ai': True, 'ai_personality': 'support', 'ai_difficulty': 'easy'},
+    ]
+    party, state, session = slm.create_new_game(
+        "ai_turn_test", "Human", "Dwarf", "Warrior", "", "",
+        world_setting='dnd5e', extra_players=extra,
+    )
+    if not party:
+        _fail("Could not create party for run_ai_turn test")
+        return False
+
+    # Mock the LLM and RAG to avoid real network calls
+    class _MockLLM:
+        def parse_intent(self, *a, **kw):
+            return {'thought_process': '', 'action_type': 'direct_action',
+                    'requires_roll': False, 'skill': '', 'dc': 0, 'target': '', 'summary': ''}
+        def render_narrative(self, *a, **kw):
+            return {'scene_type': 'exploration', 'narrative': 'The AI acts.',
+                    'choices': ['Continue'], 'damage_taken': 0, 'hp_healed': 0,
+                    'mp_used': 0, 'items_found': [], 'location_change': '',
+                    'npc_relationship_changes': {}}
+        def summarize_memory_segment(self, *a, **kw): return ''
+        def evaluate_npc_reactions(self, *a, **kw): return {}
+
+    class _MockRAG:
+        def retrieve_context(self, *a, **kw): return ''
+        def world_lore_seeded(self): return True
+        def entity_stat_block_exists(self, *a): return True
+        def add_story_event(self, *a, **kw): pass
+
+    em = EventManager(_MockLLM(), _MockRAG(), session)
+
+    # Advance to slot 1 (first AI player)
+    from sqlalchemy.orm.attributes import flag_modified
+    state.active_player_index = 1
+    flag_modified(state, 'active_player_index')
+    session.commit()
+
+    result = em.run_ai_turn(state, party)
+
+    if not isinstance(result, tuple) or len(result) != 5:
+        _fail(f"run_ai_turn returned {type(result)} with len={len(result) if hasattr(result, '__len__') else '?'}, expected 5-tuple")
+        errors += 1
+    else:
+        action_text, narrative, choices, turn_data, dice_result = result
+        if not isinstance(action_text, str) or not action_text.strip():
+            _fail(f"action_text is empty or not a string: {action_text!r}")
+            errors += 1
+        else:
+            _ok(f"run_ai_turn action: '{action_text[:60]}'")
+
+        if not isinstance(narrative, str):
+            _fail("narrative is not a string")
+            errors += 1
+        else:
+            _ok(f"narrative returned: '{narrative[:50]}'")
+
+        if not isinstance(choices, list):
+            _fail("choices is not a list")
+            errors += 1
+        else:
+            _ok(f"choices: {choices}")
+
+    session.close()
+    try:
+        os.remove(tmp_path)
+    except Exception:
+        pass
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+# ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
 # ---------------------------------------------------------------------------
 
@@ -1088,7 +1449,7 @@ if __name__ == '__main__':
     print()
     print("╔══════════════════════════════════════════════════════════════════════════╗")
     print("║  DND-like RPG — World Setting Validator                                  ║")
-    print("║  A: text diff  ·  B: flow consistency  ·  C: multi-player stability     ║")
+    print("║  A: text diff  ·  B: flow  ·  C: multi-player  ·  D: AI+6p expansion   ║")
     print("╚══════════════════════════════════════════════════════════════════════════╝")
 
     results = {}
@@ -1111,11 +1472,18 @@ if __name__ == '__main__':
 
     # C — Multi-player stability
     results['C1 class balance budget']       = test_class_balance_budget()
-    results['C2 party creation 1-4p']        = test_party_creation_sizes()
+    results['C2 party creation 1-6p']        = test_party_creation_sizes()
     results['C3 turn rotation']              = test_turn_rotation()
     results['C4 contribution & rewards']     = test_contribution_tracking()
     results['C5 save/load round-trip']       = test_multiplay_load_restore()
     results['C6 class stat differentiation'] = test_class_stats_differ()
+
+    # D — 6-player & AI player expansion
+    results['D1 6-player creation & ai_configs'] = test_six_player_creation()
+    results['D2 AI decision tree all modes']     = test_ai_player_decision_tree()
+    results['D3 mixed human+AI save/load']       = test_mixed_party_save_load()
+    results['D4 player flag emoji']              = test_player_flags()
+    results['D5 run_ai_turn() interface']        = test_ai_run_turn_interface()
 
     # Bonus table
     print_vocabulary_diff_table()

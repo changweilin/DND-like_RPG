@@ -1,4 +1,5 @@
 import time
+import random
 from sqlalchemy.orm.attributes import flag_modified
 from engine.dice import DiceRoller
 from engine.character import CharacterLogic
@@ -12,6 +13,158 @@ _OUTCOME_LABELS = {
     'failure':          'FAILURE',
     'critical_failure': 'CRITICAL FAILURE',
 }
+
+class AIPlayerController:
+    """
+    Hybrid decision-tree + template AI player controller.
+
+    Difficulty levels:
+      Easy   — random safe action from a predefined pool (no strategy)
+      Normal — basic decision tree: HP%, enemy presence, class role
+      Hard   — extended decision tree with multi-factor evaluation
+      Deadly — same tree + LLM contextual refinement (if llm available)
+
+    Personality archetypes affect decision thresholds and target selection.
+    Action output is a plain string (e.g. "I attack the goblin") that is
+    passed directly to EventManager.process_turn() exactly like a human input.
+    """
+
+    _COMBAT_TEMPLATES = [
+        "I attack {target} with my weapon",
+        "I strike {target} with a powerful blow",
+        "I charge at {target}",
+    ]
+    _HEAL_SELF_TEMPLATES = [
+        "I use my healing ability to restore my own wounds",
+        "I drink a healing potion to recover health",
+        "I cast a self-healing spell",
+    ]
+    _HEAL_ALLY_TEMPLATES = [
+        "I cast a healing spell on {target}",
+        "I rush to {target} and use my healing ability",
+        "I tend to {target}'s wounds with my healing arts",
+    ]
+    _EXPLORE_TEMPLATES = [
+        "I search the area for clues and useful items",
+        "I carefully examine my surroundings",
+        "I investigate the room for anything of interest",
+        "I check for traps and hidden passages",
+        "I scout the area ahead",
+    ]
+    _SUPPORT_TEMPLATES = [
+        "I provide tactical support to my allies",
+        "I take up a flanking position to assist the party",
+        "I help my ally and look for an opening",
+    ]
+    _RETREAT_TEMPLATES = [
+        "I take a defensive stance and catch my breath",
+        "I fall back to a safer position",
+        "I find cover and assess the situation",
+    ]
+
+    def decide_action(self, ai_char, state, party, ai_config):
+        """
+        Decide the AI player's action for this turn.
+
+        Returns an action string ready for EventManager.process_turn().
+        """
+        personality = ai_config.get('personality', 'tactical')
+        difficulty  = ai_config.get('difficulty', 'normal')
+
+        p_cfg = config.AI_PERSONALITIES.get(personality,
+                    config.AI_PERSONALITIES['tactical'])
+        d_cfg = config.AI_DIFFICULTIES.get(difficulty,
+                    config.AI_DIFFICULTIES['normal'])
+
+        if not d_cfg.get('use_decision_tree', True) or personality == 'chaotic':
+            return self._random_action(ai_char, state)
+
+        return self._decision_tree_action(ai_char, state, party, p_cfg)
+
+    def _random_action(self, ai_char, state):
+        """Easy / Chaotic: pick randomly from a safe, varied action pool."""
+        hp_pct  = ai_char.hp / max(ai_char.max_hp, 1)
+        enemies = self._get_living_enemies(state)
+        pool    = list(self._EXPLORE_TEMPLATES)
+
+        if hp_pct < 0.4:
+            pool.extend(self._RETREAT_TEMPLATES)
+
+        if enemies:
+            target = random.choice(enemies)
+            for tmpl in self._COMBAT_TEMPLATES:
+                pool.append(tmpl.format(target=target))
+
+        return random.choice(pool)
+
+    def _decision_tree_action(self, ai_char, state, party, p_cfg):
+        """Normal / Hard / Deadly: structured rule-based decision tree."""
+        hp_pct          = ai_char.hp / max(ai_char.max_hp, 1)
+        mp_pct          = ai_char.mp / max(ai_char.max_mp, 1)
+        heal_threshold  = p_cfg.get('heal_threshold', 0.35)
+        role            = ai_char.char_class.lower()
+        enemies         = self._get_living_enemies(state)
+        action_bias     = p_cfg.get('action_bias', 'optimal')
+
+        # Priority 1: Aggressive — attack immediately if enemies present
+        if action_bias == 'combat' and enemies:
+            target = self._pick_target(enemies, state, action_bias)
+            return random.choice(self._COMBAT_TEMPLATES).format(target=target)
+
+        # Priority 2: Critical self-heal (all roles when near death)
+        if hp_pct < heal_threshold * 0.5 and mp_pct > 0.1:
+            return random.choice(self._HEAL_SELF_TEMPLATES)
+
+        # Priority 3: Support / Cleric — heal most-wounded ally
+        if (action_bias == 'healing' or role == 'cleric') and mp_pct > 0.1:
+            wounded = self._get_most_wounded_ally(party, ai_char)
+            if wounded and wounded.hp / max(wounded.max_hp, 1) < heal_threshold:
+                return random.choice(self._HEAL_ALLY_TEMPLATES).format(target=wounded.name)
+
+        # Priority 4: Self-heal when HP below threshold (non-aggressive builds)
+        if hp_pct < heal_threshold and mp_pct > 0.1 and action_bias != 'combat':
+            return random.choice(self._HEAL_SELF_TEMPLATES)
+
+        # Priority 5: Attack if enemies present
+        if enemies:
+            target = self._pick_target(enemies, state, action_bias)
+            return random.choice(self._COMBAT_TEMPLATES).format(target=target)
+
+        # Priority 6: Defensive retreat if low HP and no enemies
+        if hp_pct < 0.25:
+            return random.choice(self._RETREAT_TEMPLATES)
+
+        # Default: explore
+        return random.choice(self._EXPLORE_TEMPLATES)
+
+    def _get_living_enemies(self, state):
+        """Return names of alive hostile entities from known_entities."""
+        known = getattr(state, 'known_entities', None) or {}
+        return [
+            name for name, data in known.items()
+            if isinstance(data, dict)
+            and data.get('alive', True)
+            and data.get('type', 'monster') not in ('npc', 'ally')
+        ]
+
+    def _get_most_wounded_ally(self, party, self_char):
+        """Return the living ally with the lowest HP% (excluding self)."""
+        others = [c for c in party if c.id != self_char.id and c.hp > 0]
+        if not others:
+            return None
+        return min(others, key=lambda c: c.hp / max(c.max_hp, 1))
+
+    def _pick_target(self, enemies, state, action_bias):
+        """Select a target based on personality bias."""
+        known = getattr(state, 'known_entities', None) or {}
+        if action_bias == 'combat':
+            # Aggressive: prefer the strongest remaining enemy
+            return max(enemies, key=lambda e: known.get(e, {}).get('hp', 0))
+        elif action_bias == 'optimal':
+            # Tactical: finish off the weakest enemy first
+            return min(enemies, key=lambda e: known.get(e, {}).get('hp', 99999))
+        return random.choice(enemies)
+
 
 class EventManager:
     """
@@ -230,6 +383,30 @@ class EventManager:
         )
 
         return narrative, choices, turn_data, dice_result
+
+    def run_ai_turn(self, current_state, party):
+        """
+        Execute one AI-controlled player's turn automatically.
+
+        Reads the active slot's AI config from current_state.ai_configs,
+        generates an action via AIPlayerController, then delegates to
+        process_turn() exactly as if a human had submitted the action.
+
+        Returns (action_text, narrative, choices, turn_data, dice_result).
+        action_text is the string the AI chose — shown in chat history.
+        """
+        active_idx = (current_state.active_player_index or 0) % max(len(party), 1)
+        ai_char    = party[active_idx]
+        ai_configs = current_state.ai_configs or {}
+        ai_config  = ai_configs.get(str(active_idx), {})
+
+        controller  = AIPlayerController()
+        action_text = controller.decide_action(ai_char, current_state, party, ai_config)
+
+        narrative, choices, turn_data, dice_result = self.process_turn(
+            action_text, current_state, ai_char, party=party
+        )
+        return action_text, narrative, choices, turn_data, dice_result
 
     # ------------------------------------------------------------------
     # Internal helpers — combat  (Section 3.3)

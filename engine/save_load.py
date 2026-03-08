@@ -62,14 +62,18 @@ class SaveLoadManager:
             'char_class':  char_class,
             'appearance':  appearance,
             'personality': personality,
+            'is_ai':       False,   # party leader is always human
         }]
         for ep in (extra_players or []):
             player_configs.append({
-                'name':        ep.get('name', 'Adventurer'),
-                'race':        ep.get('race', 'Human'),
-                'char_class':  ep.get('char_class', 'Warrior'),
-                'appearance':  ep.get('appearance', ''),
-                'personality': ep.get('personality', ''),
+                'name':           ep.get('name', 'Adventurer'),
+                'race':           ep.get('race', 'Human'),
+                'char_class':     ep.get('char_class', 'Warrior'),
+                'appearance':     ep.get('appearance', ''),
+                'personality':    ep.get('personality', ''),
+                'is_ai':          ep.get('is_ai', False),
+                'ai_personality': ep.get('ai_personality', 'tactical'),
+                'ai_difficulty':  ep.get('ai_difficulty', 'normal'),
             })
         player_configs = player_configs[:GameConfig.MAX_PARTY_SIZE]
 
@@ -111,6 +115,16 @@ class SaveLoadManager:
             for cid in party_ids
         }
 
+        # AI config per slot (only for slots 1+ that opted in to AI control)
+        init_ai_configs = {}
+        for i, cfg in enumerate(player_configs):
+            if cfg.get('is_ai', False) and i > 0:
+                init_ai_configs[str(i)] = {
+                    'is_ai':       True,
+                    'personality': cfg.get('ai_personality', 'tactical'),
+                    'difficulty':  cfg.get('ai_difficulty', 'normal'),
+                }
+
         game_state = GameState(
             save_name=save_name,
             current_location=starting_location,
@@ -122,6 +136,7 @@ class SaveLoadManager:
             party_ids=party_ids,
             active_player_index=0,
             party_contributions=init_contributions,
+            ai_configs=init_ai_configs,
             turn_count=0,
             relationships={
                 npc_name: {

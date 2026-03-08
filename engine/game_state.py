@@ -65,15 +65,19 @@ class GameState(Base):
     # Defaults to 'dnd5e' for classic Forgotten Realms experience.
     world_setting = Column(String, default='dnd5e')
 
-    # Multi-player party support (1-4 players).
+    # Multi-player party support (1-6 players).
     # party_ids: ordered list of Character.id values — index 0 is the party leader.
     #   Single-player games: party_ids = [player_id]
     # active_player_index: which slot is currently taking their turn (0-based).
     # party_contributions: per-player scoring for balanced end-game reward split.
     #   {str(char_id): {damage_dealt, healing_done, skill_checks_passed, turns_taken}}
+    # ai_configs: per-slot AI configuration for AI-controlled party members.
+    #   {str(slot_index): {is_ai: bool, personality: str, difficulty: str}}
+    #   Slot 0 (party leader) is always human; slots 1-5 may be AI-controlled.
     party_ids             = Column(JSON, default=lambda: [])
     active_player_index   = Column(Integer, default=0)
     party_contributions   = Column(JSON, default=lambda: {})
+    ai_configs            = Column(JSON, default=lambda: {})
 
 class DatabaseManager:
     def __init__(self, db_path="savegame.db"):
@@ -90,6 +94,7 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN party_ids TEXT DEFAULT '[]'",
             "ALTER TABLE game_state ADD COLUMN active_player_index INTEGER DEFAULT 0",
             "ALTER TABLE game_state ADD COLUMN party_contributions TEXT DEFAULT '{}'",
+            "ALTER TABLE game_state ADD COLUMN ai_configs TEXT DEFAULT '{}'",
         ]
         with engine.connect() as conn:
             for sql in migrations:

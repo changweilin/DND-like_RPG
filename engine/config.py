@@ -46,8 +46,84 @@ class GameConfig:
     # Multi-player party configuration
     # ---------------------------------------------------------------------------
 
-    MAX_PARTY_SIZE = 4
+    MAX_PARTY_SIZE = 6
     MIN_PARTY_SIZE = 1
+
+    # Per-player flag emoji (index 0-5 → player slot 0-5).
+    # Shown in sidebar and game prompts to visually distinguish each party member.
+    PLAYER_FLAGS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠']
+
+    # ---------------------------------------------------------------------------
+    # AI Player configuration
+    # ---------------------------------------------------------------------------
+
+    # Personality archetypes — define action bias and decision thresholds.
+    # These are used by AIPlayerController in logic/events.py.
+    AI_PERSONALITIES = {
+        'aggressive': {
+            'name':            'Aggressive',
+            'description':     'Prefers direct attacks; ignores self-preservation; targets strongest enemies.',
+            'action_bias':     'combat',
+            'heal_threshold':  0.10,   # only heals when nearly dead
+            'attack_first':    True,
+        },
+        'cautious': {
+            'name':            'Cautious',
+            'description':     'Defensive fighter; retreats when HP < 50%; avoids unnecessary risk.',
+            'action_bias':     'defense',
+            'heal_threshold':  0.50,
+            'attack_first':    False,
+        },
+        'support': {
+            'name':            'Support',
+            'description':     'Prioritises healing and protecting teammates over personal glory.',
+            'action_bias':     'healing',
+            'heal_threshold':  0.70,   # heals aggressively
+            'attack_first':    False,
+        },
+        'chaotic': {
+            'name':            'Chaotic',
+            'description':     'Unpredictable — chooses actions randomly; anything can happen.',
+            'action_bias':     'random',
+            'heal_threshold':  0.30,
+            'attack_first':    None,
+        },
+        'tactical': {
+            'name':            'Tactical',
+            'description':     'Analyses party composition and enemy state; makes context-aware optimal decisions.',
+            'action_bias':     'optimal',
+            'heal_threshold':  0.35,
+            'attack_first':    None,
+        },
+    }
+
+    # Difficulty levels — control decision-tree depth and LLM involvement.
+    AI_DIFFICULTIES = {
+        'easy': {
+            'name':              'Easy',
+            'description':       'Picks actions randomly from a safe pool — no real strategy.',
+            'use_decision_tree': False,
+            'use_llm':           False,
+        },
+        'normal': {
+            'name':              'Normal',
+            'description':       'Rule-based decision tree: attacks when healthy, heals when hurt.',
+            'use_decision_tree': True,
+            'use_llm':           False,
+        },
+        'hard': {
+            'name':              'Hard',
+            'description':       'Extended decision tree with multi-scenario evaluation.',
+            'use_decision_tree': True,
+            'use_llm':           False,
+        },
+        'deadly': {
+            'name':              'Deadly',
+            'description':       'Decision tree + LLM contextual refinement for optimal actions.',
+            'use_decision_tree': True,
+            'use_llm':           True,
+        },
+    }
 
     # Balanced base stats per class.
     # Design philosophy: each class has the same "power budget" but distributed
