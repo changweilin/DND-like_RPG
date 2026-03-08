@@ -1412,6 +1412,242 @@ def test_ai_run_turn_interface():
 
 
 # ---------------------------------------------------------------------------
+# E — Game board (engine/board.py) pure-logic tests
+# ---------------------------------------------------------------------------
+
+def test_detect_location_type():
+    """detect_location_type() returns correct (row, icon) for each biome keyword."""
+    _section("E1 · detect_location_type() — keyword → row mapping")
+    from engine.board import detect_location_type
+
+    cases = [
+        # (name,               expected_row, description)
+        ('Dark Dungeon',        4,  'dungeon keyword → row 4'),
+        ('Goblin Cavern',       4,  'cavern keyword → row 4'),
+        ('Spider Cave',         4,  'cave keyword → row 4'),
+        ('Iron Mine',           4,  'mine keyword → row 4'),
+        ('Old Crypt',           4,  'crypt keyword → row 4'),
+        ('Castle Blackthorn',   3,  'castle keyword → row 3'),
+        ('Temple of Light',     3,  'temple keyword → row 3'),
+        ('Harbor District',     3,  'harbor keyword → row 3'),
+        ('Mages Guild',         3,  'guild keyword → row 3'),
+        ('Riverside Village',   3,  'village keyword → row 3'),
+        ('Old Town Square',     3,  'town keyword → row 3'),
+        ('Whispering Forest',   2,  'forest keyword → row 2'),
+        ('Bogwater Swamp',      2,  'swamp keyword → row 2'),
+        ('Crystal River',       2,  'river keyword → row 2'),
+        ('Mountain Pass',       1,  'mountain keyword → row 1'),
+        ('Frozen Tundra',       1,  'tundra keyword → row 1'),
+        ('Ancient Ruin',        1,  'ruin keyword → row 1'),
+        ('Astral Nexus',        0,  'astral keyword → row 0'),
+        ('Sky Heavens Above',   0,  'sky/cloud keyword → row 0'),
+        ('Random Place',        3,  'no keyword → default row 3'),
+    ]
+
+    errors = 0
+    for name, exp_row, desc in cases:
+        row, icon = detect_location_type(name)
+        if row != exp_row:
+            _fail(f"{desc}: got row={row}, expected {exp_row}  (name={name!r})")
+            errors += 1
+        elif not icon:
+            _fail(f"{desc}: icon is empty  (name={name!r})")
+            errors += 1
+        else:
+            _ok(f"{desc}: row={row}, icon={icon}")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_assign_map_position_no_collisions():
+    """assign_map_position() places 20 locations without any two sharing a cell."""
+    _section("E2 · assign_map_position() — no cell collisions for 20 locations")
+    from engine.board import assign_map_position
+
+    location_names = [
+        'Ironforge Town', 'Shadowmere Village', 'Temple of Dawn', 'Dungeon of Doom',
+        'Whispering Forest', 'Mountain Peak', 'Crystal Cave', 'Astral Plane',
+        'Harbor Port', 'Ancient Ruin', 'Bogwater Swamp', 'Old Castle',
+        'River Crossing', 'Sky Citadel', 'Dark Crypt', 'Plains of Gold',
+        'Mage Tower', 'Ice Tundra', 'Goblin Lair', 'Market District',
+    ]
+
+    errors   = 0
+    world_map = {}
+    occupied  = set()
+
+    for loc in location_names:
+        row, col, icon = assign_map_position(loc, world_map)
+        cell = (row, col)
+        if cell in occupied:
+            _fail(f"Collision at {cell} when placing '{loc}'")
+            errors += 1
+        else:
+            _ok(f"Placed '{loc[:20]}' at ({row},{col}) {icon}")
+            occupied.add(cell)
+            world_map[loc] = {'row': row, 'col': col, 'icon': icon}
+
+    # Idempotency: re-querying same name returns same cell
+    for loc in location_names[:5]:
+        row2, col2, _ = assign_map_position(loc, world_map)
+        stored = world_map[loc]
+        if (row2, col2) != (stored['row'], stored['col']):
+            _fail(f"Idempotency failed for '{loc}': got ({row2},{col2}), stored ({stored['row']},{stored['col']})")
+            errors += 1
+
+    if errors == 0:
+        _ok("Idempotency check passed for first 5 locations")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_assign_map_position_settlement_default():
+    """Locations with no keyword match land in row 3 (settlement zone)."""
+    _section("E3 · assign_map_position() — default row is 3 (settlement)")
+    from engine.board import assign_map_position
+
+    generic_names = [
+        'Xvzqr Place', 'Blorf Area', 'Zindop Location',
+        'Quirble Zone', 'Phlox Spot',
+    ]
+
+    errors   = 0
+    world_map = {}
+
+    for name in generic_names:
+        row, col, icon = assign_map_position(name, world_map)
+        if row != 3:
+            _fail(f"'{name}' → row={row}, expected 3 (settlement default)")
+            errors += 1
+        else:
+            _ok(f"'{name}' → row=3, icon={icon}")
+        world_map[name] = {'row': row, 'col': col, 'icon': icon}
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_build_map_html_structure():
+    """build_map_html() returns a complete HTML string with required structural elements."""
+    _section("E4 · build_map_html() — HTML structure and content")
+    from engine.board import build_map_html, MAP_ROWS, MAP_COLS
+
+    errors = 0
+
+    # Minimal mock party member
+    class _MockChar:
+        def __init__(self, cid, name, hp):
+            self.id   = cid
+            self.name = name
+            self.hp   = hp
+
+    party = [
+        _MockChar(1, 'Aria',   30),
+        _MockChar(2, 'Brom',    0),  # dead
+    ]
+
+    world_map = {
+        'Starting Village': {'row': 3, 'col': 2, 'icon': '🏘️'},
+        'Dark Dungeon':     {'row': 4, 'col': 5, 'icon': '💀'},
+    }
+    player_positions = {
+        1: {'location': 'Starting Village', 'row': 3, 'col': 2},
+        2: {'location': 'Dark Dungeon',     'row': 4, 'col': 5},
+    }
+    player_flags   = ['🔴', '🔵']
+    active_char_id = 1
+
+    html = build_map_html(world_map, player_positions, party, active_char_id, player_flags)
+
+    if not isinstance(html, str):
+        _fail(f"Return type is {type(html)}, expected str")
+        return False
+
+    _ok(f"Return type is str, length={len(html)}")
+
+    # Check required structural elements
+    checks = [
+        ('<style>',          'CSS block present'),
+        ('<table',           '<table> element present'),
+        ('</table>',         '</table> closing tag present'),
+        ('<tr>',             '<tr> row elements present'),
+        ('<td',              '<td> cell elements present'),
+        ('rpg-map',          'rpg-map CSS class present'),
+        ('rpg-cell',         'rpg-cell CSS class present'),
+        ('rpg-fog',          'fog-of-war CSS class present'),
+        ('Starting Village', 'Known location name in output'),
+        ('Dark Dungeon',     'Second location name in output'),
+        ('🏘️',              'Location icon rendered'),
+        ('💀',              'Dungeon icon rendered'),
+        ('🔴',              'Player 1 flag (active) rendered'),
+        ('🔵',              'Player 2 flag rendered'),
+        ('rpg-active',       'Active cell gets rpg-active class'),
+        ('rpg-dead-token',   'Dead player gets dead-token class'),
+    ]
+
+    for snippet, desc in checks:
+        if snippet in html:
+            _ok(desc)
+        else:
+            _fail(f"{desc} — snippet not found: {snippet!r}")
+            errors += 1
+
+    # Row count: MAP_ROWS table rows expected
+    tr_count = html.count('<tr>')
+    if tr_count == MAP_ROWS:
+        _ok(f"Table has {MAP_ROWS} <tr> rows as expected")
+    else:
+        _fail(f"Expected {MAP_ROWS} <tr> rows, got {tr_count}")
+        errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_map_position_full_row_overflow():
+    """assign_map_position() falls back gracefully when preferred row is full."""
+    _section("E5 · assign_map_position() — overflow to adjacent row when full")
+    from engine.board import assign_map_position, MAP_COLS
+
+    errors   = 0
+    world_map = {}
+
+    # Fill row 3 (settlement default) completely with 8 generic locations
+    for i in range(MAP_COLS):
+        name = f'GenericTown{i}'
+        row, col, icon = assign_map_position(name, world_map)
+        world_map[name] = {'row': row, 'col': col, 'icon': icon}
+
+    # Now place one more generic location — must go to a different row
+    name = 'OverflowVillage'
+    row, col, icon = assign_map_position(name, world_map)
+    if row == 3:
+        # Check if col is truly free (should be impossible since row 3 is full)
+        if any(v['row'] == 3 and v['col'] == col for v in world_map.values()):
+            _fail(f"Overflow placed '{name}' in occupied cell (3, {col})")
+            errors += 1
+        else:
+            _ok(f"Overflow placed in row=3 free cell (col={col})")
+    else:
+        _ok(f"Overflow '{name}' correctly placed in fallback row={row}, col={col}")
+
+    world_map[name] = {'row': row, 'col': col, 'icon': icon}
+
+    # Verify total unique positions
+    positions = {(v['row'], v['col']) for v in world_map.values()}
+    if len(positions) == len(world_map):
+        _ok(f"All {len(world_map)} locations have unique positions")
+    else:
+        _fail(f"Collision detected: {len(world_map)} locations but only {len(positions)} unique positions")
+        errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+# ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
 # ---------------------------------------------------------------------------
 
@@ -1449,7 +1685,7 @@ if __name__ == '__main__':
     print()
     print("╔══════════════════════════════════════════════════════════════════════════╗")
     print("║  DND-like RPG — World Setting Validator                                  ║")
-    print("║  A: text diff  ·  B: flow  ·  C: multi-player  ·  D: AI+6p expansion   ║")
+    print("║  A: text diff · B: flow · C: multi-player · D: AI+6p · E: board        ║")
     print("╚══════════════════════════════════════════════════════════════════════════╝")
 
     results = {}
@@ -1484,6 +1720,13 @@ if __name__ == '__main__':
     results['D3 mixed human+AI save/load']       = test_mixed_party_save_load()
     results['D4 player flag emoji']              = test_player_flags()
     results['D5 run_ai_turn() interface']        = test_ai_run_turn_interface()
+
+    # E — Game board pure logic
+    results['E1 detect_location_type']           = test_detect_location_type()
+    results['E2 no cell collisions (20 locs)']   = test_assign_map_position_no_collisions()
+    results['E3 default row=3 settlement']        = test_assign_map_position_settlement_default()
+    results['E4 build_map_html structure']        = test_build_map_html_structure()
+    results['E5 overflow to adjacent row']        = test_map_position_full_row_overflow()
 
     # Bonus table
     print_vocabulary_diff_table()
