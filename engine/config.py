@@ -43,6 +43,64 @@ class GameConfig:
     LORA_DATA_DIR = os.path.join(_PROJECT_ROOT, "data", "lora_training")
 
     # ---------------------------------------------------------------------------
+    # Multi-player party configuration
+    # ---------------------------------------------------------------------------
+
+    MAX_PARTY_SIZE = 4
+    MIN_PARTY_SIZE = 1
+
+    # Balanced base stats per class.
+    # Design philosophy: each class has the same "power budget" but distributed
+    # across different combat/support roles so all contribute equally at end-game.
+    #
+    # Power-budget formula used for tuning:
+    #   effective_hp  = HP + (DEF // 2) × 5          (DEF mitigation over ~5 hits)
+    #   avg_dps       = avg_damage × hit_probability  (vs enemy DEF 10 baseline)
+    #   combat_score  = effective_hp × avg_dps
+    #
+    # Non-combat compensation:
+    #   reward_weight — multiplier on contribution score to equalise end-game gold:
+    #     1.00 = Warrior baseline (best sustained combat)
+    #     1.15 = Rogue (good scout/skill checks, slightly lower combat)
+    #     1.25 = Cleric (heals party; healing × 1.5 weights improve raw score)
+    #     1.30 = Mage (arcana-check heavy; lower raw ATK offset by spell burst)
+    #
+    # contribution_score per player = (damage_dealt × 1.0
+    #                                + healing_done  × 1.5
+    #                                + checks_passed × 20) × reward_weight
+    # End-game gold per player      = party_gold × (player_score / total_score)
+    CLASS_BASE_STATS = {
+        'warrior': {
+            'hp': 150, 'max_hp': 150, 'mp': 20,  'max_mp': 20,
+            'atk': 16, 'def_stat': 14, 'mov': 5,
+            'gold': 80,
+            'reward_weight': 1.00,
+            'role': 'Tank — highest HP/DEF, sustained melee damage (1d8)',
+        },
+        'mage': {
+            'hp': 70,  'max_hp': 70,  'mp': 100, 'max_mp': 100,
+            'atk': 12, 'def_stat': 8,  'mov': 5,
+            'gold': 80,
+            'reward_weight': 1.30,
+            'role': 'Burst — lowest HP, huge MP pool for spell-based arcana checks',
+        },
+        'rogue': {
+            'hp': 90,  'max_hp': 90,  'mp': 50,  'max_mp': 50,
+            'atk': 14, 'def_stat': 10, 'mov': 8,
+            'gold': 80,
+            'reward_weight': 1.15,
+            'role': 'Scout — high MOV (acrobatics/stealth bonus), good damage (1d6)',
+        },
+        'cleric': {
+            'hp': 110, 'max_hp': 110, 'mp': 70,  'max_mp': 70,
+            'atk': 10, 'def_stat': 13, 'mov': 5,
+            'gold': 80,
+            'reward_weight': 1.25,
+            'role': 'Healer — party sustain; healing is worth 1.5× in score calc',
+        },
+    }
+
+    # ---------------------------------------------------------------------------
     # Model preset registry
     # Each entry drives the UI selector and the LLMClient provider routing.
     # Fields:

@@ -68,16 +68,20 @@ class EventManager:
     # Public API
     # ------------------------------------------------------------------
 
-    def process_turn(self, player_action, current_state, character):
+    def process_turn(self, player_action, current_state, character, party=None):
         """
         Run one full turn and return:
             narrative   (str)        — story text to display
             choices     (list[str])  — suggested next actions
             turn_data   (dict)       — full Narrative Event dict (scene_type, mechanics …)
             dice_result (dict|None)  — dice roll details, or None if no roll occurred
+
+        party (list[Character] | None) — full party roster for multi-player prompt context.
+        If None, falls back to single-player mode (party = [character]).
         """
         char_logic = CharacterLogic(self.session, character)
         world      = WorldManager(self.session, current_state)
+        all_chars  = party if party else [character]
 
         # --- Step 1: Retrieve long-term context from RAG ---
         rag_context = self.rag.retrieve_context(player_action)
@@ -121,7 +125,7 @@ class EventManager:
 
         # --- Step 7: Render Narrative Event (LLM Phase 2) ---
         session_memory_text = self._format_session_memory(current_state)
-        system_prompt       = self._build_system_prompt(character, current_state)
+        system_prompt       = self._build_system_prompt(character, current_state, all_chars)
 
         thought = intent.get('thought_process', '')
         outcome_parts = [f"Player action: {player_action}"]
@@ -173,18 +177,38 @@ class EventManager:
         choices   = turn_data.get('choices', ["Look around", "Wait"])
 
         # --- Step 8: Apply deterministic mechanics ---
-        if turn_data.get('damage_taken'):
-            char_logic.take_damage(turn_data['damage_taken'])
-        if turn_data.get('hp_healed'):
-            char_logic.heal(turn_data['hp_healed'])
-        if turn_data.get('mp_used'):
-            char_logic.use_mp(turn_data['mp_used'])
+        damage_taken = turn_data.get('damage_taken', 0)
+        hp_healed    = turn_data.get('hp_healed', 0)
+        mp_used      = turn_data.get('mp_used', 0)
+
+        if damage_taken:
+            char_logic.take_damage(damage_taken)
+        if hp_healed:
+            char_logic.heal(hp_healed)
+        if mp_used:
+            char_logic.use_mp(mp_used)
         for item in (turn_data.get('items_found') or []):
             char_logic.add_item({'name': item} if isinstance(item, str) else item)
         if turn_data.get('location_change'):
             world.update_location(turn_data['location_change'])
         for npc, delta in (turn_data.get('npc_relationship_changes') or {}).items():
             world.update_relationship(npc, delta)
+
+        # Track contribution for balanced reward calculation
+        checks_passed = 1 if (dice_result and dice_result.get('outcome') in
+                               ('success', 'critical_success')) else 0
+        net_damage_dealt = 0
+        if combat_result and combat_result.get('hit'):
+            net_damage_dealt = combat_result.get('net_damage', 0)
+        self._update_contributions(
+            current_state, character,
+            damage_dealt=net_damage_dealt,
+            healing_done=hp_healed,
+            checks_passed=checks_passed,
+        )
+
+        # Advance to next living player (multi-player round-robin)
+        self._advance_active_player(current_state, all_chars)
 
         # --- Step 9: NPC generative agent reactions (Section 3.5) ---
         # After social turns or turns that touched NPC relationships, let each
@@ -321,16 +345,75 @@ class EventManager:
     # Internal helpers — prompts and memory
     # ------------------------------------------------------------------
 
-    def _build_system_prompt(self, character, current_state):
+    # ------------------------------------------------------------------
+    # Internal helpers — multi-player party management
+    # ------------------------------------------------------------------
+
+    def _advance_active_player(self, current_state, party):
+        """
+        Rotate active_player_index to the next living party member.
+        Skips defeated characters (HP ≤ 0).  No-op for single-player.
+        """
+        if len(party) <= 1:
+            return
+        n = len(party)
+        idx = (current_state.active_player_index or 0)
+        for _ in range(n):
+            idx = (idx + 1) % n
+            if party[idx].hp > 0:
+                break
+        if current_state.active_player_index != idx:
+            current_state.active_player_index = idx
+            flag_modified(current_state, 'active_player_index')
+            self.session.commit()
+
+    def _update_contributions(self, current_state, character,
+                              damage_dealt=0, healing_done=0, checks_passed=0):
+        """Accumulate per-player contribution metrics for end-game reward split."""
+        contribs = dict(current_state.party_contributions or {})
+        key = str(character.id)
+        entry = dict(contribs.get(key, {
+            'damage_dealt': 0, 'healing_done': 0,
+            'skill_checks_passed': 0, 'turns_taken': 0,
+        }))
+        entry['damage_dealt']        = entry.get('damage_dealt', 0)        + damage_dealt
+        entry['healing_done']        = entry.get('healing_done', 0)        + healing_done
+        entry['skill_checks_passed'] = entry.get('skill_checks_passed', 0) + checks_passed
+        entry['turns_taken']         = entry.get('turns_taken', 0)         + 1
+        contribs[key] = entry
+        current_state.party_contributions = contribs
+        flag_modified(current_state, 'party_contributions')
+        self.session.commit()
+
+    def _build_system_prompt(self, character, current_state, party=None):
         npc_context   = self._format_npc_state(current_state)
         world_context = self._format_world_setting(current_state)
+        ws_id  = getattr(current_state, 'world_setting', None) or 'dnd5e'
+        tm     = config.get_world_setting(ws_id)['term_map']
+        hp_lbl = tm['hp_name']
+        mp_lbl = tm['mp_name']
+
+        # Party roster block (shown for all players so DM can address each by name)
+        all_chars = party if (party and len(party) > 1) else None
+        party_block = ""
+        if all_chars:
+            lines = ["Party roster:"]
+            for c in all_chars:
+                status = "DEFEATED" if c.hp <= 0 else f"{hp_lbl} {c.hp}/{c.max_hp}"
+                active_marker = " ◀ ACTIVE" if c.id == character.id else ""
+                lines.append(
+                    f"  {c.name} ({c.race} {c.char_class}) — {status}"
+                    f"  {mp_lbl} {c.mp}/{c.max_mp}  ATK {c.atk}  DEF {c.def_stat}"
+                    f"{active_marker}"
+                )
+            party_block = "\n".join(lines) + "\n"
+
         return (
             f"{world_context}"
-            f"The player is {character.name}, a {character.race} {character.char_class}.\n"
-            f"{config.get_world_setting(getattr(current_state, 'world_setting', None) or 'dnd5e')['term_map']['hp_name']}: "
-            f"{character.hp}/{character.max_hp}  "
-            f"{config.get_world_setting(getattr(current_state, 'world_setting', None) or 'dnd5e')['term_map']['mp_name']}: "
-            f"{character.mp}/{character.max_mp}  "
+            f"{party_block}"
+            f"Active player this turn: {character.name} ({character.race} {character.char_class}).\n"
+            f"{hp_lbl}: {character.hp}/{character.max_hp}  "
+            f"{mp_lbl}: {character.mp}/{character.max_mp}  "
             f"ATK: {character.atk}  DEF: {character.def_stat}.\n"
             f"Location: {current_state.current_location}.\n"
             f"World lore: {current_state.world_context}\n"

@@ -2,21 +2,42 @@ import os
 from engine.game_state import DatabaseManager, GameState, Character
 from engine.config import config, GameConfig
 
+
 class SaveLoadManager:
-    """Handles creating, saving, and loading game sessions."""
+    """Handles creating, saving, and loading game sessions (1-4 players)."""
 
     def __init__(self, db_manager=None):
-        # Dependency injection: accept an external DatabaseManager so tests and
-        # the UI can provide their own DB path without touching config.
         if db_manager is None:
             db_manager = DatabaseManager(config.get_db_path())
         self.db_manager = db_manager
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def create_new_game(self, save_name, character_name, race, char_class,
                         appearance, personality,
                         difficulty="Normal", language="English",
-                        world_context="",
-                        world_setting="dnd5e"):
+                        world_context="", world_setting="dnd5e",
+                        extra_players=None):
+        """
+        Create a new game with 1-4 players.
+
+        Parameters
+        ----------
+        save_name       : str  — unique identifier for this save file
+        character_name  : str  — player 1 name
+        race, char_class: str  — player 1 race / class
+        appearance      : str  — player 1 appearance (image gen)
+        personality     : str  — player 1 personality (LLM prompt)
+        extra_players   : list[dict] | None
+            Additional players (2-4). Each dict:
+              {name, race, char_class, appearance, personality}
+            Missing fields fall back to 'Human'/'Warrior'/''/'' defaults.
+
+        Returns (party, game_state, session) on success, (None, None, None) on duplicate.
+        party is a list[Character] ordered by turn index.
+        """
         session = self.db_manager.get_session()
 
         existing = session.query(GameState).filter_by(save_name=save_name).first()
@@ -24,33 +45,72 @@ class SaveLoadManager:
             session.close()
             return None, None, None
 
-        # Pull world-setting defaults (starting location, NPC, lore)
         ws = GameConfig.get_world_setting(world_setting)
         starting_location = ws['starting_location']
-        starting_npc      = ws.get('starting_npc', {
+        starting_npc = ws.get('starting_npc', {
             "name": "Village Elder", "affinity": 10, "state": "Friendly",
             "goal": "Protect the settlement",
         })
-        # Use caller-supplied world_context; fall back to the world's built-in lore
-        effective_world_context = world_context.strip() or ws.get('world_lore', 'A world waiting to be explored.')
-
-        player = Character(
-            name=character_name,
-            race=race,
-            char_class=char_class,
-            appearance=appearance,
-            personality=personality,
-            hp=100, max_hp=100,
-            mp=50, max_mp=50,
-            atk=10, def_stat=10, mov=5,
-            gold=100,
-            inventory=[],
-            skills=[],
+        effective_world_context = (
+            world_context.strip() or ws.get('world_lore', 'A world waiting to be explored.')
         )
-        session.add(player)
+
+        # --- Build party config list ---
+        player_configs = [{
+            'name':        character_name,
+            'race':        race,
+            'char_class':  char_class,
+            'appearance':  appearance,
+            'personality': personality,
+        }]
+        for ep in (extra_players or []):
+            player_configs.append({
+                'name':        ep.get('name', 'Adventurer'),
+                'race':        ep.get('race', 'Human'),
+                'char_class':  ep.get('char_class', 'Warrior'),
+                'appearance':  ep.get('appearance', ''),
+                'personality': ep.get('personality', ''),
+            })
+        player_configs = player_configs[:GameConfig.MAX_PARTY_SIZE]
+
+        # --- Create Character rows using class-balanced base stats ---
+        party = []
+        for cfg in player_configs:
+            base = GameConfig.CLASS_BASE_STATS.get(
+                cfg['char_class'].lower(), GameConfig.CLASS_BASE_STATS['warrior']
+            )
+            char = Character(
+                name=cfg['name'],
+                race=cfg['race'],
+                char_class=cfg['char_class'],
+                appearance=cfg['appearance'],
+                personality=cfg['personality'],
+                hp=base['hp'],       max_hp=base['max_hp'],
+                mp=base['mp'],       max_mp=base['max_mp'],
+                atk=base['atk'],     def_stat=base['def_stat'],
+                mov=base['mov'],
+                gold=base['gold'],
+                inventory=[],
+                skills=[],
+            )
+            session.add(char)
+            party.append(char)
         session.commit()
 
-        npc_name = starting_npc['name']
+        party_ids = [c.id for c in party]
+        npc_name  = starting_npc['name']
+
+        # Initial contribution tracker — one entry per character
+        init_contributions = {
+            str(cid): {
+                'damage_dealt':       0,
+                'healing_done':       0,
+                'skill_checks_passed': 0,
+                'turns_taken':        0,
+            }
+            for cid in party_ids
+        }
+
         game_state = GameState(
             save_name=save_name,
             current_location=starting_location,
@@ -58,7 +118,10 @@ class SaveLoadManager:
             difficulty=difficulty,
             language=language,
             world_setting=world_setting,
-            player_id=player.id,
+            player_id=party_ids[0],     # party leader / backward-compat
+            party_ids=party_ids,
+            active_player_index=0,
+            party_contributions=init_contributions,
             turn_count=0,
             relationships={
                 npc_name: {
@@ -73,22 +136,102 @@ class SaveLoadManager:
         session.add(game_state)
         session.commit()
 
-        return player, game_state, session
+        return party, game_state, session
 
     def load_game(self, save_name):
+        """
+        Load an existing save.
+
+        Returns (party, game_state, session) where party is a list[Character]
+        ordered by party_ids.  (None, None, None) if save not found.
+        """
         session = self.db_manager.get_session()
         game_state = session.query(GameState).filter_by(save_name=save_name).first()
         if not game_state:
             session.close()
             return None, None, None
 
-        player = session.query(Character).filter_by(id=game_state.player_id).first()
-        return player, game_state, session
+        # Support saves created before multi-player (party_ids may be empty)
+        party_ids = game_state.party_ids or []
+        if not party_ids:
+            party_ids = [game_state.player_id]
+
+        party = []
+        for cid in party_ids:
+            char = session.query(Character).filter_by(id=cid).first()
+            if char:
+                party.append(char)
+
+        if not party:
+            session.close()
+            return None, None, None
+
+        return party, game_state, session
 
     def list_saves(self):
+        """Return a list of save summaries for the load-game UI."""
         session = self.db_manager.get_session()
         saves = session.query(
-            GameState.save_name, GameState.current_location, GameState.turn_count
+            GameState.save_name,
+            GameState.current_location,
+            GameState.turn_count,
+            GameState.party_ids,
         ).all()
         session.close()
-        return [{"save_name": s[0], "location": s[1], "turns": s[2] or 0} for s in saves]
+        result = []
+        for s in saves:
+            party_ids = s[3] or []
+            result.append({
+                "save_name":   s[0],
+                "location":    s[1],
+                "turns":       s[2] or 0,
+                "party_size":  len(party_ids) if party_ids else 1,
+            })
+        return result
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def get_active_character(self, party, game_state):
+        """Return the Character whose turn it is."""
+        idx = (game_state.active_player_index or 0) % max(len(party), 1)
+        return party[idx]
+
+    def compute_end_game_rewards(self, party, game_state):
+        """
+        Split accumulated party gold among players based on weighted contribution scores.
+
+        Score = (damage_dealt × 1.0 + healing_done × 1.5 + checks_passed × 20)
+                × CLASS_BASE_STATS[class]['reward_weight']
+
+        Returns {char.name: gold_share} — integer gold amounts that sum to party_gold.
+        """
+        contributions = game_state.party_contributions or {}
+        total_party_gold = sum(c.gold for c in party)
+
+        scores = {}
+        for char in party:
+            cdata = contributions.get(str(char.id), {})
+            raw = (
+                cdata.get('damage_dealt', 0) * 1.0
+                + cdata.get('healing_done', 0) * 1.5
+                + cdata.get('skill_checks_passed', 0) * 20.0
+            )
+            weight = GameConfig.CLASS_BASE_STATS.get(
+                char.char_class.lower(), {}
+            ).get('reward_weight', 1.0)
+            scores[char.name] = max(raw * weight, 1.0)  # floor of 1 so nobody gets 0
+
+        total_score = sum(scores.values())
+        result = {}
+        remainder = total_party_gold
+        names = list(scores.keys())
+        for i, name in enumerate(names):
+            if i == len(names) - 1:
+                result[name] = remainder   # give leftover to last to avoid rounding loss
+            else:
+                share = int(total_party_gold * scores[name] / total_score)
+                result[name] = share
+                remainder -= share
+        return result

@@ -20,7 +20,8 @@ if 'save_manager' not in st.session_state:
 
     st.session_state.current_session = None
     st.session_state.game_state      = None
-    st.session_state.player          = None
+    st.session_state.player          = None   # active character (backward compat)
+    st.session_state.party           = []     # list[Character] — all party members
     st.session_state.event_manager   = None
     st.session_state.history         = []
 
@@ -175,6 +176,31 @@ def _render_world_selector(form_key_prefix=""):
     return ws['id'], custom_lore
 
 
+def _player_config_fields(idx, key_prefix):
+    """Render name/race/class/appearance/personality fields for one party member."""
+    label = "Player 1 (Party Leader)" if idx == 0 else f"Player {idx + 1}"
+    st.markdown(f"**{label}**")
+    cols = st.columns([2, 1, 1])
+    name       = cols[0].text_input("Name",  key=f"{key_prefix}_name_{idx}")
+    race       = cols[1].selectbox("Race", ["Human", "Elf", "Dwarf", "Orc", "Halfling"],
+                                   key=f"{key_prefix}_race_{idx}")
+    char_class = cols[2].selectbox("Class", ["Warrior", "Mage", "Rogue", "Cleric"],
+                                   key=f"{key_prefix}_class_{idx}")
+    # Show balanced base stats for selected class
+    base = config.CLASS_BASE_STATS.get(char_class.lower(), {})
+    st.caption(
+        f"HP {base.get('max_hp','?')} · MP {base.get('max_mp','?')} · "
+        f"ATK {base.get('atk','?')} · DEF {base.get('def_stat','?')} · "
+        f"MOV {base.get('mov','?')} · "
+        f"⚖ reward×{base.get('reward_weight',1.0):.2f} — *{base.get('role','')}*"
+    )
+    appearance  = st.text_input("Appearance", key=f"{key_prefix}_app_{idx}",
+                                placeholder="A brave adventurer.")
+    personality = st.text_input("Personality", key=f"{key_prefix}_per_{idx}",
+                                placeholder="Courageous and kind.")
+    return name, race, char_class, appearance, personality
+
+
 def main_menu():
     _check_model_updates()
     _render_model_switcher()
@@ -186,18 +212,12 @@ def main_menu():
     with col1:
         st.header("New Game")
         with st.form("new_game_form"):
-            save_name      = st.text_input("Save Name")
-            character_name = st.text_input("Character Name")
-            race           = st.selectbox("Race", ["Human", "Elf", "Dwarf", "Orc", "Halfling"])
-            char_class     = st.selectbox("Class", ["Warrior", "Mage", "Rogue", "Cleric"])
-            appearance     = st.text_area("Appearance (For Image Gen)", "A brave adventurer.")
-            personality    = st.text_area("Personality", "Courageous and kind.")
-            difficulty     = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"])
-            language       = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"])
+            save_name  = st.text_input("Save Name")
+            difficulty = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"])
+            language   = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"])
 
-            # World setting selector (outside form to enable dynamic info card)
+            # World setting selector
             st.markdown("**World Setting**")
-
             ws_labels = [f"[{ws['category']}] {ws['name']}" for ws in config.WORLD_SETTINGS]
             ws_ids    = [ws['id'] for ws in config.WORLD_SETTINGS]
             ws_idx    = st.selectbox(
@@ -210,33 +230,57 @@ def main_menu():
             tm = ws.get('term_map', {})
             st.caption(
                 f"**{ws['name']}** — {ws['description']}  \n"
-                f"HP→*{tm.get('hp_name','HP')}* · "
-                f"MP→*{tm.get('mp_name','MP')}* · "
-                f"Currency→*{tm.get('gold_name','gold')}* · "
-                f"GM=*{tm.get('dm_title','Game Master')}*"
+                f"{tm.get('hp_name','HP')}·{tm.get('mp_name','MP')}·"
+                f"{tm.get('gold_name','gold')}·GM={tm.get('dm_title','GM')}"
+            )
+            custom_lore = st.text_area(
+                "Custom World Lore (optional)",
+                placeholder=ws.get('world_lore', '')[:150] + "...",
+                height=60, key="new_game_lore",
             )
 
-            custom_lore = st.text_area(
-                "Custom World Lore (optional — leave blank to use setting default)",
-                placeholder=ws.get('world_lore', '')[:180] + "...",
-                height=70,
-                key="new_game_lore",
+            # Party size selector
+            st.markdown("---")
+            st.markdown("**Party (1-4 players)**")
+            num_players = st.selectbox(
+                "Number of players", [1, 2, 3, 4], key="new_game_num_players"
             )
+
+            # Per-player config fields
+            player_fields = []
+            for i in range(num_players):
+                player_fields.append(
+                    _player_config_fields(i, key_prefix="ng")
+                )
+                if i < num_players - 1:
+                    st.markdown("---")
 
             if st.form_submit_button("Start Adventure"):
-                if not save_name or not character_name:
-                    st.error("Save Name and Character Name are required.")
+                lead = player_fields[0]
+                if not save_name or not lead[0]:
+                    st.error("Save Name and Player 1 Name are required.")
                 else:
-                    player, game_state, session = st.session_state.save_manager.create_new_game(
-                        save_name, character_name, race, char_class,
-                        appearance, personality, difficulty, language,
-                        world_context=custom_lore,
-                        world_setting=ws_ids[ws_idx],
+                    extra = []
+                    for name, race, char_class, app, per in player_fields[1:]:
+                        extra.append({'name': name or f'Adventurer {len(extra)+2}',
+                                      'race': race, 'char_class': char_class,
+                                      'appearance': app, 'personality': per})
+                    party, game_state, session = (
+                        st.session_state.save_manager.create_new_game(
+                            save_name, lead[0], lead[1], lead[2], lead[3], lead[4],
+                            difficulty, language,
+                            world_context=custom_lore,
+                            world_setting=ws_ids[ws_idx],
+                            extra_players=extra or None,
+                        )
                     )
-                    if player is not None:
-                        st.success(f"Save created in the **{ws['name']}** setting! Load it to play.")
+                    if party is not None:
+                        names = ", ".join(c.name for c in party)
+                        st.success(
+                            f"Party [{names}] created in **{ws['name']}**! Load it to play."
+                        )
                     else:
-                        st.error(f"Save name '{save_name}' already exists. Choose a different name.")
+                        st.error(f"Save name '{save_name}' already exists.")
 
     with col2:
         st.header("Load Game")
@@ -245,7 +289,9 @@ def main_menu():
             st.info("No saves found.")
         else:
             save_labels  = [
-                f"{s['save_name']} — {s['location']} (turn {s['turns']})" for s in saves
+                f"{s['save_name']} — {s['location']} "
+                f"({s['party_size']}p · turn {s['turns']})"
+                for s in saves
             ]
             save_names   = [s['save_name'] for s in saves]
             selected_idx = st.selectbox(
@@ -256,16 +302,20 @@ def main_menu():
 
             if st.button("Load"):
                 selected_save = save_names[selected_idx]
-                player, game_state, session = st.session_state.save_manager.load_game(selected_save)
-                if player and game_state and session:
+                party, game_state, session = st.session_state.save_manager.load_game(selected_save)
+                if party and game_state and session:
+                    active_idx = game_state.active_player_index or 0
+                    active_char = party[active_idx % len(party)]
                     st.session_state.current_session = session
                     st.session_state.game_state      = game_state
-                    st.session_state.player          = player
+                    st.session_state.party           = party
+                    st.session_state.player          = active_char
                     st.session_state.history         = []
                     st.session_state.event_manager   = EventManager(
                         st.session_state.llm, st.session_state.rag, session
                     )
-                    st.success(f"Loaded {player.name}'s adventure!")
+                    names = ", ".join(c.name for c in party)
+                    st.success(f"Loaded party [{names}]!")
                     st.rerun()
                 else:
                     st.error("Failed to load save file.")
@@ -329,40 +379,73 @@ def _affinity_bar(affinity):
     return '█' * filled + '░' * empty
 
 # ---------------------------------------------------------------------------
+# Game Loop helpers — party sidebar
+# ---------------------------------------------------------------------------
+
+def _render_party_sidebar(party, state, active_char):
+    """Sidebar: compact card per party member; active player highlighted."""
+    ws_id = getattr(state, 'world_setting', None) or 'dnd5e'
+    tm    = config.get_world_setting(ws_id)['term_map']
+    hp_lbl = tm.get('hp_name', 'HP')
+    mp_lbl = tm.get('mp_name', 'MP')
+
+    st.sidebar.title("Party")
+    for char in party:
+        is_active  = (char.id == active_char.id)
+        is_dead    = (char.hp <= 0)
+        prefix     = "⚔️ " if is_active else "   "
+        status_sfx = " ☠" if is_dead else (" ◀" if is_active else "")
+        st.sidebar.markdown(
+            f"**{prefix}{char.name}**{status_sfx}  "
+            f"*{char.race} {char.char_class}*"
+        )
+        if not is_dead:
+            hp_pct = int(char.hp / max(char.max_hp, 1) * 100)
+            mp_pct = int(char.mp / max(char.max_mp, 1) * 100)
+            st.sidebar.write(f"{hp_lbl} {char.hp}/{char.max_hp}")
+            st.sidebar.progress(hp_pct)
+            st.sidebar.write(f"{mp_lbl} {char.mp}/{char.max_mp}")
+            st.sidebar.progress(mp_pct)
+            st.sidebar.caption(
+                f"ATK {char.atk} · DEF {char.def_stat} · MOV {char.mov} · "
+                f"{tm.get('gold_name','gold')}: {char.gold}"
+            )
+        else:
+            st.sidebar.error("DEFEATED")
+
+        if char.inventory:
+            inv_names = [
+                i.get('name', i) if isinstance(i, dict) else i
+                for i in char.inventory
+            ]
+            st.sidebar.caption("Inventory: " + ", ".join(inv_names))
+        st.sidebar.markdown("---")
+
+
+# ---------------------------------------------------------------------------
 # Game Loop
 # ---------------------------------------------------------------------------
 
 def game_loop():
-    player = st.session_state.player
+    party  = st.session_state.party or [st.session_state.player]
     state  = st.session_state.game_state
 
-    # --- Sidebar: character sheet ---
-    st.sidebar.title("Character Sheet")
-    st.sidebar.write(f"**Name:** {player.name} ({player.race} {player.char_class})")
+    # Determine active player from state
+    active_idx  = (state.active_player_index or 0) % max(len(party), 1)
+    active_char = party[active_idx]
+    # Keep backward-compat key in sync
+    st.session_state.player = active_char
 
-    hp_pct = int((player.hp / max(player.max_hp, 1)) * 100)
-    mp_pct = int((player.mp / max(player.max_mp, 1)) * 100)
-    st.sidebar.write(f"**HP** {player.hp}/{player.max_hp}")
-    st.sidebar.progress(hp_pct)
-    st.sidebar.write(f"**MP** {player.mp}/{player.max_mp}")
-    st.sidebar.progress(mp_pct)
+    # --- Sidebar: party sheet ---
+    _render_party_sidebar(party, state, active_char)
 
-    st.sidebar.write(f"**ATK:** {player.atk} | **DEF:** {player.def_stat} | **MOV:** {player.mov}")
-    st.sidebar.write(f"**Gold:** {player.gold}")
     st.sidebar.write(f"**Turn:** {state.turn_count or 0}  "
                      f"*(memory: last {config.SESSION_MEMORY_WINDOW})*")
 
-    if player.inventory:
-        st.sidebar.markdown("---")
-        st.sidebar.write("**Inventory**")
-        for item in player.inventory:
-            name = item.get('name', item) if isinstance(item, dict) else item
-            st.sidebar.write(f"  • {name}")
-
-    # NPC / faction tracker (enriched relationship data)
+    # NPC / faction tracker
     _render_npc_tracker(state)
 
-    # Model switcher available in-game too
+    # Model switcher
     _render_model_switcher()
 
     if st.sidebar.button("Save & Quit"):
@@ -371,6 +454,7 @@ def game_loop():
         st.session_state.current_session = None
         st.session_state.game_state      = None
         st.session_state.player          = None
+        st.session_state.party           = []
         st.session_state.event_manager   = None
         st.session_state.history         = []
         st.rerun()
@@ -387,6 +471,8 @@ def game_loop():
     badge_parts = [f"🌍 **{ws['name']}**"]
     if active_preset:
         badge_parts.append(f"🤖 {active_preset['name']}")
+    if len(party) > 1:
+        badge_parts.append(f"👥 {len(party)} players")
     st.caption("  ·  ".join(badge_parts))
 
     # --- Chat history ---
@@ -395,7 +481,9 @@ def game_loop():
 
     for item in st.session_state.history:
         if item['role'] == 'player':
-            st.markdown(f"**You:** {item['content']}")
+            actor = item.get('actor', '')
+            prefix = f"**{actor}:**" if actor else "**You:**"
+            st.markdown(f"{prefix} {item['content']}")
         else:
             # Scene type badge (Waidrin Narrative Event style)
             scene_type = item.get('scene_type', 'exploration')
@@ -407,7 +495,14 @@ def game_loop():
                 st.image(item['image'], caption="Scene visualization")
 
     # --- Input area ---
-    st.markdown("### What do you do next?")
+    # Multi-player: show whose turn it is
+    if active_char.hp <= 0:
+        st.warning(f"**{active_char.name}** has been defeated! Waiting for next living player…")
+    else:
+        if len(party) > 1:
+            st.markdown(f"### ⚔️ {active_char.name}'s turn — what do you do?")
+        else:
+            st.markdown("### What do you do next?")
 
     current_choices = []
     if st.session_state.history and st.session_state.history[-1]['role'] == 'dm':
@@ -429,26 +524,38 @@ def game_loop():
         with st.form("action_form", clear_on_submit=True):
             col_input, col_submit = st.columns([4, 1])
             with col_input:
-                action_taken = st.text_input("I choose to...", key="action_input")
+                prompt_text = (
+                    f"{active_char.name} chooses to..." if len(party) > 1
+                    else "I choose to..."
+                )
+                action_taken = st.text_input(prompt_text, key="action_input")
             with col_submit:
                 st.write("")
                 st.write("")
                 st.form_submit_button("Action")
 
-    if action_taken:
-        st.session_state.history.append({"role": "player", "content": action_taken})
-        with st.spinner("The DM is thinking..."):
+    if action_taken and active_char.hp > 0:
+        st.session_state.history.append({
+            "role":    "player",
+            "actor":   active_char.name if len(party) > 1 else "",
+            "content": action_taken,
+        })
+        spinner_msg = (
+            f"The {config.get_world_setting(ws_id)['term_map']['dm_title']} is thinking..."
+        )
+        with st.spinner(spinner_msg):
             response, choices, turn_data, dice_result = (
-                st.session_state.event_manager.process_turn(action_taken, state, player)
+                st.session_state.event_manager.process_turn(
+                    action_taken, state, active_char, party=party
+                )
             )
 
             scene_image = None
             if "look" in action_taken.lower() or len(st.session_state.history) % 6 == 0:
                 try:
-                    prompt_for_image = (
+                    scene_image = st.session_state.img_gen.generate_image(
                         f"A fantasy scene. {state.current_location}. {response[:100]}"
                     )
-                    scene_image = st.session_state.img_gen.generate_image(prompt_for_image)
                 except Exception as e:
                     print(f"Image gen failed: {e}")
 

@@ -65,6 +65,16 @@ class GameState(Base):
     # Defaults to 'dnd5e' for classic Forgotten Realms experience.
     world_setting = Column(String, default='dnd5e')
 
+    # Multi-player party support (1-4 players).
+    # party_ids: ordered list of Character.id values — index 0 is the party leader.
+    #   Single-player games: party_ids = [player_id]
+    # active_player_index: which slot is currently taking their turn (0-based).
+    # party_contributions: per-player scoring for balanced end-game reward split.
+    #   {str(char_id): {damage_dealt, healing_done, skill_checks_passed, turns_taken}}
+    party_ids             = Column(JSON, default=lambda: [])
+    active_player_index   = Column(Integer, default=0)
+    party_contributions   = Column(JSON, default=lambda: {})
+
 class DatabaseManager:
     def __init__(self, db_path="savegame.db"):
         self.engine = create_engine(f'sqlite:///{db_path}')
@@ -74,16 +84,20 @@ class DatabaseManager:
 
     def _migrate(self, engine):
         """Add columns introduced after initial schema creation (non-destructive)."""
+        _text = __import__('sqlalchemy').text
+        migrations = [
+            "ALTER TABLE game_state ADD COLUMN world_setting VARCHAR DEFAULT 'dnd5e'",
+            "ALTER TABLE game_state ADD COLUMN party_ids TEXT DEFAULT '[]'",
+            "ALTER TABLE game_state ADD COLUMN active_player_index INTEGER DEFAULT 0",
+            "ALTER TABLE game_state ADD COLUMN party_contributions TEXT DEFAULT '{}'",
+        ]
         with engine.connect() as conn:
-            try:
-                conn.execute(
-                    __import__('sqlalchemy').text(
-                        "ALTER TABLE game_state ADD COLUMN world_setting VARCHAR DEFAULT 'dnd5e'"
-                    )
-                )
-                conn.commit()
-            except Exception:
-                pass  # column already exists
+            for sql in migrations:
+                try:
+                    conn.execute(_text(sql))
+                    conn.commit()
+                except Exception:
+                    pass  # column already exists — safe to ignore
 
     def get_session(self):
         return self.Session()
