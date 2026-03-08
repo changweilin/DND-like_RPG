@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import ollama
 from engine.config import config
@@ -72,13 +73,162 @@ def _validated_stat_block(data, entity_name):
             defaults[k] = data[k]
     return defaults
 
+def _detect_provider(model_id):
+    """Look up the provider for a model ID in MODEL_PRESETS; default to ollama."""
+    for preset in config.MODEL_PRESETS:
+        if preset['id'] == model_id:
+            return preset['provider']
+    return 'ollama'
+
+def _preset_for(model_id):
+    """Return the full preset dict for a model ID, or an empty dict."""
+    for preset in config.MODEL_PRESETS:
+        if preset['id'] == model_id:
+            return preset
+    return {}
+
 # ---------------------------------------------------------------------------
 # LLMClient
 # ---------------------------------------------------------------------------
 
 class LLMClient:
     def __init__(self, model_name=None):
-        self.model = model_name or config.LLM_MODEL_NAME
+        self.model    = model_name or config.LLM_MODEL_NAME
+        self.provider = _detect_provider(self.model)
+
+    def switch_model(self, model_id, provider=None):
+        """Hot-swap the active model without rebuilding shared state."""
+        self.model    = model_id
+        self.provider = provider or _detect_provider(model_id)
+
+    # ------------------------------------------------------------------
+    # Unified provider routing — _chat()
+    # All public methods funnel through here so adding a new provider
+    # requires changing only one place.
+    # ------------------------------------------------------------------
+
+    def _chat(self, messages, json_mode=False):
+        """
+        Route a chat request to the correct provider SDK.
+
+        Args:
+            messages  (list[dict]): OpenAI-style message list
+                                    [{"role": "system"|"user"|"assistant", "content": str}]
+            json_mode (bool):       Ask the provider for structured JSON output.
+
+        Returns:
+            str: raw response text from the model.
+        """
+        if self.provider == 'anthropic':
+            return self._chat_anthropic(messages, json_mode)
+        elif self.provider == 'google':
+            return self._chat_google(messages, json_mode)
+        elif self.provider == 'openai':
+            return self._chat_openai(messages, json_mode)
+        else:
+            return self._chat_ollama(messages, json_mode)
+
+    def _chat_ollama(self, messages, json_mode=False):
+        kwargs = {'format': 'json'} if json_mode else {}
+        response = ollama.chat(model=self.model, messages=messages, **kwargs)
+        return response.message.content
+
+    def _chat_openai(self, messages, json_mode=False):
+        """
+        Handles both OpenAI GPT models and xAI Grok (which uses an OpenAI-compatible API).
+        For Grok, the preset supplies base_url and env_key=XAI_API_KEY.
+        """
+        try:
+            import openai
+        except ImportError:
+            raise RuntimeError("openai package not installed. Run: pip install openai")
+
+        preset  = _preset_for(self.model)
+        api_key = os.environ.get(preset.get('env_key', 'OPENAI_API_KEY'), '')
+        base_url = preset.get('base_url')  # None for standard OpenAI, set for Grok
+
+        client_kwargs = {'api_key': api_key}
+        if base_url:
+            client_kwargs['base_url'] = base_url
+        client = openai.OpenAI(**client_kwargs)
+
+        call_kwargs = {}
+        if json_mode:
+            call_kwargs['response_format'] = {"type": "json_object"}
+
+        response = client.chat.completions.create(
+            model=self.model, messages=messages, **call_kwargs
+        )
+        return response.choices[0].message.content
+
+    def _chat_anthropic(self, messages, json_mode=False):
+        try:
+            import anthropic
+        except ImportError:
+            raise RuntimeError("anthropic package not installed. Run: pip install anthropic")
+
+        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        client  = anthropic.Anthropic(api_key=api_key)
+
+        # Anthropic separates system content from the messages array
+        system_parts = []
+        user_messages = []
+        for m in messages:
+            if m['role'] == 'system':
+                system_parts.append(m['content'])
+            else:
+                user_messages.append(m)
+
+        system_text = "\n".join(system_parts)
+        if json_mode:
+            system_text += "\nCRITICAL: Respond ONLY with valid JSON, no markdown."
+
+        response = client.messages.create(
+            model=self.model,
+            max_tokens=2048,
+            system=system_text,
+            messages=user_messages or [{"role": "user", "content": "Continue."}],
+        )
+        return response.content[0].text
+
+    def _chat_google(self, messages, json_mode=False):
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            raise RuntimeError(
+                "google-generativeai package not installed. Run: pip install google-generativeai"
+            )
+
+        api_key = os.environ.get('GOOGLE_API_KEY', '')
+        genai.configure(api_key=api_key)
+
+        # Convert OpenAI-style messages to Google format
+        system_parts = []
+        conversation = []
+        for m in messages:
+            if m['role'] == 'system':
+                system_parts.append(m['content'])
+            elif m['role'] == 'user':
+                conversation.append({'role': 'user', 'parts': [m['content']]})
+            elif m['role'] == 'assistant':
+                conversation.append({'role': 'model', 'parts': [m['content']]})
+
+        system_instruction = "\n".join(system_parts) or None
+
+        gen_config = {}
+        if json_mode:
+            gen_config['response_mime_type'] = 'application/json'
+
+        model = genai.GenerativeModel(
+            model_name=self.model,
+            system_instruction=system_instruction,
+            generation_config=genai.GenerationConfig(**gen_config) if gen_config else None,
+        )
+        if not conversation:
+            conversation = [{'role': 'user', 'parts': ['Continue.']}]
+
+        response = model.generate_content(conversation)
+        return response.text
 
     # ------------------------------------------------------------------
     # Phase 1 — intent parsing with Guided Thinking
@@ -115,16 +265,14 @@ class LLMClient:
             f"Current game context:\n{game_context}"
         )
         try:
-            response = ollama.chat(
-                model=self.model,
+            raw = self._chat(
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": player_action},
+                    {"role": "user",   "content": player_action},
                 ],
-                format='json',
+                json_mode=True,
             )
-            raw = _repair_json(response.message.content)
-            return _validated_intent(json.loads(raw))
+            return _validated_intent(json.loads(_repair_json(raw)))
         except Exception as e:
             print(f"Intent parsing error: {e}")
             return _validated_intent({"summary": player_action})
@@ -168,16 +316,14 @@ class LLMClient:
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
         try:
-            response = ollama.chat(
-                model=self.model,
+            raw = self._chat(
                 messages=[
                     {"role": "system", "content": full_prompt},
-                    {"role": "user", "content": outcome_context},
+                    {"role": "user",   "content": outcome_context},
                 ],
-                format='json',
+                json_mode=True,
             )
-            raw = _repair_json(response.message.content)
-            return _validated_narrative(json.loads(raw))
+            return _validated_narrative(json.loads(_repair_json(raw)))
         except Exception as e:
             print(f"Narrative rendering error: {e}")
             return _validated_narrative({
@@ -218,16 +364,14 @@ class LLMClient:
             f"World context: {world_context}"
         )
         try:
-            response = ollama.chat(
-                model=self.model,
+            raw = self._chat(
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Generate a stat block for: {entity_name} (type: {entity_type})"},
+                    {"role": "user",   "content": f"Generate a stat block for: {entity_name} (type: {entity_type})"},
                 ],
-                format='json',
+                json_mode=True,
             )
-            raw = _repair_json(response.message.content)
-            return _validated_stat_block(json.loads(raw), entity_name)
+            return _validated_stat_block(json.loads(_repair_json(raw)), entity_name)
         except Exception as e:
             print(f"Stat block generation error for {entity_name!r}: {e}")
             return _validated_stat_block({}, entity_name)
@@ -272,19 +416,15 @@ class LLMClient:
             f"CRITICAL: Write all goal text EXCLUSIVELY in {language or 'English'}."
         )
         try:
-            response = ollama.chat(
-                model=self.model,
+            raw = self._chat(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user",   "content": f"Event that just occurred:\n{event_summary}"},
                 ],
-                format='json',
+                json_mode=True,
             )
-            raw = _repair_json(response.message.content)
-            data = json.loads(raw)
-            if isinstance(data, dict):
-                return data
-            return {}
+            data = json.loads(_repair_json(raw))
+            return data if isinstance(data, dict) else {}
         except Exception as e:
             print(f"NPC reaction evaluation error: {e}")
             return {}
@@ -317,17 +457,15 @@ class LLMClient:
             f"Write EXCLUSIVELY in {language or 'English'}. Return plain text only, no JSON."
         )
         try:
-            response = ollama.chat(
-                model=self.model,
+            return self._chat(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user",   "content": f"Events to summarize:\n{turns_text}"},
                 ],
-            )
-            return response.message.content.strip()
+                json_mode=False,
+            ).strip()
         except Exception as e:
             print(f"Memory summarization error: {e}")
-            # Fallback: concatenate the last turn's player action only
             return f"Earlier: {turns[-1].get('player_action', '')}..." if turns else ""
 
     # ------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import datetime
 
 from engine.save_load import SaveLoadManager
 from engine.config import config
@@ -12,15 +13,20 @@ st.set_page_config(page_title="AI RPG Engine", layout="wide")
 
 # Initialize shared systems once per browser session
 if 'save_manager' not in st.session_state:
-    st.session_state.save_manager  = SaveLoadManager()
-    st.session_state.llm            = LLMClient()
-    st.session_state.rag            = RAGSystem()
-    st.session_state.img_gen        = ImageGenerator()
+    st.session_state.save_manager    = SaveLoadManager()
+    st.session_state.llm             = LLMClient()
+    st.session_state.rag             = RAGSystem()
+    st.session_state.img_gen         = ImageGenerator()
 
     st.session_state.current_session = None
     st.session_state.game_state      = None
     st.session_state.player          = None
     st.session_state.event_manager   = None
+    st.session_state.history         = []
+
+    # Model switcher state
+    st.session_state.active_model_id  = config.LLM_MODEL_NAME
+    st.session_state.last_model_check = ""   # ISO date string
 
 # ---------------------------------------------------------------------------
 # Scene type styling (Waidrin-inspired Narrative Event labelling)
@@ -42,10 +48,95 @@ _SCENE_COLOURS = {
 }
 
 # ---------------------------------------------------------------------------
+# Daily model update check (Ollama local models only)
+# ---------------------------------------------------------------------------
+
+def _check_model_updates():
+    """On the first load of each calendar day, check for new/updated Ollama models."""
+    today = datetime.date.today().isoformat()
+    if st.session_state.last_model_check == today:
+        return
+    st.session_state.last_model_check = today
+
+    try:
+        import ollama
+        installed = ollama.list()
+        installed_ids = {m.model.split(':')[0] + ':' + m.model.split(':')[1]
+                         if ':' in m.model else m.model
+                         for m in installed.models}
+        preset_ids = {p['id'] for p in config.MODEL_PRESETS if p.get('provider') == 'ollama'}
+        extras = installed_ids - preset_ids
+        if extras:
+            st.sidebar.info(
+                f"🔄 Ollama models not in preset list detected:\n"
+                + "\n".join(f"• `{m}`" for m in sorted(extras))
+            )
+    except Exception:
+        pass  # Ollama not running — silently skip
+
+# ---------------------------------------------------------------------------
+# Model switcher sidebar panel
+# ---------------------------------------------------------------------------
+
+def _render_model_switcher():
+    """Sidebar expander: select model, view pros/cons, switch live."""
+    with st.sidebar.expander("⚙️ Model", expanded=False):
+        # Build display labels grouped by category
+        preset_labels = [
+            f"[{p['category']}] {p['name']}" for p in config.MODEL_PRESETS
+        ]
+        preset_ids = [p['id'] for p in config.MODEL_PRESETS]
+
+        # Find current selection index
+        try:
+            current_idx = preset_ids.index(st.session_state.active_model_id)
+        except ValueError:
+            current_idx = 0
+
+        selected_idx = st.selectbox(
+            "LLM Model",
+            range(len(config.MODEL_PRESETS)),
+            index=current_idx,
+            format_func=lambda i: preset_labels[i],
+            key="model_selector",
+        )
+
+        preset = config.MODEL_PRESETS[selected_idx]
+
+        # Description + pros/cons shown immediately below selector
+        st.caption(preset.get('description', ''))
+        if preset.get('pros'):
+            st.markdown(f"✅ **Pros:** {preset['pros']}")
+        if preset.get('cons'):
+            st.markdown(f"⚠️ **Cons:** {preset['cons']}")
+
+        # API key status for cloud models
+        env_key = preset.get('env_key')
+        if env_key:
+            if os.environ.get(env_key):
+                st.success(f"🔑 `{env_key}` is set", icon=None)
+            else:
+                st.warning(f"🔑 `{env_key}` not found in environment")
+
+        # VRAM indicator for local models
+        vram = preset.get('vram_gb')
+        if vram:
+            st.caption(f"💾 VRAM: ~{vram} GB")
+
+        if st.button("Switch Model", key="switch_model_btn"):
+            new_id = preset['id']
+            st.session_state.llm.switch_model(new_id)
+            st.session_state.active_model_id = new_id
+            st.success(f"Switched to **{preset['name']}**")
+
+# ---------------------------------------------------------------------------
 # Main Menu
 # ---------------------------------------------------------------------------
 
 def main_menu():
+    _check_model_updates()
+    _render_model_switcher()
+
     st.title("D&D AI RPG Engine")
 
     col1, col2 = st.columns(2)
@@ -53,27 +144,27 @@ def main_menu():
     with col1:
         st.header("New Game")
         with st.form("new_game_form"):
-            save_name   = st.text_input("Save Name")
-            player_name = st.text_input("Character Name")
-            race        = st.selectbox("Race", ["Human", "Elf", "Dwarf", "Orc", "Halfling"])
-            char_class  = st.selectbox("Class", ["Warrior", "Mage", "Rogue", "Cleric"])
-            appearance  = st.text_area("Appearance (For Image Gen)", "A brave adventurer.")
-            personality = st.text_area("Personality", "Courageous and kind.")
-            difficulty  = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"])
-            language    = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"])
+            save_name      = st.text_input("Save Name")
+            character_name = st.text_input("Character Name")
+            race           = st.selectbox("Race", ["Human", "Elf", "Dwarf", "Orc", "Halfling"])
+            char_class     = st.selectbox("Class", ["Warrior", "Mage", "Rogue", "Cleric"])
+            appearance     = st.text_area("Appearance (For Image Gen)", "A brave adventurer.")
+            personality    = st.text_area("Personality", "Courageous and kind.")
+            difficulty     = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"])
+            language       = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"])
 
             if st.form_submit_button("Start Adventure"):
-                if not save_name or not player_name:
+                if not save_name or not character_name:
                     st.error("Save Name and Character Name are required.")
                 else:
-                    success, msg = st.session_state.save_manager.create_new_game(
-                        save_name, player_name, race, char_class,
+                    player, game_state, session = st.session_state.save_manager.create_new_game(
+                        save_name, character_name, race, char_class,
                         appearance, personality, difficulty, language,
                     )
-                    if success:
+                    if player is not None:
                         st.success("Save created! Please load it to play.")
                     else:
-                        st.error(msg)
+                        st.error(f"Save name '{save_name}' already exists. Choose a different name.")
 
     with col2:
         st.header("Load Game")
@@ -81,16 +172,20 @@ def main_menu():
         if not saves:
             st.info("No saves found.")
         else:
-            save_labels  = [f"{s['name']} — {s['location']} (turn {s['turns']})" for s in saves]
-            save_names   = [s['name'] for s in saves]
-            selected_idx = st.selectbox("Select Save", range(len(saves)),
-                                        format_func=lambda i: save_labels[i],
-                                        key="load_select")
+            save_labels  = [
+                f"{s['save_name']} — {s['location']} (turn {s['turns']})" for s in saves
+            ]
+            save_names   = [s['save_name'] for s in saves]
+            selected_idx = st.selectbox(
+                "Select Save", range(len(saves)),
+                format_func=lambda i: save_labels[i],
+                key="load_select",
+            )
 
             if st.button("Load"):
                 selected_save = save_names[selected_idx]
-                session, game_state, player = st.session_state.save_manager.load_game(selected_save)
-                if session and game_state and player:
+                player, game_state, session = st.session_state.save_manager.load_game(selected_save)
+                if player and game_state and session:
                     st.session_state.current_session = session
                     st.session_state.game_state      = game_state
                     st.session_state.player          = player
@@ -195,6 +290,9 @@ def game_loop():
     # NPC / faction tracker (enriched relationship data)
     _render_npc_tracker(state)
 
+    # Model switcher available in-game too
+    _render_model_switcher()
+
     if st.sidebar.button("Save & Quit"):
         st.session_state.current_session.commit()
         st.session_state.current_session.close()
@@ -206,6 +304,14 @@ def game_loop():
         st.rerun()
 
     st.title(f"Location: {state.current_location}")
+
+    # Active model badge
+    active_preset = next(
+        (p for p in config.MODEL_PRESETS if p['id'] == st.session_state.active_model_id),
+        None,
+    )
+    if active_preset:
+        st.caption(f"🤖 DM powered by **{active_preset['name']}** ({active_preset['category']})")
 
     # --- Chat history ---
     if 'history' not in st.session_state:
