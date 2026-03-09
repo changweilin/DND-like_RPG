@@ -95,6 +95,9 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN active_player_index INTEGER DEFAULT 0",
             "ALTER TABLE game_state ADD COLUMN party_contributions TEXT DEFAULT '{}'",
             "ALTER TABLE game_state ADD COLUMN ai_configs TEXT DEFAULT '{}'",
+            "ALTER TABLE game_state ADD COLUMN turn_count INTEGER DEFAULT 0",
+            "ALTER TABLE game_state ADD COLUMN session_memory TEXT DEFAULT '[]'",
+            "ALTER TABLE game_state ADD COLUMN known_entities TEXT DEFAULT '{}'",
         ]
         with engine.connect() as conn:
             for sql in migrations:

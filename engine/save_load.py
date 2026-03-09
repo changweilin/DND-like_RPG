@@ -204,6 +204,44 @@ class SaveLoadManager:
             })
         return result
 
+    def delete_game(self, save_name):
+        """
+        Delete a save and its associated character data and all files in its directory.
+        """
+        import shutil
+        session = self.db_manager.get_session()
+        try:
+            game_state = session.query(GameState).filter_by(save_name=save_name).first()
+            if game_state:
+                # Delete characters associated with this save
+                party_ids = game_state.party_ids or []
+                if not party_ids:
+                    party_ids = [game_state.player_id]
+                
+                for cid in party_ids:
+                    char = session.query(Character).filter_by(id=cid).first()
+                    if char:
+                        session.delete(char)
+                
+                # Delete the game state itself
+                session.delete(game_state)
+                session.commit()
+
+                # Delete the entire save directory if it exists
+                from engine.story_saver import get_save_dir
+                save_dir = get_save_dir(save_name)
+                if os.path.exists(save_dir):
+                    shutil.rmtree(save_dir)
+                
+                return True
+            return False
+        except Exception as e:
+            print(f"Error deleting save {save_name}: {e}")
+            session.rollback()
+            return False
+        finally:
+            session.close()
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------

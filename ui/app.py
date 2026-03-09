@@ -5,6 +5,7 @@ import datetime
 from engine.save_load import SaveLoadManager
 from engine.config import config
 from engine.dice import DiceRoller
+from engine.persistence import PersistenceManager
 from engine.story_saver import (
     save_image_with_text, compress_game_log,
     save_game_log, load_story_log, restore_history_from_log,
@@ -54,6 +55,21 @@ if 'save_manager' not in st.session_state:
     st.session_state.custom_img_suffix = ''             # user override suffix
     st.session_state.continent_map    = None            # PIL Image | None
     st.session_state.portraits        = {}              # {char_id: PIL Image}
+
+    # Load persistent user preferences
+    prefs = PersistenceManager.load_prefs()
+    if prefs.get('active_model_id'):
+        st.session_state.active_model_id = prefs['active_model_id']
+    
+    # Defaults for new game fields from prefs
+    st.session_state.pref_difficulty = prefs.get('difficulty', 'Normal')
+    st.session_state.pref_language   = prefs.get('language', 'English')
+    st.session_state.pref_world_idx  = prefs.get('world_idx', 0)
+    st.session_state.pref_img_style  = prefs.get('img_style', 0)
+    st.session_state.pref_num_players = prefs.get('num_players', 1)
+
+    # State for duplicate save name handling
+    st.session_state.duplicate_save_pending = None # {save_name, lead_fields, difficulty, language, lore, world_idx, style_idx, custom_img, extra_players}
 
 # ---------------------------------------------------------------------------
 # Scene-type styling (Waidrin-style Narrative Event labels)
@@ -137,6 +153,10 @@ def _render_model_switcher():
             new_id = preset['id']
             st.session_state.llm.switch_model(new_id)
             st.session_state.active_model_id = new_id
+            # Save model choice
+            prefs = PersistenceManager.load_prefs()
+            prefs['active_model_id'] = new_id
+            PersistenceManager.save_prefs(prefs)
             st.success(f"Switched to **{preset['name']}**")
 
 # ---------------------------------------------------------------------------
@@ -223,8 +243,10 @@ def main_menu():
         st.header("New Game")
         with st.form("new_game_form"):
             save_name  = st.text_input("Save Name")
-            difficulty = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"])
-            language   = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"])
+            difficulty = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"],
+                                      index=["Easy", "Normal", "Hard"].index(st.session_state.pref_difficulty))
+            language   = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"],
+                                      index=["English", "繁體中文", "日本語", "Español"].index(st.session_state.pref_language))
 
             st.markdown("**World Setting**")
             ws_labels = [f"[{ws['category']}] {ws['name']}" for ws in config.WORLD_SETTINGS]
@@ -232,6 +254,7 @@ def main_menu():
             ws_idx    = st.selectbox(
                 "Universe", range(len(config.WORLD_SETTINGS)),
                 format_func=lambda i: ws_labels[i],
+                index=st.session_state.pref_world_idx,
                 key="new_game_ws_select",
             )
             ws = config.WORLD_SETTINGS[ws_idx]
@@ -258,6 +281,7 @@ def main_menu():
                 "Art Style",
                 range(len(_style_keys)),
                 format_func=lambda i: _style_labels[i],
+                index=st.session_state.pref_img_style,
                 key="new_game_img_style",
             )
             custom_img_suffix = st.text_input(
@@ -272,7 +296,9 @@ def main_menu():
             st.markdown("---")
             st.markdown("**Party (1-6 players)**")
             num_players = st.selectbox(
-                "Number of players", list(range(1, 7)), key="new_game_num_players"
+                "Number of players", list(range(1, 7)), 
+                index=st.session_state.pref_num_players - 1,
+                key="new_game_num_players"
             )
 
             player_fields = []
@@ -313,11 +339,34 @@ def main_menu():
                         st.session_state.custom_img_suffix = custom_img_suffix.strip()
                         st.session_state.continent_map     = None
                         st.session_state.portraits         = {}
+                        
+                        # Save preferences
+                        PersistenceManager.save_prefs({
+                            'active_model_id': st.session_state.active_model_id,
+                            'difficulty':  difficulty,
+                            'language':    language,
+                            'world_idx':   ws_idx,
+                            'img_style':   img_style_idx,
+                            'num_players': num_players
+                        })
+                        
                         st.success(
                             f"Party [{names}]{suffix} created in **{ws['name']}**! Load it to play."
                         )
                     else:
-                        st.error(f"Save name '{save_name}' already exists.")
+                        # Duplicate name handle
+                        st.session_state.duplicate_save_pending = {
+                            'save_name': save_name,
+                            'lead_fields': lead,
+                            'difficulty': difficulty,
+                            'language': language,
+                            'world_context': custom_lore,
+                            'world_setting': ws_ids[ws_idx],
+                            'extra_players': extra,
+                            'img_style': _style_keys[img_style_idx],
+                            'custom_img_suffix': custom_img_suffix.strip()
+                        }
+                        st.rerun()
 
     with col2:
         st.header("Load Game")
@@ -335,7 +384,9 @@ def main_menu():
                 format_func=lambda i: save_labels[i],
                 key="load_select",
             )
-            if st.button("Load"):
+            
+            l_col, d_col = st.columns(2)
+            if l_col.button("Load", use_container_width=True):
                 selected_save = save_names[selected_idx]
                 party, game_state, session = st.session_state.save_manager.load_game(selected_save)
                 if party and game_state and session:
@@ -367,6 +418,64 @@ def main_menu():
                     st.rerun()
                 else:
                     st.error("Failed to load save file.")
+            
+            if d_col.button("🗑️ Delete", use_container_width=True):
+                selected_save = save_names[selected_idx]
+                if st.session_state.save_manager.delete_game(selected_save):
+                    st.success(f"Deleted save '{selected_save}'.")
+                    st.rerun()
+                else:
+                    st.error(f"Failed to delete save '{selected_save}'.")
+
+    # ---- Duplicate Save Dialog ----
+    if st.session_state.duplicate_save_pending:
+        pending = st.session_state.duplicate_save_pending
+        st.markdown("---")
+        st.warning(f"⚠️ Save name '**{pending['save_name']}**' already exists. What would you like to do?")
+        c1, c2, c3 = st.columns([1, 1, 2])
+        
+        if c1.button("Overwrite"):
+            # Delete and then create
+            st.session_state.save_manager.delete_game(pending['save_name'])
+            lead = pending['lead_fields']
+            party, game_state, session = st.session_state.save_manager.create_new_game(
+                pending['save_name'], lead[0], lead[1], lead[2], lead[3], lead[4],
+                pending['difficulty'], pending['language'],
+                world_context=pending['world_context'],
+                world_setting=pending['world_setting'],
+                extra_players=pending['extra_players'] or None,
+            )
+            if party:
+                st.session_state.image_style       = pending['img_style']
+                st.session_state.custom_img_suffix = pending['custom_img_suffix']
+                st.session_state.duplicate_save_pending = None
+                st.success(f"Overwrite successful for '{pending['save_name']}'!")
+                st.rerun()
+            else:
+                st.error("Failed to overwrite.")
+        
+        if c2.button("Inherit"):
+            # Just load the existing one
+            party, game_state, session = st.session_state.save_manager.load_game(pending['save_name'])
+            if party:
+                # Same logic as "Load"
+                prior_log  = load_story_log(pending['save_name'])
+                prior_hist = restore_history_from_log(prior_log, n=2)
+                st.session_state.current_session = session
+                st.session_state.game_state      = game_state
+                st.session_state.party           = party
+                st.session_state.player          = party[game_state.active_player_index or 0]
+                st.session_state.history         = prior_hist
+                st.session_state.event_manager   = EventManager(st.session_state.llm, st.session_state.rag, session)
+                st.session_state.duplicate_save_pending = None
+                st.success(f"Inherited save '{pending['save_name']}'!")
+                st.rerun()
+            else:
+                st.error("Failed to inherit.")
+
+        if c3.button("Cancel"):
+            st.session_state.duplicate_save_pending = None
+            st.rerun()
 
 # ---------------------------------------------------------------------------
 # Board state helpers (world map + player token positions)
