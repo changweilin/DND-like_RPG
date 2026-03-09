@@ -7,7 +7,7 @@ from engine.config import config
 from engine.dice import DiceRoller
 from engine.story_saver import (
     save_image_with_text, compress_game_log,
-    save_game_log, load_story_log,
+    save_game_log, load_story_log, restore_history_from_log,
 )
 from engine.board import (
     assign_map_position, detect_location_type, build_map_html,
@@ -341,11 +341,16 @@ def main_menu():
                 if party and game_state and session:
                     active_idx  = game_state.active_player_index or 0
                     active_char = party[active_idx % len(party)]
+                    # Restore last 2 story pages as history so the player
+                    # can immediately see where the session left off
+                    prior_log  = load_story_log(selected_save)
+                    prior_hist = restore_history_from_log(prior_log, n=2)
+
                     st.session_state.current_session = session
                     st.session_state.game_state      = game_state
                     st.session_state.party           = party
                     st.session_state.player          = active_char
-                    st.session_state.history         = []
+                    st.session_state.history         = prior_hist
                     st.session_state.event_manager   = EventManager(
                         st.session_state.llm, st.session_state.rag, session
                     )
@@ -355,6 +360,8 @@ def main_menu():
                     st.session_state.manual_dice      = {}
                     st.session_state.continent_map    = None
                     st.session_state.portraits        = {}
+                    # Open book at last page on load
+                    st.session_state.book_page_idx   = max(0, len(prior_log) - 1)
                     names = ", ".join(c.name for c in party)
                     st.success(f"Loaded party [{names}]!")
                     st.rerun()
@@ -1069,6 +1076,62 @@ def _render_rules_tab(state):
 # Book Mode tab — page-flip reader for saved story records
 # ---------------------------------------------------------------------------
 
+def _book_page_image(page):
+    """Try to load the PIL Image for a page from its image_path. Returns None if unavailable."""
+    img_path = page.get('image_path', '')
+    if img_path and os.path.exists(img_path):
+        try:
+            from PIL import Image as _PILImage
+            return _PILImage.open(img_path)
+        except Exception:
+            pass
+    return None
+
+
+def _book_render_page_content(page, container=None):
+    """Render image + action + narrative for a single page into a container (or st)."""
+    ctx = container if container is not None else st
+    scene_icons = {
+        'combat': '⚔️', 'social': '💬',
+        'exploration': '🗺️', 'puzzle': '🧩', 'rest': '🏕️',
+    }
+    scene_icon = scene_icons.get(page.get('scene_type', 'exploration'), '🗺️')
+
+    # Cinematic label + image
+    pil_img = _book_page_image(page)
+    if pil_img:
+        if page.get('label'):
+            ctx.markdown(
+                f"<div style='background:#1a0a2a;border-left:3px solid #9b59b6;"
+                f"padding:3px 10px;margin-bottom:4px;border-radius:3px;"
+                f"font-size:0.85em;color:#c39bd3'>🎬 {page['label']}</div>",
+                unsafe_allow_html=True,
+            )
+        ctx.image(pil_img,
+                  caption=page.get('label') or f"Turn {page['turn']}",
+                  use_container_width=True)
+
+    # Player action line
+    actor  = page.get('actor', '')
+    action = page.get('action', '')
+    if actor or action:
+        actor_str = f"**{actor}:** " if actor else ""
+        ctx.markdown(
+            f"<div class='book-action'>🗣 {actor_str}{action}</div>",
+            unsafe_allow_html=True,
+        )
+
+    # Narrative body
+    ctx.markdown(
+        f"<div class='book-page'>"
+        f"<div class='book-narrative'>{page.get('narrative','')}</div>"
+        f"<div class='book-scene'>{scene_icon} "
+        f"{page.get('scene_type','exploration').capitalize()} · Turn {page.get('turn',0)}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _render_book_tab(save_name):
     """Tab 5 — 📕 書本: page-flip reader for the saved story log."""
     pages = load_story_log(save_name) if save_name else []
@@ -1084,8 +1147,8 @@ def _render_book_tab(save_name):
         ".book-narrative{font-size:0.96em;color:#d0d0e8;line-height:1.7;}"
         ".book-label{font-size:0.78em;color:#9b59b6;margin-top:6px;}"
         ".book-scene{font-size:0.75em;color:#5a5a7a;margin-top:2px;}"
-        ".book-nav{text-align:center;font-size:0.82em;color:#666;"
-        " margin-top:4px;}"
+        ".book-latest{border:1px solid #3a2a5a;border-radius:8px;"
+        " padding:12px 16px;margin:6px 0;background:#0e0a1a;}"
         "</style>",
         unsafe_allow_html=True,
     )
@@ -1100,9 +1163,28 @@ def _render_book_tab(save_name):
     n = len(pages)
     st.caption(f"📕 共 **{n}** 頁故事記錄  ·  存檔：`{save_name}`")
 
-    # Page index state
+    # ── 📌 最新記錄 — always show last 2 pages at top ──────────────────────
+    with st.expander("📌 最新記錄（最近 2 頁）", expanded=True):
+        recent_pages = pages[-2:]
+        if len(recent_pages) == 2:
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.caption(f"第 {n-1} 頁 · Turn {recent_pages[0]['turn']}")
+                _book_render_page_content(recent_pages[0])
+            with col_b:
+                st.caption(f"第 {n} 頁 · Turn {recent_pages[1]['turn']}")
+                _book_render_page_content(recent_pages[1])
+        else:
+            # Only 1 page so far
+            st.caption(f"第 {n} 頁 · Turn {recent_pages[0]['turn']}")
+            _book_render_page_content(recent_pages[0])
+
+    st.divider()
+    st.markdown("#### 📖 翻頁閱讀")
+
+    # Page index state (default to last page)
     if 'book_page_idx' not in st.session_state:
-        st.session_state.book_page_idx = 0
+        st.session_state.book_page_idx = n - 1
     idx = max(0, min(st.session_state.book_page_idx, n - 1))
 
     # Navigation bar
@@ -1122,7 +1204,11 @@ def _render_book_tab(save_name):
             "頁碼",
             range(n),
             index=idx,
-            format_func=lambda i: f"第 {i+1} 頁  (Turn {pages[i]['turn']})",
+            format_func=lambda i: (
+                f"★ 第 {i+1} 頁 (Turn {pages[i]['turn']})"
+                if i >= n - 2 else
+                f"第 {i+1} 頁  (Turn {pages[i]['turn']})"
+            ),
             key="book_page_sel",
             label_visibility="collapsed",
         )
@@ -1140,58 +1226,31 @@ def _render_book_tab(save_name):
             st.session_state.book_page_idx = n - 1
             st.rerun()
 
-    page = pages[idx]
-    st.divider()
-
-    # Image panel (full width if available)
-    img_path = page.get('image_path', '')
-    if img_path and os.path.exists(img_path):
-        from PIL import Image as _PILImage
-        try:
-            pil_img = _PILImage.open(img_path)
-            caption = page.get('label') or f"Turn {page['turn']}"
-            if page.get('label'):
-                st.markdown(
-                    f"<div style='background:#1a0a2a;border-left:3px solid #9b59b6;"
-                    f"padding:3px 10px;margin-bottom:4px;border-radius:3px;"
-                    f"font-size:0.85em;color:#c39bd3'>🎬 {page['label']}</div>",
-                    unsafe_allow_html=True,
-                )
-            st.image(pil_img, caption=caption, use_container_width=True)
-        except Exception:
-            pass
-
-    # Page content
-    scene_icons = {
-        'combat': '⚔️', 'social': '💬',
-        'exploration': '🗺️', 'puzzle': '🧩', 'rest': '🏕️',
-    }
-    scene_icon = scene_icons.get(page.get('scene_type', 'exploration'), '🗺️')
-
-    actor  = page.get('actor', '')
-    action = page.get('action', '')
-    if actor or action:
-        actor_str = f"**{actor}:** " if actor else ""
+    # "Latest" badge for last 2 pages
+    is_latest = idx >= n - 2
+    if is_latest:
         st.markdown(
-            f"<div class='book-action'>🗣 {actor_str}{action}</div>",
+            "<div style='background:#1a0a2a;border-left:3px solid #9b59b6;"
+            "padding:3px 10px;margin:4px 0;border-radius:3px;"
+            "font-size:0.82em;color:#c39bd3'>📌 最新記錄</div>",
             unsafe_allow_html=True,
         )
 
-    st.markdown(
-        f"<div class='book-page'>"
-        f"<div class='book-narrative'>{page.get('narrative','')}</div>"
-        f"<div class='book-scene'>{scene_icon} {page.get('scene_type','exploration').capitalize()} · Turn {page.get('turn',0)}</div>"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
+    _book_render_page_content(pages[idx])
 
     # Progress dots
     dots_per_row = 20
     dot_rows = []
     for start in range(0, n, dots_per_row):
         chunk = range(start, min(start + dots_per_row, n))
-        dot_rows.append(''.join('● ' if i == idx else '○ ' for i in chunk).strip())
-    st.caption("  \n".join(dot_rows) + f"  　第 {idx+1} / {n} 頁")
+        # mark last-2 with ★, current with ●, rest with ○
+        dot_rows.append(
+            ''.join(
+                '● ' if i == idx else ('★ ' if i >= n - 2 else '○ ')
+                for i in chunk
+            ).strip()
+        )
+    st.caption("  \n".join(dot_rows) + f"  　第 {idx+1} / {n} 頁  ★=最新")
 
 
 # ---------------------------------------------------------------------------

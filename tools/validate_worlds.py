@@ -2308,16 +2308,32 @@ def test_compress_game_log():
     else:
         _fail(f"image_path: {pages[0].get('image_path')}"); errors += 1
 
-    # Narrative truncation at 300 chars
+    # Last-12 pages kept FULL — single page within window not truncated
     long_hist = [
         {'role': 'player', 'content': 'Look around.'},
         {'role': 'dm', 'content': 'X' * 400, 'scene_type': 'exploration', 'turn': 1},
     ]
     long_pages = compress_game_log(long_hist)
-    if len(long_pages[0]['narrative']) <= 301:  # 300 + ellipsis char
-        _ok("Long narrative truncated to ≤301 chars ✓")
+    if len(long_pages[0]['narrative']) == 400:
+        _ok("Within-window narrative NOT truncated (full preserve) ✓")
     else:
-        _fail(f"Narrative too long: {len(long_pages[0]['narrative'])}"); errors += 1
+        _fail(f"Within-window narrative length: {len(long_pages[0]['narrative'])}"); errors += 1
+
+    # Older pages (beyond last-12) are truncated to ≤301 chars
+    older_hist = []
+    for t in range(14):   # 14 pages — first 2 are beyond last-12
+        older_hist.append({'role': 'player', 'content': f'action {t}'})
+        older_hist.append({'role': 'dm', 'content': 'Y' * 400,
+                           'scene_type': 'exploration', 'turn': t + 1})
+    older_pages = compress_game_log(older_hist)
+    if len(older_pages[0]['narrative']) <= 301:
+        _ok("Old page (>12 back) narrative truncated ✓")
+    else:
+        _fail(f"Old page not truncated: {len(older_pages[0]['narrative'])}"); errors += 1
+    if len(older_pages[-1]['narrative']) == 400:
+        _ok("Latest page narrative kept full ✓")
+    else:
+        _fail(f"Latest page truncated unexpectedly: {len(older_pages[-1]['narrative'])}"); errors += 1
 
     print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
     return errors == 0
@@ -2377,6 +2393,74 @@ def test_story_log_round_trip():
                 _fail(f"Expected [], got {result}"); errors += 1
         finally:
             config.SAVE_DIR = orig_save_dir
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_restore_history_from_log():
+    """I4-extra: restore_history_from_log reconstructs last-2 history entries."""
+    _section("I4b · restore_history_from_log rebuilds last 2 pages")
+    errors = 0
+    from engine.story_saver import restore_history_from_log
+
+    pages = [
+        {'page': 1, 'turn': 1, 'actor': 'Hero', 'action': 'attack', 'narrative': 'Hit!',
+         'image_path': '', 'label': '', 'scene_type': 'combat'},
+        {'page': 2, 'turn': 2, 'actor': 'Hero', 'action': 'search', 'narrative': 'Found gold.',
+         'image_path': '/tmp/scene.png', 'label': '🎬 Plot', 'scene_type': 'exploration'},
+        {'page': 3, 'turn': 3, 'actor': 'Hero', 'action': 'run', 'narrative': 'Escaped!',
+         'image_path': '', 'label': '', 'scene_type': 'exploration'},
+    ]
+
+    hist = restore_history_from_log(pages, n=2)
+    # Last 2 pages → 2×(player+dm) = 4 entries
+    if len(hist) == 4:
+        _ok("4 history entries from 2 pages ✓")
+    else:
+        _fail(f"Expected 4 entries, got {len(hist)}"); errors += 1
+
+    # Player entries
+    player_entries = [h for h in hist if h['role'] == 'player']
+    if player_entries[0]['content'] == 'search':
+        _ok("Page-2 player action restored ✓")
+    else:
+        _fail(f"action: {player_entries[0].get('content')}"); errors += 1
+
+    # DM entries
+    dm_entries = [h for h in hist if h['role'] == 'dm']
+    if dm_entries[-1]['content'] == 'Escaped!':
+        _ok("Page-3 narrative restored ✓")
+    else:
+        _fail(f"narrative: {dm_entries[-1].get('content')}"); errors += 1
+
+    if dm_entries[0].get('image_path') == '/tmp/scene.png':
+        _ok("image_path carried over ✓")
+    else:
+        _fail(f"image_path: {dm_entries[0].get('image_path')}"); errors += 1
+
+    if dm_entries[0].get('image') is None:
+        _ok("PIL image=None (not in memory after load) ✓")
+    else:
+        _fail("image should be None"); errors += 1
+
+    if dm_entries[0].get('is_cinematic') is True:
+        _ok("is_cinematic=True from label ✓")
+    else:
+        _fail(f"is_cinematic: {dm_entries[0].get('is_cinematic')}"); errors += 1
+
+    # Empty log returns []
+    if restore_history_from_log([]) == []:
+        _ok("Empty log → empty history ✓")
+    else:
+        _fail("Empty log should return []"); errors += 1
+
+    # Fewer pages than requested
+    hist_1 = restore_history_from_log(pages[:1], n=2)
+    if len(hist_1) == 2:  # 1 page → 1×(player+dm)
+        _ok("Fewer pages than n=2 handled ✓")
+    else:
+        _fail(f"Expected 2, got {len(hist_1)}"); errors += 1
 
     print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
     return errors == 0
@@ -2577,6 +2661,7 @@ if __name__ == '__main__':
     results['I1 save_image_with_text']            = test_save_image_with_text()
     results['I2 compress_game_log']               = test_compress_game_log()
     results['I3 story log round-trip']            = test_story_log_round_trip()
+    results['I4b restore_history_from_log']       = test_restore_history_from_log()
     results['I4 book mode page count']            = test_book_page_count()
     results['I5 image filename convention']       = test_image_filename_convention()
 

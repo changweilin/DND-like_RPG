@@ -80,11 +80,16 @@ def save_image_with_text(save_name, image, text, turn, event_type):
         return None
 
 
+FULL_PRESERVE_TURNS = 12  # last N pages stored with complete narrative
+
+
 def compress_game_log(history):
     """
     Condense the in-memory history list into a compact story log.
 
     Each DM entry is paired with the preceding player action to form one page.
+    The last FULL_PRESERVE_TURNS pages are stored with the full narrative text.
+    Older pages are truncated to 300 chars to keep the log file manageable.
 
     Returns list of page dicts:
       {page, turn, actor, action, narrative, image_path, label, scene_type}
@@ -101,13 +106,12 @@ def compress_game_log(history):
         elif item.get('role') == 'dm':
             page_no   += 1
             narrative  = item.get('content', '')
-            short_nar  = narrative[:300] + ('…' if len(narrative) > 300 else '')
             pages.append({
                 'page':       page_no,
                 'turn':       item.get('turn', page_no),
                 'actor':      pending_actor or '',
                 'action':     pending_action or '',
-                'narrative':  short_nar,
+                'narrative':  narrative,        # full text — trimmed below if needed
                 'image_path': item.get('image_path', ''),
                 'label':      item.get('cinematic_label') or '',
                 'scene_type': item.get('scene_type', 'exploration'),
@@ -115,7 +119,48 @@ def compress_game_log(history):
             pending_action = None
             pending_actor  = None
 
+    # Truncate older pages to 300 chars; keep last FULL_PRESERVE_TURNS complete
+    cutoff = max(0, len(pages) - FULL_PRESERVE_TURNS)
+    for i in range(cutoff):
+        nar = pages[i]['narrative']
+        if len(nar) > 300:
+            pages[i]['narrative'] = nar[:300] + '…'
+
     return pages
+
+
+def restore_history_from_log(story_log, n=2):
+    """
+    Reconstruct the last n story pages as history entries suitable for
+    st.session_state.history (player + dm dicts).
+
+    Images are not in memory after a load, so image=None; image_path
+    is preserved so Book Mode can still load the file from disk.
+
+    Returns a flat list of history dicts ordered oldest → newest.
+    """
+    recent = story_log[-n:] if len(story_log) >= n else story_log
+    history = []
+    for page in recent:
+        if page.get('action'):
+            history.append({
+                'role':    'player',
+                'actor':   page.get('actor', ''),
+                'content': page.get('action', ''),
+            })
+        history.append({
+            'role':            'dm',
+            'content':         page.get('narrative', ''),
+            'choices':         [],
+            'scene_type':      page.get('scene_type', 'exploration'),
+            'dice_result':     None,
+            'image':           None,          # PIL not persisted across sessions
+            'image_path':      page.get('image_path', ''),
+            'is_cinematic':    bool(page.get('label')),
+            'cinematic_label': page.get('label', ''),
+            'turn':            page.get('turn', 0),
+        })
+    return history
 
 
 def save_game_log(save_name, compressed_log):
