@@ -5,6 +5,10 @@ import datetime
 from engine.save_load import SaveLoadManager
 from engine.config import config
 from engine.dice import DiceRoller
+from engine.story_saver import (
+    save_image_with_text, compress_game_log,
+    save_game_log, load_story_log,
+)
 from engine.board import (
     assign_map_position, detect_location_type, build_map_html,
     MAP_ROWS, MAP_COLS,
@@ -771,6 +775,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
             # ── Cinematic / scene image decision ──────────────────────────
             scene_image      = None
+            scene_image_path = ''
             is_cinematic     = False
             cinematic_label  = None
             img_gen          = st.session_state.img_gen
@@ -791,6 +796,9 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                     response,
                 )
 
+                save_name  = getattr(state, 'save_name', None)
+                turn_count = state.turn_count or 0
+
                 if cinematic and img_gen.can_generate_safely():
                     # Priority: cinematic event — build tailored prompt
                     try:
@@ -801,6 +809,13 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                         scene_image     = img_gen.generate_image(cprompt)
                         is_cinematic    = scene_image is not None
                         cinematic_label = cinematic['label'] if is_cinematic else None
+                        if scene_image and save_name:
+                            img_path = save_image_with_text(
+                                save_name, scene_image,
+                                response[:300],
+                                turn_count, cinematic['type'],
+                            )
+                            scene_image_path = img_path or ''
                     except Exception as _e:
                         print(f"[Cinematic] {_e}")
 
@@ -815,6 +830,13 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                                 f"{response[:80]}, scene illustration, {_suf}"
                             )
                             scene_image = img_gen.generate_image(scene_prompt)
+                            if scene_image and save_name:
+                                img_path = save_image_with_text(
+                                    save_name, scene_image,
+                                    response[:300],
+                                    turn_count, 'scene',
+                                )
+                                scene_image_path = img_path or ''
                         except Exception as _e:
                             print(f"[SceneImg] {_e}")
 
@@ -832,9 +854,17 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "scene_type":      turn_data.get('scene_type', 'exploration'),
             "dice_result":     dice_result,
             "image":           scene_image,
+            "image_path":      scene_image_path,
             "is_cinematic":    is_cinematic,
             "cinematic_label": cinematic_label,
+            "turn":            state.turn_count or 0,
         })
+
+        # Persist compressed story log after every turn
+        save_name = getattr(state, 'save_name', None)
+        if save_name:
+            save_game_log(save_name, compress_game_log(st.session_state.history))
+
         st.rerun()
 
 # ---------------------------------------------------------------------------
@@ -1036,6 +1066,135 @@ def _render_rules_tab(state):
                 st.rerun()
 
 # ---------------------------------------------------------------------------
+# Book Mode tab — page-flip reader for saved story records
+# ---------------------------------------------------------------------------
+
+def _render_book_tab(save_name):
+    """Tab 5 — 📕 書本: page-flip reader for the saved story log."""
+    pages = load_story_log(save_name) if save_name else []
+
+    # Book CSS
+    st.markdown(
+        "<style>"
+        ".book-page{background:#0d0d1a;border:1px solid #2a2a4a;"
+        " border-radius:8px;padding:18px 22px;margin:8px 0;"
+        " box-shadow:0 2px 12px #000a;}"
+        ".book-action{font-size:0.82em;color:#8888bb;font-style:italic;"
+        " margin-bottom:6px;}"
+        ".book-narrative{font-size:0.96em;color:#d0d0e8;line-height:1.7;}"
+        ".book-label{font-size:0.78em;color:#9b59b6;margin-top:6px;}"
+        ".book-scene{font-size:0.75em;color:#5a5a7a;margin-top:2px;}"
+        ".book-nav{text-align:center;font-size:0.82em;color:#666;"
+        " margin-top:4px;}"
+        "</style>",
+        unsafe_allow_html=True,
+    )
+
+    if not pages:
+        st.info(
+            "📕 尚無故事紀錄。  \n"
+            "遊戲進行後，每回合會自動儲存故事與圖片，在此閱讀完整冒險記錄。"
+        )
+        return
+
+    n = len(pages)
+    st.caption(f"📕 共 **{n}** 頁故事記錄  ·  存檔：`{save_name}`")
+
+    # Page index state
+    if 'book_page_idx' not in st.session_state:
+        st.session_state.book_page_idx = 0
+    idx = max(0, min(st.session_state.book_page_idx, n - 1))
+
+    # Navigation bar
+    col_first, col_prev, col_mid, col_next, col_last = st.columns([1, 1, 4, 1, 1])
+    with col_first:
+        if st.button("⏮", key="book_first", disabled=(idx == 0),
+                     use_container_width=True):
+            st.session_state.book_page_idx = 0
+            st.rerun()
+    with col_prev:
+        if st.button("◀", key="book_prev", disabled=(idx == 0),
+                     use_container_width=True):
+            st.session_state.book_page_idx = idx - 1
+            st.rerun()
+    with col_mid:
+        sel = st.selectbox(
+            "頁碼",
+            range(n),
+            index=idx,
+            format_func=lambda i: f"第 {i+1} 頁  (Turn {pages[i]['turn']})",
+            key="book_page_sel",
+            label_visibility="collapsed",
+        )
+        if sel != idx:
+            st.session_state.book_page_idx = sel
+            st.rerun()
+    with col_next:
+        if st.button("▶", key="book_next", disabled=(idx == n - 1),
+                     use_container_width=True):
+            st.session_state.book_page_idx = idx + 1
+            st.rerun()
+    with col_last:
+        if st.button("⏭", key="book_last", disabled=(idx == n - 1),
+                     use_container_width=True):
+            st.session_state.book_page_idx = n - 1
+            st.rerun()
+
+    page = pages[idx]
+    st.divider()
+
+    # Image panel (full width if available)
+    img_path = page.get('image_path', '')
+    if img_path and os.path.exists(img_path):
+        from PIL import Image as _PILImage
+        try:
+            pil_img = _PILImage.open(img_path)
+            caption = page.get('label') or f"Turn {page['turn']}"
+            if page.get('label'):
+                st.markdown(
+                    f"<div style='background:#1a0a2a;border-left:3px solid #9b59b6;"
+                    f"padding:3px 10px;margin-bottom:4px;border-radius:3px;"
+                    f"font-size:0.85em;color:#c39bd3'>🎬 {page['label']}</div>",
+                    unsafe_allow_html=True,
+                )
+            st.image(pil_img, caption=caption, use_container_width=True)
+        except Exception:
+            pass
+
+    # Page content
+    scene_icons = {
+        'combat': '⚔️', 'social': '💬',
+        'exploration': '🗺️', 'puzzle': '🧩', 'rest': '🏕️',
+    }
+    scene_icon = scene_icons.get(page.get('scene_type', 'exploration'), '🗺️')
+
+    actor  = page.get('actor', '')
+    action = page.get('action', '')
+    if actor or action:
+        actor_str = f"**{actor}:** " if actor else ""
+        st.markdown(
+            f"<div class='book-action'>🗣 {actor_str}{action}</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        f"<div class='book-page'>"
+        f"<div class='book-narrative'>{page.get('narrative','')}</div>"
+        f"<div class='book-scene'>{scene_icon} {page.get('scene_type','exploration').capitalize()} · Turn {page.get('turn',0)}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Progress dots
+    dots_per_row = 20
+    dot_rows = []
+    for start in range(0, n, dots_per_row):
+        chunk = range(start, min(start + dots_per_row, n))
+        dot_rows.append(''.join('● ' if i == idx else '○ ' for i in chunk).strip())
+    st.caption("  \n".join(dot_rows) + f"  　第 {idx+1} / {n} 頁")
+
+
+# ---------------------------------------------------------------------------
 # Image style sidebar switcher
 # ---------------------------------------------------------------------------
 
@@ -1111,6 +1270,10 @@ def _generate_continent_map(ws):
         img = st.session_state.img_gen.generate_image(prompt)
     if img:
         st.session_state.continent_map = img
+        state     = st.session_state.get('game_state')
+        save_name = getattr(state, 'save_name', None)
+        if save_name:
+            save_image_with_text(save_name, img, ws.get('name', ''), 0, 'map')
         st.rerun()
     else:
         st.warning("影像生成失敗 (Strategy A 或 GPU 未就緒)")
@@ -1127,6 +1290,14 @@ def _generate_portrait(char, ws):
         img = st.session_state.img_gen.generate_image(prompt)
     if img:
         st.session_state.portraits[char.id] = img
+        state     = st.session_state.get('game_state')
+        save_name = getattr(state, 'save_name', None)
+        if save_name:
+            safe_name = ''.join(c if c.isalnum() else '_' for c in char.name)
+            save_image_with_text(
+                save_name, img, char.appearance or char.name,
+                0, f"portrait_{safe_name}",
+            )
         st.rerun()
     else:
         st.warning(f"{char.name} 肖像生成失敗")
@@ -1224,8 +1395,8 @@ def game_loop():
         st.rerun()
 
     # ---- Tabs ----
-    tab_board, tab_story, tab_chars, tab_rules = st.tabs(
-        ["🗺️ 遊戲板", "📖 故事", "👥 角色", "📜 規則"]
+    tab_board, tab_story, tab_chars, tab_rules, tab_book = st.tabs(
+        ["🗺️ 遊戲板", "📖 故事", "👥 角色", "📜 規則", "📕 書本"]
     )
 
     with tab_board:
@@ -1239,6 +1410,9 @@ def game_loop():
 
     with tab_rules:
         _render_rules_tab(state)
+
+    with tab_book:
+        _render_book_tab(getattr(state, 'save_name', None))
 
 # ---------------------------------------------------------------------------
 # Entry point

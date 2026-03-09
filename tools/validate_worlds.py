@@ -2209,6 +2209,269 @@ def test_cinematic_build_prompts():
 
 
 # ---------------------------------------------------------------------------
+# I — Image persistence & Book Mode (story_saver.py)
+# ---------------------------------------------------------------------------
+
+def test_save_image_with_text():
+    """I1: save_image_with_text() creates PNG + JSON sidecar with correct content."""
+    _section("I1 · save_image_with_text creates PNG + JSON sidecar")
+    errors = 0
+    from engine.story_saver import save_image_with_text, get_image_dir
+
+    try:
+        from PIL import Image as _PIL
+        has_pil = True
+    except ImportError:
+        has_pil = False
+
+    if not has_pil:
+        _ok("PIL not installed — skipping image write (no-PIL env)")
+        return True
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # Patch config.SAVE_DIR temporarily
+        orig_save_dir = config.SAVE_DIR
+        config.SAVE_DIR = tmp
+        try:
+            img = _PIL.new('RGB', (64, 64), color=(100, 150, 200))
+            path = save_image_with_text('test_save', img, 'A dragon appears!', 7, 'battle_start')
+
+            if path and os.path.exists(path):
+                _ok(f"PNG saved: {os.path.basename(path)}")
+            else:
+                _fail("PNG not saved or path None"); errors += 1
+
+            meta_path = path.replace('.png', '.json') if path else None
+            if meta_path and os.path.exists(meta_path):
+                import json as _json
+                with open(meta_path, 'r') as f:
+                    meta = _json.load(f)
+                if meta.get('event_type') == 'battle_start':
+                    _ok("JSON sidecar event_type=battle_start ✓")
+                else:
+                    _fail(f"event_type mismatch: {meta.get('event_type')}"); errors += 1
+                if meta.get('turn') == 7:
+                    _ok("JSON sidecar turn=7 ✓")
+                else:
+                    _fail(f"turn mismatch: {meta.get('turn')}"); errors += 1
+                if 'dragon' in meta.get('text', '').lower():
+                    _ok("JSON sidecar text preserved ✓")
+                else:
+                    _fail("text not in sidecar"); errors += 1
+            else:
+                _fail("JSON sidecar missing"); errors += 1
+        finally:
+            config.SAVE_DIR = orig_save_dir
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_compress_game_log():
+    """I2: compress_game_log() condenses history into correct page dicts."""
+    _section("I2 · compress_game_log condenses history correctly")
+    errors = 0
+    from engine.story_saver import compress_game_log
+
+    history = [
+        {'role': 'player', 'actor': '🔴 Aria', 'content': 'I attack the goblin.'},
+        {'role': 'dm',     'content': 'You swing your sword and hit the goblin for 8 damage!',
+         'scene_type': 'combat', 'cinematic_label': '⚔️ 戰鬥開始', 'turn': 1, 'image_path': '/tmp/img.png'},
+        {'role': 'player', 'actor': '🔴 Aria', 'content': 'I search the room.'},
+        {'role': 'dm',     'content': 'You find a chest containing 20 gold coins.',
+         'scene_type': 'exploration', 'cinematic_label': '', 'turn': 2, 'image_path': ''},
+    ]
+    pages = compress_game_log(history)
+
+    if len(pages) == 2:
+        _ok("2 pages for 2 player+dm pairs ✓")
+    else:
+        _fail(f"Expected 2 pages, got {len(pages)}"); errors += 1
+
+    if pages[0].get('action') == 'I attack the goblin.':
+        _ok("Page 1 action preserved ✓")
+    else:
+        _fail(f"Page 1 action: {pages[0].get('action')}"); errors += 1
+
+    if pages[0].get('scene_type') == 'combat':
+        _ok("Page 1 scene_type=combat ✓")
+    else:
+        _fail(f"scene_type: {pages[0].get('scene_type')}"); errors += 1
+
+    if pages[0].get('label') == '⚔️ 戰鬥開始':
+        _ok("Cinematic label preserved ✓")
+    else:
+        _fail(f"label: {pages[0].get('label')}"); errors += 1
+
+    if pages[0].get('image_path') == '/tmp/img.png':
+        _ok("image_path preserved ✓")
+    else:
+        _fail(f"image_path: {pages[0].get('image_path')}"); errors += 1
+
+    # Narrative truncation at 300 chars
+    long_hist = [
+        {'role': 'player', 'content': 'Look around.'},
+        {'role': 'dm', 'content': 'X' * 400, 'scene_type': 'exploration', 'turn': 1},
+    ]
+    long_pages = compress_game_log(long_hist)
+    if len(long_pages[0]['narrative']) <= 301:  # 300 + ellipsis char
+        _ok("Long narrative truncated to ≤301 chars ✓")
+    else:
+        _fail(f"Narrative too long: {len(long_pages[0]['narrative'])}"); errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_story_log_round_trip():
+    """I3: save_game_log() + load_story_log() round-trip preserves all page data."""
+    _section("I3 · story log save/load round-trip")
+    errors = 0
+    from engine.story_saver import save_game_log, load_story_log
+
+    pages = [
+        {'page': 1, 'turn': 1, 'actor': 'Aria', 'action': 'attack', 'narrative': 'Hit!',
+         'image_path': '', 'label': '', 'scene_type': 'combat'},
+        {'page': 2, 'turn': 2, 'actor': 'Aria', 'action': 'search', 'narrative': 'Found gold.',
+         'image_path': '/saves/test/images/scene_exploration_turn2.png',
+         'label': '', 'scene_type': 'exploration'},
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_save_dir = config.SAVE_DIR
+        config.SAVE_DIR = tmp
+        try:
+            path = save_game_log('my_save', pages)
+            if path and os.path.exists(path):
+                _ok(f"story_log.json written ✓")
+            else:
+                _fail("story_log.json not created"); errors += 1
+
+            loaded = load_story_log('my_save')
+            if len(loaded) == 2:
+                _ok("Loaded 2 pages ✓")
+            else:
+                _fail(f"Expected 2, got {len(loaded)}"); errors += 1
+
+            if loaded[1].get('narrative') == 'Found gold.':
+                _ok("Page 2 narrative preserved ✓")
+            else:
+                _fail(f"narrative: {loaded[1].get('narrative')}"); errors += 1
+
+            if loaded[1].get('image_path') == pages[1]['image_path']:
+                _ok("image_path round-trips ✓")
+            else:
+                _fail(f"image_path mismatch"); errors += 1
+        finally:
+            config.SAVE_DIR = orig_save_dir
+
+    # Missing file returns empty list
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_save_dir = config.SAVE_DIR
+        config.SAVE_DIR = tmp
+        try:
+            result = load_story_log('nonexistent_save')
+            if result == []:
+                _ok("Missing log returns [] ✓")
+            else:
+                _fail(f"Expected [], got {result}"); errors += 1
+        finally:
+            config.SAVE_DIR = orig_save_dir
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_book_page_count():
+    """I4: Book mode page count matches saved log entries."""
+    _section("I4 · Book Mode page count matches saved log")
+    errors = 0
+    from engine.story_saver import compress_game_log, save_game_log, load_story_log
+
+    # Build a 5-turn history
+    history = []
+    for i in range(1, 6):
+        history.append({'role': 'player', 'content': f'Turn {i} action', 'actor': 'Hero'})
+        history.append({
+            'role': 'dm', 'content': f'Turn {i} narrative response',
+            'scene_type': 'exploration', 'turn': i, 'image_path': '', 'cinematic_label': '',
+        })
+
+    pages = compress_game_log(history)
+    if len(pages) == 5:
+        _ok("5 turns → 5 pages ✓")
+    else:
+        _fail(f"Expected 5 pages, got {len(pages)}"); errors += 1
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_save_dir = config.SAVE_DIR
+        config.SAVE_DIR = tmp
+        try:
+            save_game_log('adventure', pages)
+            loaded = load_story_log('adventure')
+            if len(loaded) == 5:
+                _ok("Saved and reloaded 5 pages ✓")
+            else:
+                _fail(f"Reloaded {len(loaded)} pages"); errors += 1
+
+            # Page numbers are sequential
+            for j, pg in enumerate(loaded, 1):
+                if pg.get('page') == j:
+                    continue
+                _fail(f"Page {j} has page={pg.get('page')}"); errors += 1; break
+            else:
+                _ok("Page numbers sequential ✓")
+        finally:
+            config.SAVE_DIR = orig_save_dir
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_image_filename_convention():
+    """I5: Image filename encodes event_type and turn number."""
+    _section("I5 · Image filename encoding (event_type + turn)")
+    errors = 0
+    from engine.story_saver import save_image_with_text
+
+    try:
+        from PIL import Image as _PIL
+        has_pil = True
+    except ImportError:
+        has_pil = False
+
+    if not has_pil:
+        _ok("PIL not installed — skipping (no-PIL env)")
+        return True
+
+    test_cases = [
+        ('map',         0, 'map_turn0.png'),
+        ('battle_start', 3, 'battle_start_turn3.png'),
+        ('plot_twist',  10, 'plot_twist_turn10.png'),
+        ('portrait_Aria Knight', 0, 'portrait_Aria_Knight_turn0.png'),
+        ('new_location', 7, 'new_location_turn7.png'),
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_save_dir = config.SAVE_DIR
+        config.SAVE_DIR = tmp
+        try:
+            for event_type, turn, expected_name in test_cases:
+                img  = _PIL.new('RGB', (8, 8), color=(0, 0, 0))
+                path = save_image_with_text('sv', img, 'text', turn, event_type)
+                actual = os.path.basename(path) if path else ''
+                if actual == expected_name:
+                    _ok(f"{event_type} turn={turn} → {expected_name} ✓")
+                else:
+                    _fail(f"Expected '{expected_name}', got '{actual}'"); errors += 1
+        finally:
+            config.SAVE_DIR = orig_save_dir
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+# ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
 # ---------------------------------------------------------------------------
 
@@ -2246,7 +2509,7 @@ if __name__ == '__main__':
     print()
     print("╔══════════════════════════════════════════════════════════════════════════╗")
     print("║  DND-like RPG — World Setting Validator                                  ║")
-    print("║  A:text·B:flow·C:multi·D:AI·E:board·F:manual·G:image  ║")
+    print("║  A:text·B:flow·C:multi·D:AI·E:board·F:manual·G:image·H:cinematic·I:book  ║")
     print("╚══════════════════════════════════════════════════════════════════════════╝")
 
     results = {}
@@ -2309,6 +2572,13 @@ if __name__ == '__main__':
     results['H3 NPC relationship threshold']      = test_cinematic_npc_event()
     results['H4 milestone turn trigger']          = test_cinematic_milestone()
     results['H5 cinematic prompt builder']        = test_cinematic_build_prompts()
+
+    # I — Image persistence & Book Mode
+    results['I1 save_image_with_text']            = test_save_image_with_text()
+    results['I2 compress_game_log']               = test_compress_game_log()
+    results['I3 story log round-trip']            = test_story_log_round_trip()
+    results['I4 book mode page count']            = test_book_page_count()
+    results['I5 image filename convention']       = test_image_filename_convention()
 
     # Bonus table
     print_vocabulary_diff_table()
