@@ -2018,6 +2018,195 @@ def test_map_prompt_world_differentiation():
     print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
     return errors == 0
 
+# ---------------------------------------------------------------------------
+# H — Cinematic event detection and VRAM guard tests
+# ---------------------------------------------------------------------------
+
+def test_cinematic_battle_transitions():
+    """classify_cinematic_event() must detect combat start and end transitions."""
+    _section("H1 · classify_cinematic_event() — combat boundary detection")
+    from engine.image_prompts import classify_cinematic_event
+
+    errors = 0
+    base_td = {'scene_type': 'combat', 'location_change': '',
+               'npc_relationship_changes': {}}
+
+    # Non-combat → combat: battle_start
+    r = classify_cinematic_event(base_td, 'exploration', turn_count=3, narrative='We fight!')
+    if r and r['type'] == 'battle_start':
+        _ok(f"exploration→combat: battle_start ✓")
+    else:
+        _fail(f"exploration→combat: expected battle_start, got {r}"); errors += 1
+
+    # Social → combat: also battle_start
+    r = classify_cinematic_event(base_td, 'social', turn_count=3, narrative='Ambush!')
+    if r and r['type'] == 'battle_start':
+        _ok(f"social→combat: battle_start ✓")
+    else:
+        _fail(f"social→combat: expected battle_start, got {r}"); errors += 1
+
+    # Combat → exploration: battle_end
+    end_td = {**base_td, 'scene_type': 'exploration'}
+    r = classify_cinematic_event(end_td, 'combat', turn_count=4, narrative='Victory!')
+    if r and r['type'] == 'battle_end':
+        _ok(f"combat→exploration: battle_end ✓")
+    else:
+        _fail(f"combat→exploration: expected battle_end, got {r}"); errors += 1
+
+    # Continuing combat: no battle boundary event
+    r = classify_cinematic_event(base_td, 'combat', turn_count=5, narrative='Still fighting.')
+    if r is None or r['type'] not in ('battle_start', 'battle_end'):
+        _ok("combat→combat: no boundary event ✓")
+    else:
+        _fail(f"combat→combat: unexpected boundary {r['type']}"); errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_cinematic_plot_twist_keywords():
+    """Plot-twist keywords in narrative must trigger a plot_twist event."""
+    _section("H2 · classify_cinematic_event() — plot-twist keyword detection")
+    from engine.image_prompts import classify_cinematic_event
+
+    errors = 0
+    td = {'scene_type': 'social', 'location_change': '',
+          'npc_relationship_changes': {}}
+
+    for narrative, kw in [
+        ('The villain was betrayed by his ally.', 'betrayed'),
+        ('The secret was revealed to all.',       'revealed'),
+        ('The hero suddenly died.',               'died'),
+        ('背叛使者出現',                           '背叛'),
+        ('You fall into an ambush.',              'ambush'),
+    ]:
+        r = classify_cinematic_event(td, 'social', turn_count=2, narrative=narrative)
+        if r and r['type'] == 'plot_twist':
+            _ok(f"'{kw}' → plot_twist ✓")
+        else:
+            _fail(f"'{kw}' did not trigger plot_twist (got {r})"); errors += 1
+
+    for narrative in ['The goblin swings.', 'You search the chest.',
+                      'The NPC greets you.']:
+        r = classify_cinematic_event(td, 'social', turn_count=2, narrative=narrative)
+        if r is None or r['type'] != 'plot_twist':
+            _ok(f"Non-twist narrative → no plot_twist ✓")
+        else:
+            _fail(f"False-positive plot_twist: '{narrative[:40]}'"); errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_cinematic_npc_event():
+    """NPC relationship delta ≥ 20 triggers npc_event; delta < 20 does not."""
+    _section("H3 · classify_cinematic_event() — NPC relationship threshold")
+    from engine.image_prompts import classify_cinematic_event
+
+    errors = 0
+
+    for delta, desc, should_trigger in [
+        ({'NPC': 25},                                        'int +25',        True),
+        ({'NPC': -30},                                       'int -30',        True),
+        ({'NPC': 5},                                         'int +5 (small)', False),
+        ({'NPC': {'affinity_delta': 22, 'state': 'Friendly'}}, 'dict +22',    True),
+        ({'NPC': {'affinity_delta': 3,  'state': 'Neutral'}},  'dict +3',     False),
+    ]:
+        td = {'scene_type': 'social', 'location_change': '',
+              'npc_relationship_changes': delta}
+        r  = classify_cinematic_event(td, 'social', turn_count=2, narrative='')
+        got_event = (r is not None and r['type'] == 'npc_event')
+        if got_event == should_trigger:
+            _ok(f"{desc}: npc_event={'yes' if got_event else 'no'} (expected {'yes' if should_trigger else 'no'}) ✓")
+        else:
+            _fail(f"{desc}: expected npc_event={should_trigger}, got {got_event}"); errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_cinematic_milestone():
+    """Milestone cinematic triggers at multiples of IMAGE_GEN_MILESTONE_TURNS."""
+    _section("H4 · classify_cinematic_event() — milestone turn trigger")
+    from engine.image_prompts import classify_cinematic_event
+    from engine.config import config
+
+    errors    = 0
+    milestone = getattr(config, 'IMAGE_GEN_MILESTONE_TURNS', 5)
+    td = {'scene_type': 'exploration', 'location_change': '',
+          'npc_relationship_changes': {}}
+
+    if milestone <= 0:
+        _ok(f"IMAGE_GEN_MILESTONE_TURNS={milestone}: disabled, skipping")
+        print(f"\n  Result: PASS"); return True
+
+    for turn, should_be_milestone in [
+        (milestone,     True),
+        (milestone * 2, True),
+        (milestone - 1, False),
+        (0,             False),
+        (1,             False),
+    ]:
+        r = classify_cinematic_event(td, 'exploration', turn_count=turn, narrative='')
+        is_ms = (r is not None and r['type'] == 'milestone')
+        if is_ms == should_be_milestone:
+            _ok(f"turn={turn}: milestone={is_ms} (correct) ✓")
+        else:
+            _fail(f"turn={turn}: expected milestone={should_be_milestone}, got {is_ms}")
+            errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_cinematic_build_prompts():
+    """build_cinematic_prompt() returns non-empty, unique strings for every event type."""
+    _section("H5 · build_cinematic_prompt() — all event types produce distinct prompts")
+    from engine.image_prompts import (build_cinematic_prompt, IMAGE_STYLES,
+                                       _CINEMATIC_TEMPLATES)
+    import types
+
+    errors  = 0
+    ws      = config.get_world_setting('dnd5e')
+    char    = types.SimpleNamespace(
+        name='Hero', race='Human', char_class='warrior',
+        appearance='tall warrior', personality='brave',
+    )
+    td      = {'scene_type': 'combat', 'location_change': 'Ancient Dungeon',
+               'npc_relationship_changes': {}}
+
+    prompts = {}
+    for etype in _CINEMATIC_TEMPLATES:
+        p = build_cinematic_prompt(etype, td, char, ws, image_style='fantasy_art')
+        if not p or len(p) < 20:
+            _fail(f"{etype}: prompt too short ({len(p)} chars)"); errors += 1
+        else:
+            _ok(f"{etype}: len={len(p)} ✓")
+        prompts[etype] = p
+
+    if len(set(prompts.values())) == len(prompts):
+        _ok(f"All {len(prompts)} event-type prompts are unique ✓")
+    else:
+        _fail("Duplicate prompts found across event types"); errors += 1
+
+    # Location injected for new_location
+    p = build_cinematic_prompt('new_location', td, char, ws)
+    if 'ancient dungeon' in p.lower():
+        _ok("Location name injected into new_location prompt ✓")
+    else:
+        _fail("Location not found in new_location prompt"); errors += 1
+
+    # Custom suffix override
+    p = build_cinematic_prompt('battle_start', td, char, ws,
+                               image_style='custom', custom_suffix='oil painting')
+    if 'oil painting' in p:
+        _ok("Custom suffix override ✓")
+    else:
+        _fail("Custom suffix not in cinematic prompt"); errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
 
 # ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
@@ -2113,6 +2302,13 @@ if __name__ == '__main__':
     results['G3 portrait prompt per class']       = test_portrait_prompt_per_class()
     results['G4 portrait prompt race keywords']   = test_portrait_prompt_race_keywords()
     results['G5 map prompt world keywords']       = test_map_prompt_world_differentiation()
+
+    # H — Cinematic event detection + VRAM guard
+    results['H1 combat boundary detection']       = test_cinematic_battle_transitions()
+    results['H2 plot-twist keyword detection']    = test_cinematic_plot_twist_keywords()
+    results['H3 NPC relationship threshold']      = test_cinematic_npc_event()
+    results['H4 milestone turn trigger']          = test_cinematic_milestone()
+    results['H5 cinematic prompt builder']        = test_cinematic_build_prompts()
 
     # Bonus table
     print_vocabulary_diff_table()

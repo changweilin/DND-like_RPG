@@ -2,7 +2,17 @@
 engine/image_prompts.py — World-aware image prompt builder.
 
 Builds SDXL-Turbo / Diffusers text-to-image prompts for:
-  - Continent world maps  (build_map_prompt)
+  - Continent world maps       (build_map_prompt)
+  - Character portraits        (build_portrait_prompt)
+  - Cinematic game events      (classify_cinematic_event, build_cinematic_prompt)
+
+Cinematic triggers (in priority order):
+  1. battle_start   — scene_type transitions from non-combat → combat
+  2. battle_end     — scene_type transitions from combat → non-combat
+  3. plot_twist     — narrative contains dramatic keywords
+  4. npc_event      — NPC relationship delta ≥ 20 (arrival / departure / betrayal)
+  5. milestone      — turn_count is a multiple of IMAGE_GEN_MILESTONE_TURNS
+  6. new_location   — turn_data['location_change'] is set
   - Character portraits   (build_portrait_prompt)
 
 Pure data module — no Streamlit, no torch, no diffusers imports.
@@ -319,3 +329,163 @@ def get_portrait_negative_prompt(image_style='fantasy_art'):
     return (style.get('negative', '') +
             ', map, landscape, multiple people, text, watermark, '
             'deformed face, extra limbs, blurry, low quality')
+
+
+# ---------------------------------------------------------------------------
+# Cinematic event detection
+# ---------------------------------------------------------------------------
+
+# Narrative keywords that signal a major plot moment
+_PLOT_TWIST_KEYWORDS = [
+    # English
+    'betrayed', 'betrayal', 'reveals', 'revealed', 'revelation', 'shocking', 'suddenly',
+    'dead', 'died', 'death', 'fallen', 'killed', 'murdered', 'slain', 'executed',
+    'coronation', 'apocalypse', 'sacrifice', 'ambush', 'trap sprung', 'true identity',
+    'secret revealed', 'final boss', 'prophecy', 'destined', 'chosen one',
+    'portal opens', 'ancient evil', 'world-ending',
+    # Chinese
+    '背叛', '揭露', '震驚', '突然', '死亡', '陷阱', '真相', '犧牲',
+    '暗殺', '末日', '預言', '命運', '覺醒', '轉折', '秘密', '身份',
+]
+
+# Human-readable Chinese labels for each event type
+_CINEMATIC_LABELS = {
+    'battle_start': '⚔️ 戰鬥開始',
+    'battle_end':   '🏆 戰鬥結束',
+    'plot_twist':   '🎭 劇情重大轉折',
+    'npc_event':    '👤 重要 NPC 場面',
+    'milestone':    '📸 冒險里程碑',
+    'new_location': '🗺️ 新地點探索',
+}
+
+
+def classify_cinematic_event(turn_data, prev_scene_type, turn_count, narrative=''):
+    """
+    Decide whether this turn warrants a cinematic scene image.
+
+    Args:
+        turn_data       (dict): Narrative Event dict from EventManager.process_turn().
+        prev_scene_type (str):  scene_type of the PREVIOUS DM turn; 'exploration' if none.
+        turn_count      (int):  current game turn number (after increment).
+        narrative       (str):  narrative text returned this turn.
+
+    Returns:
+        dict {'type': str, 'label': str} or None.
+    """
+    from engine.config import config  # avoid circular import at module level
+
+    scene_type = turn_data.get('scene_type', 'exploration')
+
+    # Priority 1 — combat boundary (highest dramatic impact)
+    if scene_type == 'combat' and prev_scene_type != 'combat':
+        return {'type': 'battle_start', 'label': _CINEMATIC_LABELS['battle_start']}
+    if prev_scene_type == 'combat' and scene_type != 'combat':
+        return {'type': 'battle_end',   'label': _CINEMATIC_LABELS['battle_end']}
+
+    # Priority 2 — plot-twist keyword in narrative
+    if narrative:
+        n_lower = narrative.lower()
+        for kw in _PLOT_TWIST_KEYWORDS:
+            if kw in n_lower:
+                return {'type': 'plot_twist', 'label': _CINEMATIC_LABELS['plot_twist']}
+
+    # Priority 3 — significant NPC relationship shift
+    npc_changes = turn_data.get('npc_relationship_changes') or {}
+    for _npc, delta in npc_changes.items():
+        if isinstance(delta, dict):
+            delta_val = delta.get('affinity_delta', 0)
+        else:
+            delta_val = delta if isinstance(delta, (int, float)) else 0
+        if abs(delta_val) >= 20:
+            return {'type': 'npc_event', 'label': _CINEMATIC_LABELS['npc_event']}
+
+    # Priority 4 — milestone turn
+    milestone = getattr(config, 'IMAGE_GEN_MILESTONE_TURNS', 5)
+    if milestone > 0 and turn_count > 0 and (turn_count % milestone == 0):
+        return {
+            'type':  'milestone',
+            'label': f"{_CINEMATIC_LABELS['milestone']} (Turn {turn_count})",
+        }
+
+    # Priority 5 — major location change
+    if turn_data.get('location_change'):
+        return {'type': 'new_location', 'label': _CINEMATIC_LABELS['new_location']}
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Cinematic prompt builder
+# ---------------------------------------------------------------------------
+
+_CINEMATIC_TEMPLATES = {
+    'battle_start': (
+        'epic battle commencing, {char_desc}, {location}, {ws_aes}, {tone}, '
+        'dynamic action pose, motion blur, dramatic clash of weapons, '
+        'cinematic composition, {suf}'
+    ),
+    'battle_end': (
+        'aftermath of epic battle, victorious heroes standing amid fallen foes, '
+        '{char_desc}, {location}, {ws_aes}, {tone}, '
+        'dramatic lighting, exhaustion and triumph, cinematic, {suf}'
+    ),
+    'plot_twist': (
+        'dramatic revelation moment, {location}, {ws_aes}, {tone}, '
+        'shocked faces, dramatic light beam from above, '
+        'high-stakes emotional confrontation, cinematic cutscene, {suf}'
+    ),
+    'npc_event': (
+        'dramatic NPC encounter, tense face-to-face meeting, '
+        '{location}, {ws_aes}, {tone}, '
+        'intense character interaction, cinematic framing, {suf}'
+    ),
+    'milestone': (
+        'grand adventure panorama, {char_desc} on a heroic journey, '
+        '{location}, {ws_aes}, {tone}, '
+        'epic vista, sense of scale and wonder, highly detailed, {suf}'
+    ),
+    'new_location': (
+        'first glimpse of {location}, establishing wide shot, '
+        '{ws_aes}, {tone}, '
+        'atmospheric depth, sense of awe and mystery, '
+        'highly detailed environment, {suf}'
+    ),
+}
+
+
+def build_cinematic_prompt(event_type, turn_data, char, ws,
+                           image_style='fantasy_art', custom_suffix=''):
+    """
+    Build a text-to-image prompt for a cinematic game event.
+
+    Args:
+        event_type    (str):  Key from _CINEMATIC_TEMPLATES.
+        turn_data     (dict): Narrative Event dict.
+        char          (obj):  Active character (.race, .char_class).
+        ws            (dict): World setting dict.
+        image_style   (str):  Key from IMAGE_STYLES.
+        custom_suffix (str):  User override suffix.
+
+    Returns:
+        str — positive prompt.
+    """
+    ws_id  = ws.get('id', 'dnd5e')
+    style  = IMAGE_STYLES.get(image_style, IMAGE_STYLES['fantasy_art'])
+    suf    = custom_suffix.strip() or style['suffix']
+    ws_aes = _WORLD_PORTRAIT_AESTHETICS.get(ws_id, 'fantasy setting')
+    tone   = ws.get('tone', 'fantasy adventure')[:80]
+
+    cls  = (getattr(char, 'char_class', 'warrior') or 'warrior').lower().strip()
+    race = (getattr(char, 'race', 'Human') or 'Human').strip()
+    char_desc = f"{_RACE_DESCRIPTORS.get(race, race)}, {_CLASS_VISUAL.get(cls, 'adventurer')}"
+
+    location = (turn_data.get('location_change') or '').strip() or 'a dramatic scene'
+
+    template = _CINEMATIC_TEMPLATES.get(event_type, _CINEMATIC_TEMPLATES['milestone'])
+    return template.format(
+        char_desc=char_desc,
+        location=location,
+        ws_aes=ws_aes,
+        tone=tone,
+        suf=suf,
+    )

@@ -13,6 +13,7 @@ from engine.image_prompts import (
     IMAGE_STYLES,
     build_map_prompt, build_portrait_prompt,
     get_map_negative_prompt, get_portrait_negative_prompt,
+    classify_cinematic_event, build_cinematic_prompt,
 )
 from ai.llm_client import LLMClient
 from ai.image_gen import ImageGenerator
@@ -692,7 +693,17 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             _render_dice_result(item.get('dice_result'))
             st.markdown(f"**{dm_lbl}:** {item['content']}")
             if item.get('image'):
-                st.image(item['image'], caption="Scene visualization")
+                if item.get('is_cinematic') and item.get('cinematic_label'):
+                    st.markdown(
+                        f"<div style='background:#1a0a2a;border-left:3px solid #9b59b6;"
+                        f"padding:3px 10px;margin:4px 0 2px;border-radius:3px;"
+                        f"font-size:0.85em;color:#c39bd3'>"
+                        f"🎬 {item['cinematic_label']}</div>",
+                        unsafe_allow_html=True,
+                    )
+                st.image(item['image'],
+                         caption=item.get('cinematic_label') or "Scene",
+                         use_container_width=True)
 
     # ---- Action input ----
     current_choices = []
@@ -758,28 +769,71 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             if turn_data.get('location_change'):
                 _move_player_on_map(active_char, turn_data['location_change'])
 
-            scene_image = None
-            if "look" in action_taken.lower() or len(st.session_state.history) % 6 == 0:
-                try:
-                    _ws_aes = ws.get('tone', 'fantasy')[:60]
-                    _suf    = (IMAGE_STYLES.get(
-                        st.session_state.get('image_style', 'fantasy_art'), {}
-                    ).get('suffix', ''))
-                    scene_prompt = (
-                        f"{state.current_location}, {_ws_aes}, "
-                        f"{response[:80]}, scene illustration, {_suf}"
+            # ── Cinematic / scene image decision ──────────────────────────
+            scene_image      = None
+            is_cinematic     = False
+            cinematic_label  = None
+            img_gen          = st.session_state.img_gen
+            img_style        = st.session_state.get('image_style', 'fantasy_art')
+            custom_suf       = st.session_state.get('custom_img_suffix', '')
+
+            if not img_gen.is_disabled():
+                # Determine previous scene type from history for transition detection
+                prev_scene = 'exploration'
+                for _h in reversed(st.session_state.history):
+                    if _h.get('role') == 'dm':
+                        prev_scene = _h.get('scene_type', 'exploration')
+                        break
+
+                cinematic = classify_cinematic_event(
+                    turn_data, prev_scene,
+                    state.turn_count or 0,
+                    response,
+                )
+
+                if cinematic and img_gen.can_generate_safely():
+                    # Priority: cinematic event — build tailored prompt
+                    try:
+                        cprompt = build_cinematic_prompt(
+                            cinematic['type'], turn_data, active_char, ws,
+                            img_style, custom_suf,
+                        )
+                        scene_image     = img_gen.generate_image(cprompt)
+                        is_cinematic    = scene_image is not None
+                        cinematic_label = cinematic['label'] if is_cinematic else None
+                    except Exception as _e:
+                        print(f"[Cinematic] {_e}")
+
+                elif not cinematic and "look" in action_taken.lower():
+                    # Non-cinematic: only generate on explicit look actions
+                    if img_gen.can_generate_safely():
+                        try:
+                            _suf = IMAGE_STYLES.get(img_style, {}).get('suffix', '')
+                            scene_prompt = (
+                                f"{state.current_location}, "
+                                f"{ws.get('tone','fantasy')[:60]}, "
+                                f"{response[:80]}, scene illustration, {_suf}"
+                            )
+                            scene_image = img_gen.generate_image(scene_prompt)
+                        except Exception as _e:
+                            print(f"[SceneImg] {_e}")
+
+                # Notify once when generation just got auto-disabled
+                if img_gen.is_disabled():
+                    st.warning(
+                        "⚠️ 影像生成已自動停用（VRAM 不足）。"
+                        "可在側欄「🎨 影像風格」重新啟用。"
                     )
-                    scene_image = st.session_state.img_gen.generate_image(scene_prompt)
-                except Exception as e:
-                    print(f"Image gen failed: {e}")
 
         st.session_state.history.append({
-            "role":        "dm",
-            "content":     response,
-            "choices":     choices,
-            "scene_type":  turn_data.get('scene_type', 'exploration'),
-            "dice_result": dice_result,
-            "image":       scene_image,
+            "role":            "dm",
+            "content":         response,
+            "choices":         choices,
+            "scene_type":      turn_data.get('scene_type', 'exploration'),
+            "dice_result":     dice_result,
+            "image":           scene_image,
+            "is_cinematic":    is_cinematic,
+            "cinematic_label": cinematic_label,
         })
         st.rerun()
 
@@ -1026,6 +1080,20 @@ def _render_image_style_switcher():
 
         cur_style = IMAGE_STYLES.get(st.session_state.get('image_style', 'fantasy_art'), {})
         st.caption(f"當前: **{cur_style.get('name','')}** — {cur_style.get('name_en','')}")
+
+        # VRAM status
+        img_gen = st.session_state.get('img_gen')
+        if img_gen:
+            if img_gen.is_disabled():
+                st.error("⚠️ 影像生成已自動停用（連續 VRAM 不足）")
+                if st.button("🔄 重新啟用", key="reenable_img_gen",
+                             use_container_width=True):
+                    img_gen.reset_disabled()
+                    st.rerun()
+            elif not img_gen.can_generate_safely():
+                st.warning("⚡ VRAM 可能不足，部分場景圖可能跳過生成")
+            else:
+                st.success("✅ 影像生成就緒")
 
 
 # ---------------------------------------------------------------------------

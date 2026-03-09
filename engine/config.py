@@ -17,6 +17,18 @@ class GameConfig:
     # "B": Swap models (unload LLM -> load image model -> generate -> unload -> reload LLM)
     VRAM_STRATEGY = "B"
 
+    # Minimum free VRAM (GB) required before attempting an image generation call.
+    # SDXL-Turbo fp16 needs ~4 GB.  Raise if you see OOM with other image models.
+    IMAGE_VRAM_REQUIRED_GB = 4.0
+
+    # Auto-disable image generation after this many consecutive OOM / failures.
+    # Set to 0 to never auto-disable (useful for debugging; risk of repeated OOM).
+    IMAGE_GEN_MAX_FAILURES = 3
+
+    # Generate a cinematic scene image every N turns regardless of other triggers.
+    # Set to 0 to disable milestone images (only explicit cinematic events will trigger).
+    IMAGE_GEN_MILESTONE_TURNS = 5
+
     # --- Memory & context window ---
     # Sliding window: number of past turns kept in session memory (passed to LLM each turn)
     SESSION_MEMORY_WINDOW = 15
