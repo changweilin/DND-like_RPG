@@ -1814,6 +1814,212 @@ def test_manual_world_differentiation():
 
 
 # ---------------------------------------------------------------------------
+# G — Image prompt builder (engine/image_prompts.py) tests
+# ---------------------------------------------------------------------------
+
+def test_image_styles_registry():
+    """IMAGE_STYLES must define all required presets with non-empty name/suffix (except custom)."""
+    _section("G1 · IMAGE_STYLES registry — completeness and field validation")
+    from engine.image_prompts import IMAGE_STYLES
+
+    REQUIRED_PRESETS = {'fantasy_art', 'watercolor', 'anime', 'realistic', 'pixel_art', 'ink', 'custom'}
+    errors = 0
+
+    missing = REQUIRED_PRESETS - set(IMAGE_STYLES.keys())
+    if missing:
+        _fail(f"Missing style presets: {missing}")
+        errors += len(missing)
+    else:
+        _ok(f"All {len(REQUIRED_PRESETS)} required presets present")
+
+    for key, style in IMAGE_STYLES.items():
+        if not style.get('name', '').strip():
+            _fail(f"'{key}': empty 'name' field")
+            errors += 1
+        elif not style.get('name_en', '').strip():
+            _fail(f"'{key}': empty 'name_en' field")
+            errors += 1
+        elif key != 'custom' and not style.get('suffix', '').strip():
+            _fail(f"'{key}': empty 'suffix' field (non-custom styles must have a suffix)")
+            errors += 1
+        else:
+            _ok(f"'{key}': name={style['name']} · name_en={style['name_en']} "
+                f"· suffix_len={len(style.get('suffix',''))}")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_map_prompt_all_worlds():
+    """build_map_prompt() must return non-empty, world-specific string for all 14 settings."""
+    _section("G2 · build_map_prompt() — non-empty and world-specific for all 14 worlds")
+    from engine.image_prompts import build_map_prompt, IMAGE_STYLES
+
+    errors = 0
+    styles = list(IMAGE_STYLES.keys())
+
+    # Test every world × 3 spot-check styles
+    spot_styles = ['fantasy_art', 'anime', 'realistic']
+    prompts_by_world = {}
+
+    for ws in config.WORLD_SETTINGS:
+        for style in spot_styles:
+            prompt = build_map_prompt(ws, image_style=style)
+            if not prompt or len(prompt) < 30:
+                _fail(f"{ws['id']} + {style}: prompt too short ({len(prompt)} chars)")
+                errors += 1
+            else:
+                _ok(f"{ws['id']} + {style}: len={len(prompt)} chars ✓")
+        # Store default style prompt for differentiation test
+        prompts_by_world[ws['id']] = build_map_prompt(ws, image_style='fantasy_art')
+
+    # Prompts must differ across worlds (world-specific keywords injected)
+    unique_prompts = set(prompts_by_world.values())
+    if len(unique_prompts) != len(config.WORLD_SETTINGS):
+        _fail(f"Only {len(unique_prompts)} unique map prompts for {len(config.WORLD_SETTINGS)} worlds")
+        errors += 1
+    else:
+        _ok(f"All {len(config.WORLD_SETTINGS)} world map prompts are unique ✓")
+
+    # Custom suffix override
+    p = build_map_prompt(config.get_world_setting('dnd5e'),
+                         image_style='custom', custom_suffix='oil painting')
+    if 'oil painting' not in p:
+        _fail("Custom suffix 'oil painting' not found in custom-style prompt")
+        errors += 1
+    else:
+        _ok("Custom suffix override works ✓")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_portrait_prompt_per_class():
+    """build_portrait_prompt() must produce unique prompts per class and include class keywords."""
+    _section("G3 · build_portrait_prompt() — class-specific content and uniqueness")
+    from engine.image_prompts import build_portrait_prompt
+    import types
+
+    errors = 0
+    ws = config.get_world_setting('dnd5e')
+
+    # Expected visual keywords per class
+    class_keywords = {
+        'warrior': ['armor', 'weapon', 'shield', 'battle', 'sword', 'greatsword'],
+        'mage':    ['robes', 'staff', 'arcane', 'magical', 'orb', 'energy'],
+        'rogue':   ['leather', 'dagger', 'hood', 'shadow', 'agile', 'crouching'],
+        'cleric':  ['divine', 'vestment', 'holy', 'healing', 'symbol', 'light'],
+    }
+
+    portraits = {}
+    for cls, expected_kws in class_keywords.items():
+        char = types.SimpleNamespace(
+            name='Tester', race='Human', char_class=cls,
+            appearance='tall with dark hair', personality='brave and bold',
+        )
+        prompt = build_portrait_prompt(char, ws, image_style='fantasy_art')
+        if not prompt or len(prompt) < 30:
+            _fail(f"Class '{cls}': portrait prompt too short")
+            errors += 1
+            continue
+
+        found_kw = [kw for kw in expected_kws if kw in prompt.lower()]
+        if not found_kw:
+            _fail(f"Class '{cls}': none of {expected_kws[:3]} found in prompt")
+            errors += 1
+        else:
+            _ok(f"Class '{cls}': found keywords {found_kw[:3]} in portrait prompt ✓")
+
+        # Appearance text injected
+        if 'dark hair' not in prompt.lower() and 'tall' not in prompt.lower():
+            _fail(f"Class '{cls}': appearance text not found in prompt")
+            errors += 1
+
+        portraits[cls] = prompt
+
+    # All 4 class prompts must differ
+    unique = set(portraits.values())
+    if len(unique) != len(portraits):
+        _fail(f"Only {len(unique)} unique prompts for {len(portraits)} classes")
+        errors += 1
+    else:
+        _ok("All 4 class portrait prompts are distinct ✓")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_portrait_prompt_race_keywords():
+    """Portrait prompts must include race-specific visual descriptors."""
+    _section("G4 · build_portrait_prompt() — race descriptors in prompts")
+    from engine.image_prompts import build_portrait_prompt
+    import types
+
+    errors = 0
+    ws = config.get_world_setting('dnd5e')
+
+    race_cases = [
+        ('Human',    ['human', 'expressive']),
+        ('Elf',      ['elf', 'pointed ears']),
+        ('Dwarf',    ['dwarf', 'beard', 'stocky']),
+        ('Orc',      ['orc', 'tusk', 'green']),
+        ('Halfling', ['halfling', 'small', 'round']),
+    ]
+
+    for race, expected_kws in race_cases:
+        char = types.SimpleNamespace(
+            name='Tester', race=race, char_class='warrior',
+            appearance='', personality='',
+        )
+        prompt = build_portrait_prompt(char, ws, image_style='fantasy_art')
+        found  = [kw for kw in expected_kws if kw in prompt.lower()]
+        if not found:
+            _fail(f"Race '{race}': none of {expected_kws} found in portrait prompt")
+            errors += 1
+        else:
+            _ok(f"Race '{race}': {found} found ✓")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+def test_map_prompt_world_differentiation():
+    """Map prompts must contain world-setting-specific content strings."""
+    _section("G5 · build_map_prompt() — world-specific content keywords")
+    from engine.image_prompts import build_map_prompt
+
+    # Key phrase that must appear in each world's map prompt
+    world_keywords = [
+        ('dnd5e',            ['frontier', 'tolkien', 'fantasy']),
+        ('wh40k',            ['hive', 'gothic', 'grimdark']),
+        ('shadowrun',        ['cyberpunk', 'neon', 'corporate']),
+        ('call_of_cthulhu',  ['lovecraft', 'arkham', '1920']),
+        ('hearts_of_wulin',  ['jianghu', 'wuxia', 'chinese']),
+        ('deadlands',        ['weird west', 'ghost', 'frontier']),
+        ('mutant_year_zero', ['post-apocalyptic', 'ark', 'ruin']),
+        ('blades_in_the_dark',['doskvol', 'gothic', 'industrial']),
+    ]
+
+    errors = 0
+    for ws_id, keywords in world_keywords:
+        ws     = config.get_world_setting(ws_id)
+        if not ws:
+            _fail(f"{ws_id}: world setting not found")
+            errors += 1
+            continue
+        prompt = build_map_prompt(ws, image_style='fantasy_art').lower()
+        found  = [kw for kw in keywords if kw in prompt]
+        if not found:
+            _fail(f"{ws_id}: none of {keywords} found in map prompt")
+            errors += 1
+        else:
+            _ok(f"{ws_id}: {found} ✓")
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
+# ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
 # ---------------------------------------------------------------------------
 
@@ -1851,7 +2057,7 @@ if __name__ == '__main__':
     print()
     print("╔══════════════════════════════════════════════════════════════════════════╗")
     print("║  DND-like RPG — World Setting Validator                                  ║")
-    print("║  A: text diff · B: flow · C: multi-player · D: AI+6p · E: board · F: manual ║")
+    print("║  A:text·B:flow·C:multi·D:AI·E:board·F:manual·G:image  ║")
     print("╚══════════════════════════════════════════════════════════════════════════╝")
 
     results = {}
@@ -1900,6 +2106,13 @@ if __name__ == '__main__':
     results['F3 vocabulary substitution']         = test_manual_vocabulary_substitution()
     results['F4 keyword search tags']             = test_manual_search_tags()
     results['F5 world content differentiation']   = test_manual_world_differentiation()
+
+    # G — Image prompt builder (image_prompts.py)
+    results['G1 IMAGE_STYLES registry']           = test_image_styles_registry()
+    results['G2 map prompt all worlds']           = test_map_prompt_all_worlds()
+    results['G3 portrait prompt per class']       = test_portrait_prompt_per_class()
+    results['G4 portrait prompt race keywords']   = test_portrait_prompt_race_keywords()
+    results['G5 map prompt world keywords']       = test_map_prompt_world_differentiation()
 
     # Bonus table
     print_vocabulary_diff_table()

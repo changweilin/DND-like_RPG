@@ -9,6 +9,11 @@ from engine.board import (
     assign_map_position, detect_location_type, build_map_html,
     MAP_ROWS, MAP_COLS,
 )
+from engine.image_prompts import (
+    IMAGE_STYLES,
+    build_map_prompt, build_portrait_prompt,
+    get_map_negative_prompt, get_portrait_negative_prompt,
+)
 from ai.llm_client import LLMClient
 from ai.image_gen import ImageGenerator
 from ai.rag_system import RAGSystem
@@ -38,6 +43,12 @@ if 'save_manager' not in st.session_state:
     st.session_state.world_map        = {}   # loc_name → {row, col, icon}
     st.session_state.player_positions = {}   # char_id → {location, row, col}
     st.session_state.manual_dice      = {}   # dice_type → last_result (int)
+
+    # Image generation state
+    st.session_state.image_style      = 'fantasy_art'   # key in IMAGE_STYLES
+    st.session_state.custom_img_suffix = ''             # user override suffix
+    st.session_state.continent_map    = None            # PIL Image | None
+    st.session_state.portraits        = {}              # {char_id: PIL Image}
 
 # ---------------------------------------------------------------------------
 # Scene-type styling (Waidrin-style Narrative Event labels)
@@ -232,6 +243,28 @@ def main_menu():
             )
 
             st.markdown("---")
+            st.markdown("**🎨 影像風格 (Image Style)**")
+            _style_keys   = list(IMAGE_STYLES.keys())
+            _style_labels = [
+                f"{IMAGE_STYLES[k]['name']} — {IMAGE_STYLES[k]['name_en']}"
+                for k in _style_keys
+            ]
+            img_style_idx = st.selectbox(
+                "Art Style",
+                range(len(_style_keys)),
+                format_func=lambda i: _style_labels[i],
+                key="new_game_img_style",
+            )
+            custom_img_suffix = st.text_input(
+                "自定義風格後綴 (Custom style suffix, optional)",
+                key="new_game_custom_img",
+                placeholder="e.g. 'oil painting, baroque style, rich colors'",
+            )
+            st.caption(
+                "🗺️ 開始遊戲後可在遊戲板生成大陸地圖，在角色頁籤生成角色肖像。"
+            )
+
+            st.markdown("---")
             st.markdown("**Party (1-6 players)**")
             num_players = st.selectbox(
                 "Number of players", list(range(1, 7)), key="new_game_num_players"
@@ -270,6 +303,11 @@ def main_menu():
                         names    = ", ".join(c.name for c in party)
                         ai_count = sum(1 for e in extra if e.get('is_ai'))
                         suffix   = f" ({ai_count} AI)" if ai_count else ""
+                        # Store image style selection for this session
+                        st.session_state.image_style       = _style_keys[img_style_idx]
+                        st.session_state.custom_img_suffix = custom_img_suffix.strip()
+                        st.session_state.continent_map     = None
+                        st.session_state.portraits         = {}
                         st.success(
                             f"Party [{names}]{suffix} created in **{ws['name']}**! Load it to play."
                         )
@@ -310,6 +348,8 @@ def main_menu():
                     st.session_state.world_map        = {}
                     st.session_state.player_positions = {}
                     st.session_state.manual_dice      = {}
+                    st.session_state.continent_map    = None
+                    st.session_state.portraits        = {}
                     names = ", ".join(c.name for c in party)
                     st.success(f"Loaded party [{names}]!")
                     st.rerun()
@@ -555,10 +595,12 @@ def _render_score_board(party, state):
 
 
 def _render_game_board_tab(party, state, active_char, active_idx):
-    """Tab 1 — 遊戲板: world map + score board + manual dice roller."""
+    """Tab 1 — 遊戲板: continent image + grid map + score board + dice roller."""
     flag    = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else '👤'
     ai_cfgs = getattr(state, 'ai_configs', None) or {}
     is_ai   = ai_cfgs.get(str(active_idx), {}).get('is_ai', False)
+    ws_id   = getattr(state, 'world_setting', None) or 'dnd5e'
+    ws      = config.get_world_setting(ws_id)
 
     # Turn indicator
     if active_char.hp > 0:
@@ -569,14 +611,39 @@ def _render_game_board_tab(party, state, active_char, active_idx):
             st.info(f"{flag} **{active_char.name}** 的回合！  "
                     f"切換至 📖 故事 頁籤輸入行動。")
 
+    # ── Continent map image ────────────────────────────────────────────────
+    st.markdown("#### 🌍 大陸地圖 (Continent Map)")
+    continent_img = st.session_state.get('continent_map')
+    img_style     = st.session_state.get('image_style', 'fantasy_art')
+    style_name    = IMAGE_STYLES.get(img_style, {}).get('name', img_style)
+
+    if continent_img is not None:
+        st.image(continent_img, caption=f"🌍 {ws['name']}  ·  風格: {style_name}",
+                 use_container_width=True)
+        if st.button("🔄 重新生成地圖", key="regen_map_btn"):
+            st.session_state.continent_map = None
+            _generate_continent_map(ws)
+    else:
+        gen_col, _ = st.columns([2, 3])
+        if gen_col.button("🎨 生成大陸地圖", key="gen_map_btn", use_container_width=True):
+            _generate_continent_map(ws)
+        else:
+            st.caption(
+                f"點擊「生成大陸地圖」以 **{style_name}** 風格生成 {ws['name']} 的世界地圖。  "
+                f"可在側欄「🎨 影像風格」更換畫風。"
+            )
+
+    st.divider()
+
+    # ── Token grid map ─────────────────────────────────────────────────────
     col_map, col_right = st.columns([3, 1])
 
     with col_map:
-        st.markdown("#### 🗺️ 世界地圖")
+        st.markdown("#### 🗺️ 位置追蹤地圖")
         if st.session_state.world_map:
             _render_world_map_widget(party, active_char)
             st.caption(
-                "◀ ACTIVE = 當前行動玩家  ·  ❓ = 未探索區域  ·  "
+                "● ACTIVE = 當前行動玩家  ·  ❓ = 未探索區域  ·  "
                 + "  ".join(
                     f"{config.PLAYER_FLAGS[i]} = {char.name}"
                     for i, char in enumerate(party)
@@ -584,7 +651,7 @@ def _render_game_board_tab(party, state, active_char, active_idx):
                 )
             )
         else:
-            st.info("地圖將在遊戲開始後顯示（切換至 📖 故事 頁籤開始第一個回合）。")
+            st.info("位置地圖將在遊戲開始後顯示（切換至 📖 故事 頁籤開始第一個回合）。")
 
     with col_right:
         _render_score_board(party, state)
@@ -694,9 +761,15 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             scene_image = None
             if "look" in action_taken.lower() or len(st.session_state.history) % 6 == 0:
                 try:
-                    scene_image = st.session_state.img_gen.generate_image(
-                        f"A fantasy scene. {state.current_location}. {response[:100]}"
+                    _ws_aes = ws.get('tone', 'fantasy')[:60]
+                    _suf    = (IMAGE_STYLES.get(
+                        st.session_state.get('image_style', 'fantasy_art'), {}
+                    ).get('suffix', ''))
+                    scene_prompt = (
+                        f"{state.current_location}, {_ws_aes}, "
+                        f"{response[:80]}, scene illustration, {_suf}"
                     )
+                    scene_image = st.session_state.img_gen.generate_image(scene_prompt)
                 except Exception as e:
                     print(f"Image gen failed: {e}")
 
@@ -747,49 +820,72 @@ def _render_characters_tab(party, state, active_char):
         header   = f"{flag} {cls_icon} {char.name} — {char.race} {char.char_class}{ai_tag}{active_tag}{dead_tag}"
 
         with st.expander(header, expanded=is_active):
-            c1, c2, c3 = st.columns(3)
+            # ── Portrait ────────────────────────────────────────────────────
+            portrait = st.session_state.portraits.get(char.id)
+            por_col, stat_col = st.columns([1, 3])
+            with por_col:
+                if portrait is not None:
+                    st.image(portrait, caption=char.name, use_container_width=True)
+                    if st.button("🔄", key=f"regen_por_{char.id}",
+                                 help=f"重新生成 {char.name} 肖像"):
+                        del st.session_state.portraits[char.id]
+                        _generate_portrait(char, ws)
+                else:
+                    st.markdown(
+                        "<div style='background:#0d1117;border:1px dashed #333;"
+                        "height:150px;display:flex;align-items:center;"
+                        "justify-content:center;border-radius:6px;"
+                        "color:#555;font-size:0.8em'>🖼️ 尚未生成</div>",
+                        unsafe_allow_html=True,
+                    )
+                    if st.button(f"🎨 生成肖像", key=f"gen_por_{char.id}",
+                                 use_container_width=True):
+                        _generate_portrait(char, ws)
 
-            with c1:
-                hp_pct = char.hp / max(char.max_hp, 1)
-                hp_clr = '#4caf50' if hp_pct > 0.6 else ('#ff9800' if hp_pct > 0.3 else '#f44336')
-                st.markdown(f"**{tm.get('hp_name','HP')}**")
-                st.markdown(
-                    f"<div style='font-size:1.6em;color:{hp_clr};font-weight:bold'>"
-                    f"{char.hp} / {char.max_hp}</div>",
-                    unsafe_allow_html=True,
-                )
-                st.progress(int(hp_pct * 100))
+            with stat_col:
+                c1, c2, c3 = st.columns(3)
 
-                mp_pct = char.mp / max(char.max_mp, 1)
-                st.markdown(f"**{tm.get('mp_name','MP')}**")
-                st.markdown(
-                    f"<div style='font-size:1.4em;color:#6a9bff'>"
-                    f"{char.mp} / {char.max_mp}</div>",
-                    unsafe_allow_html=True,
-                )
-                st.progress(int(mp_pct * 100))
+                with c1:
+                    hp_pct = char.hp / max(char.max_hp, 1)
+                    hp_clr = '#4caf50' if hp_pct > 0.6 else ('#ff9800' if hp_pct > 0.3 else '#f44336')
+                    st.markdown(f"**{tm.get('hp_name','HP')}**")
+                    st.markdown(
+                        f"<div style='font-size:1.6em;color:{hp_clr};font-weight:bold'>"
+                        f"{char.hp} / {char.max_hp}</div>",
+                        unsafe_allow_html=True,
+                    )
+                    st.progress(int(hp_pct * 100))
 
-            with c2:
-                for label, val in [
-                    ('ATK', char.atk), ('DEF', char.def_stat),
-                    ('MOV', char.mov), (tm.get('gold_name', 'Gold'), char.gold),
-                ]:
-                    st.metric(label, val)
+                    mp_pct = char.mp / max(char.max_mp, 1)
+                    st.markdown(f"**{tm.get('mp_name','MP')}**")
+                    st.markdown(
+                        f"<div style='font-size:1.4em;color:#6a9bff'>"
+                        f"{char.mp} / {char.max_mp}</div>",
+                        unsafe_allow_html=True,
+                    )
+                    st.progress(int(mp_pct * 100))
 
-            with c3:
-                if char.skills:
-                    st.markdown("**技能:**")
-                    for skill in char.skills:
-                        st.write(f"  • {skill}")
-                if char.inventory:
-                    st.markdown("**背包:**")
-                    for item in char.inventory:
-                        nm = item.get('name', item) if isinstance(item, dict) else item
-                        st.write(f"  • {nm}")
-                if char.appearance:
-                    st.caption(f"外觀: {char.appearance}")
-                if char.personality:
-                    st.caption(f"性格: {char.personality}")
+                with c2:
+                    for label, val in [
+                        ('ATK', char.atk), ('DEF', char.def_stat),
+                        ('MOV', char.mov), (tm.get('gold_name', 'Gold'), char.gold),
+                    ]:
+                        st.metric(label, val)
+
+                with c3:
+                    if char.skills:
+                        st.markdown("**技能:**")
+                        for skill in char.skills:
+                            st.write(f"  • {skill}")
+                    if char.inventory:
+                        st.markdown("**背包:**")
+                        for item in char.inventory:
+                            nm = item.get('name', item) if isinstance(item, dict) else item
+                            st.write(f"  • {nm}")
+                    if char.appearance:
+                        st.caption(f"外觀: {char.appearance}")
+                    if char.personality:
+                        st.caption(f"性格: {char.personality}")
 
 # ---------------------------------------------------------------------------
 # Rules tab — full world-aware player handbook with chapter navigation + search
@@ -886,6 +982,89 @@ def _render_rules_tab(state):
                 st.rerun()
 
 # ---------------------------------------------------------------------------
+# Image style sidebar switcher
+# ---------------------------------------------------------------------------
+
+def _render_image_style_switcher():
+    """Sidebar expander: switch image art style and regenerate map/portraits."""
+    with st.sidebar.expander("🎨 影像風格", expanded=False):
+        style_keys   = list(IMAGE_STYLES.keys())
+        style_labels = [
+            f"{IMAGE_STYLES[k]['name']} ({IMAGE_STYLES[k]['name_en']})"
+            for k in style_keys
+        ]
+        try:
+            cur_idx = style_keys.index(st.session_state.get('image_style', 'fantasy_art'))
+        except ValueError:
+            cur_idx = 0
+
+        new_idx = st.selectbox(
+            "風格",
+            range(len(style_keys)),
+            index=cur_idx,
+            format_func=lambda i: style_labels[i],
+            key="sidebar_img_style",
+        )
+        new_custom = st.text_input(
+            "自定義後綴",
+            value=st.session_state.get('custom_img_suffix', ''),
+            key="sidebar_custom_img",
+            placeholder="oil painting, baroque…",
+        )
+
+        style_changed  = (new_idx != cur_idx)
+        custom_changed = (new_custom != st.session_state.get('custom_img_suffix', ''))
+        if style_changed or custom_changed:
+            st.session_state.image_style       = style_keys[new_idx]
+            st.session_state.custom_img_suffix = new_custom
+
+        if st.button("🔄 重新生成所有影像", use_container_width=True,
+                     key="sidebar_regen_images"):
+            st.session_state.continent_map = None
+            st.session_state.portraits     = {}
+            st.rerun()
+
+        cur_style = IMAGE_STYLES.get(st.session_state.get('image_style', 'fantasy_art'), {})
+        st.caption(f"當前: **{cur_style.get('name','')}** — {cur_style.get('name_en','')}")
+
+
+# ---------------------------------------------------------------------------
+# Image generation helpers
+# ---------------------------------------------------------------------------
+
+def _generate_continent_map(ws):
+    """Generate and cache the continent map for the current world setting."""
+    prompt = build_map_prompt(
+        ws,
+        st.session_state.get('image_style', 'fantasy_art'),
+        st.session_state.get('custom_img_suffix', ''),
+    )
+    with st.spinner(f"🎨 繪製 {ws['name']} 大陸地圖…"):
+        img = st.session_state.img_gen.generate_image(prompt)
+    if img:
+        st.session_state.continent_map = img
+        st.rerun()
+    else:
+        st.warning("影像生成失敗 (Strategy A 或 GPU 未就緒)")
+
+
+def _generate_portrait(char, ws):
+    """Generate and cache a portrait for a single character."""
+    prompt = build_portrait_prompt(
+        char, ws,
+        st.session_state.get('image_style', 'fantasy_art'),
+        st.session_state.get('custom_img_suffix', ''),
+    )
+    with st.spinner(f"🎨 繪製 {char.name} 肖像…"):
+        img = st.session_state.img_gen.generate_image(prompt)
+    if img:
+        st.session_state.portraits[char.id] = img
+        st.rerun()
+    else:
+        st.warning(f"{char.name} 肖像生成失敗")
+
+
+# ---------------------------------------------------------------------------
 # Main game loop (tabbed layout)
 # ---------------------------------------------------------------------------
 
@@ -909,17 +1088,20 @@ def game_loop():
     )
     _render_npc_tracker(state)
     _render_model_switcher()
+    _render_image_style_switcher()
 
     if st.sidebar.button("Save & Quit"):
         st.session_state.current_session.commit()
         st.session_state.current_session.close()
         for key in ('current_session', 'game_state', 'player', 'event_manager'):
             st.session_state[key] = None
-        st.session_state.party           = []
-        st.session_state.history         = []
-        st.session_state.world_map        = {}
-        st.session_state.player_positions = {}
-        st.session_state.manual_dice      = {}
+        st.session_state.party             = []
+        st.session_state.history           = []
+        st.session_state.world_map         = {}
+        st.session_state.player_positions  = {}
+        st.session_state.manual_dice       = {}
+        st.session_state.continent_map     = None
+        st.session_state.portraits         = {}
         st.rerun()
 
     # ---- Header ----
