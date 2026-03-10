@@ -60,13 +60,32 @@ if 'save_manager' not in st.session_state:
     prefs = PersistenceManager.load_prefs()
     if prefs.get('active_model_id'):
         st.session_state.active_model_id = prefs['active_model_id']
-    
+
     # Defaults for new game fields from prefs
-    st.session_state.pref_difficulty = prefs.get('difficulty', 'Normal')
-    st.session_state.pref_language   = prefs.get('language', 'English')
-    st.session_state.pref_world_idx  = prefs.get('world_idx', 0)
-    st.session_state.pref_img_style  = prefs.get('img_style', 0)
+    st.session_state.pref_difficulty  = prefs.get('difficulty', 'Normal')
+    st.session_state.pref_language    = prefs.get('language', 'English')
+    st.session_state.pref_world_idx   = prefs.get('world_idx', 0)
+    st.session_state.pref_img_style   = prefs.get('img_style', 0)
     st.session_state.pref_num_players = prefs.get('num_players', 1)
+
+    # Pre-populate new-game form widget state from saved prefs
+    # (name is deliberately excluded — user must re-enter each session)
+    _RACES   = ["Human", "Elf", "Dwarf", "Orc", "Halfling"]
+    _CLASSES = ["Warrior", "Mage", "Rogue", "Cleric"]
+    for _slot in range(6):
+        _r = prefs.get(f'race_{_slot}', 'Human')
+        if _r in _RACES:
+            st.session_state[f"ng_race_{_slot}"] = _r
+        _c = prefs.get(f'class_{_slot}', 'Warrior')
+        if _c in _CLASSES:
+            st.session_state[f"ng_class_{_slot}"] = _c
+        st.session_state[f"ng_app_{_slot}"] = prefs.get(f'app_{_slot}', '')
+        st.session_state[f"ng_per_{_slot}"] = prefs.get(f'per_{_slot}', '')
+        if _slot > 0:
+            st.session_state[f"ng_is_ai_{_slot}"] = prefs.get(f'is_ai_{_slot}', False)
+    # Custom lore / image suffix text inputs
+    st.session_state["new_game_lore"]       = prefs.get('custom_lore', '')
+    st.session_state["new_game_custom_img"] = prefs.get('custom_img_suffix', '')
 
     # State for duplicate save name handling
     st.session_state.duplicate_save_pending = None # {save_name, lead_fields, difficulty, language, lore, world_idx, style_idx, custom_img, extra_players}
@@ -81,6 +100,137 @@ _SCENE_ICONS = {
     'puzzle':      '🧩',
     'rest':        '🏕️',
 }
+
+# ---------------------------------------------------------------------------
+# UI language strings — add new keys here if new labels are needed
+# ---------------------------------------------------------------------------
+_UI_STRINGS = {
+    "English": {
+        "model_expander":  "⚙️ Model & Language",
+        "switch_model":    "Switch Model",
+        "ui_language":     "🌐 UI Language",
+        "new_game":        "New Game",
+        "load_game":       "Load Game",
+        "save_name":       "Save Name",
+        "difficulty":      "Difficulty",
+        "world_setting":   "World Setting",
+        "universe":        "Universe",
+        "custom_lore":     "Custom World Lore (optional)",
+        "img_style_hdr":   "🎨 Image Style",
+        "img_style_lbl":   "Art Style",
+        "custom_suffix":   "Custom style suffix (optional)",
+        "party_hdr":       "Party (1-6 players)",
+        "num_players":     "Number of players",
+        "start_adventure": "Start Adventure",
+        "name":            "Name",
+        "race":            "Race",
+        "char_class":      "Class",
+        "appearance":      "Appearance",
+        "personality":     "Personality",
+        "ai_controlled":   "🤖 AI-controlled",
+        "ai_personality":  "AI Personality",
+        "ai_difficulty":   "AI Difficulty",
+        "no_saves":        "No saves found.",
+        "save_required":   "Save Name and Player 1 Name are required.",
+        "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
+    },
+    "繁體中文": {
+        "model_expander":  "⚙️ 模型與語言",
+        "switch_model":    "切換模型",
+        "ui_language":     "🌐 介面語言",
+        "new_game":        "新遊戲",
+        "load_game":       "載入遊戲",
+        "save_name":       "存檔名稱",
+        "difficulty":      "難度",
+        "world_setting":   "世界設定",
+        "universe":        "世界觀",
+        "custom_lore":     "自定義世界觀（選填）",
+        "img_style_hdr":   "🎨 影像風格",
+        "img_style_lbl":   "藝術風格",
+        "custom_suffix":   "自定義風格後綴（選填）",
+        "party_hdr":       "隊伍（1-6 人）",
+        "num_players":     "玩家人數",
+        "start_adventure": "開始冒險",
+        "name":            "名字",
+        "race":            "種族",
+        "char_class":      "職業",
+        "appearance":      "外貌描述",
+        "personality":     "個性描述",
+        "ai_controlled":   "🤖 AI 操控",
+        "ai_personality":  "AI 個性",
+        "ai_difficulty":   "AI 難度",
+        "no_saves":        "找不到存檔。",
+        "save_required":   "存檔名稱與玩家 1 名字為必填。",
+        "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
+    },
+    "日本語": {
+        "model_expander":  "⚙️ モデルと言語",
+        "switch_model":    "モデル切替",
+        "ui_language":     "🌐 UI言語",
+        "new_game":        "新規ゲーム",
+        "load_game":       "ゲーム読込",
+        "save_name":       "セーブ名",
+        "difficulty":      "難易度",
+        "world_setting":   "世界設定",
+        "universe":        "世界観",
+        "custom_lore":     "カスタム世界観（省略可）",
+        "img_style_hdr":   "🎨 画像スタイル",
+        "img_style_lbl":   "アートスタイル",
+        "custom_suffix":   "カスタムスタイル後置（省略可）",
+        "party_hdr":       "パーティ（1〜6人）",
+        "num_players":     "プレイヤー数",
+        "start_adventure": "冒険を始める",
+        "name":            "名前",
+        "race":            "種族",
+        "char_class":      "職業",
+        "appearance":      "外見描写",
+        "personality":     "性格",
+        "ai_controlled":   "🤖 AI操作",
+        "ai_personality":  "AIの個性",
+        "ai_difficulty":   "AIの難易度",
+        "no_saves":        "セーブデータが見つかりません。",
+        "save_required":   "セーブ名とプレイヤー1の名前は必須です。",
+        "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
+    },
+    "Español": {
+        "model_expander":  "⚙️ Modelo e Idioma",
+        "switch_model":    "Cambiar modelo",
+        "ui_language":     "🌐 Idioma de interfaz",
+        "new_game":        "Nuevo Juego",
+        "load_game":       "Cargar Partida",
+        "save_name":       "Nombre de guardado",
+        "difficulty":      "Dificultad",
+        "world_setting":   "Mundo",
+        "universe":        "Universo",
+        "custom_lore":     "Trasfondo personalizado (opcional)",
+        "img_style_hdr":   "🎨 Estilo de imagen",
+        "img_style_lbl":   "Estilo artístico",
+        "custom_suffix":   "Sufijo de estilo personalizado (opcional)",
+        "party_hdr":       "Grupo (1-6 jugadores)",
+        "num_players":     "Número de jugadores",
+        "start_adventure": "Comenzar aventura",
+        "name":            "Nombre",
+        "race":            "Raza",
+        "char_class":      "Clase",
+        "appearance":      "Apariencia",
+        "personality":     "Personalidad",
+        "ai_controlled":   "🤖 IA controlada",
+        "ai_personality":  "Personalidad IA",
+        "ai_difficulty":   "Dificultad IA",
+        "no_saves":        "No hay partidas guardadas.",
+        "save_required":   "El nombre de guardado y el nombre del Jugador 1 son obligatorios.",
+        "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
+    },
+}
+
+_LANGUAGES = ["English", "繁體中文", "日本語", "Español"]
+
+
+def _t(key):
+    """Return UI string for the current UI language."""
+    lang    = st.session_state.get('pref_language', 'English')
+    strings = _UI_STRINGS.get(lang, _UI_STRINGS['English'])
+    return strings.get(key, _UI_STRINGS['English'].get(key, key))
 
 # ---------------------------------------------------------------------------
 # Daily model update check (Ollama local models only)
@@ -115,8 +265,30 @@ def _check_model_updates():
 # ---------------------------------------------------------------------------
 
 def _render_model_switcher():
-    """Sidebar expander: select model, view pros/cons, switch live."""
-    with st.sidebar.expander("⚙️ Model", expanded=False):
+    """Sidebar expander: select model + UI language, switch live."""
+    with st.sidebar.expander(_t("model_expander"), expanded=False):
+        # ---- Language selector (top of expander) ----
+        try:
+            lang_idx = _LANGUAGES.index(st.session_state.pref_language)
+        except ValueError:
+            lang_idx = 0
+        new_lang_idx = st.selectbox(
+            _t("ui_language"),
+            range(len(_LANGUAGES)),
+            index=lang_idx,
+            format_func=lambda i: _LANGUAGES[i],
+            key="sidebar_language_select",
+        )
+        if _LANGUAGES[new_lang_idx] != st.session_state.pref_language:
+            st.session_state.pref_language = _LANGUAGES[new_lang_idx]
+            prefs = PersistenceManager.load_prefs()
+            prefs['language'] = _LANGUAGES[new_lang_idx]
+            PersistenceManager.save_prefs(prefs)
+            st.rerun()
+
+        st.divider()
+
+        # ---- Model selector ----
         preset_labels = [f"[{p['category']}] {p['name']}" for p in config.MODEL_PRESETS]
         preset_ids    = [p['id'] for p in config.MODEL_PRESETS]
         try:
@@ -149,11 +321,10 @@ def _render_model_switcher():
         if vram:
             st.caption(f"💾 VRAM: ~{vram} GB")
 
-        if st.button("Switch Model", key="switch_model_btn"):
+        if st.button(_t("switch_model"), key="switch_model_btn"):
             new_id = preset['id']
             st.session_state.llm.switch_model(new_id)
             st.session_state.active_model_id = new_id
-            # Save model choice
             prefs = PersistenceManager.load_prefs()
             prefs['active_model_id'] = new_id
             PersistenceManager.save_prefs(prefs)
@@ -180,13 +351,13 @@ def _player_config_fields(idx, key_prefix):
     ai_personality = 'tactical'
     ai_difficulty  = 'normal'
     if idx > 0:
-        is_ai = st.checkbox("🤖 AI-controlled", key=f"{key_prefix}_is_ai_{idx}", value=False)
+        is_ai = st.checkbox(_t("ai_controlled"), key=f"{key_prefix}_is_ai_{idx}", value=False)
 
     cols = st.columns([2, 1, 1])
-    name       = cols[0].text_input("Name",  key=f"{key_prefix}_name_{idx}")
-    race       = cols[1].selectbox("Race", ["Human", "Elf", "Dwarf", "Orc", "Halfling"],
+    name       = cols[0].text_input(_t("name"),  key=f"{key_prefix}_name_{idx}")
+    race       = cols[1].selectbox(_t("race"), ["Human", "Elf", "Dwarf", "Orc", "Halfling"],
                                    key=f"{key_prefix}_race_{idx}")
-    char_class = cols[2].selectbox("Class", ["Warrior", "Mage", "Rogue", "Cleric"],
+    char_class = cols[2].selectbox(_t("char_class"), ["Warrior", "Mage", "Rogue", "Cleric"],
                                    key=f"{key_prefix}_class_{idx}")
 
     base = config.CLASS_BASE_STATS.get(char_class.lower(), {})
@@ -202,7 +373,7 @@ def _player_config_fields(idx, key_prefix):
         personalities      = list(config.AI_PERSONALITIES.keys())
         personality_labels = [config.AI_PERSONALITIES[p]['name'] for p in personalities]
         ai_p_idx = ai_cols[0].selectbox(
-            "AI Personality", range(len(personalities)),
+            _t("ai_personality"), range(len(personalities)),
             format_func=lambda i: personality_labels[i],
             key=f"{key_prefix}_ai_pers_{idx}",
         )
@@ -211,7 +382,7 @@ def _player_config_fields(idx, key_prefix):
         difficulties      = list(config.AI_DIFFICULTIES.keys())
         difficulty_labels = [config.AI_DIFFICULTIES[d]['name'] for d in difficulties]
         ai_d_idx = ai_cols[1].selectbox(
-            "AI Difficulty", range(len(difficulties)),
+            _t("ai_difficulty"), range(len(difficulties)),
             format_func=lambda i: difficulty_labels[i],
             key=f"{key_prefix}_ai_diff_{idx}",
         )
@@ -223,9 +394,9 @@ def _player_config_fields(idx, key_prefix):
         appearance       = ""
         personality_text = ""
     else:
-        appearance       = st.text_input("Appearance",  key=f"{key_prefix}_app_{idx}",
+        appearance       = st.text_input(_t("appearance"),  key=f"{key_prefix}_app_{idx}",
                                          placeholder="A brave adventurer.")
-        personality_text = st.text_input("Personality", key=f"{key_prefix}_per_{idx}",
+        personality_text = st.text_input(_t("personality"), key=f"{key_prefix}_per_{idx}",
                                          placeholder="Courageous and kind.")
 
     return name, race, char_class, appearance, personality_text, is_ai, ai_personality, ai_difficulty
@@ -240,19 +411,20 @@ def main_menu():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.header("New Game")
+        st.header(_t("new_game"))
         with st.form("new_game_form"):
-            save_name  = st.text_input("Save Name")
-            difficulty = st.selectbox("Difficulty", ["Easy", "Normal", "Hard"],
+            save_name  = st.text_input(_t("save_name"))
+            difficulty = st.selectbox(_t("difficulty"), ["Easy", "Normal", "Hard"],
                                       index=["Easy", "Normal", "Hard"].index(st.session_state.pref_difficulty))
-            language   = st.selectbox("Language", ["English", "繁體中文", "日本語", "Español"],
-                                      index=["English", "繁體中文", "日本語", "Español"].index(st.session_state.pref_language))
+            # Language is now set via the model/language expander in the sidebar;
+            # read it from session state so the game uses the selected language.
+            language = st.session_state.pref_language
 
-            st.markdown("**World Setting**")
+            st.markdown(f"**{_t('world_setting')}**")
             ws_labels = [f"[{ws['category']}] {ws['name']}" for ws in config.WORLD_SETTINGS]
             ws_ids    = [ws['id'] for ws in config.WORLD_SETTINGS]
             ws_idx    = st.selectbox(
-                "Universe", range(len(config.WORLD_SETTINGS)),
+                _t("universe"), range(len(config.WORLD_SETTINGS)),
                 format_func=lambda i: ws_labels[i],
                 index=st.session_state.pref_world_idx,
                 key="new_game_ws_select",
@@ -265,38 +437,36 @@ def main_menu():
                 f"{tm.get('gold_name','gold')}·GM={tm.get('dm_title','GM')}"
             )
             custom_lore = st.text_area(
-                "Custom World Lore (optional)",
+                _t("custom_lore"),
                 placeholder=ws.get('world_lore', '')[:150] + "...",
                 height=60, key="new_game_lore",
             )
 
             st.markdown("---")
-            st.markdown("**🎨 影像風格 (Image Style)**")
+            st.markdown(f"**{_t('img_style_hdr')}**")
             _style_keys   = list(IMAGE_STYLES.keys())
             _style_labels = [
                 f"{IMAGE_STYLES[k]['name']} — {IMAGE_STYLES[k]['name_en']}"
                 for k in _style_keys
             ]
             img_style_idx = st.selectbox(
-                "Art Style",
+                _t("img_style_lbl"),
                 range(len(_style_keys)),
                 format_func=lambda i: _style_labels[i],
                 index=st.session_state.pref_img_style,
                 key="new_game_img_style",
             )
             custom_img_suffix = st.text_input(
-                "自定義風格後綴 (Custom style suffix, optional)",
+                _t("custom_suffix"),
                 key="new_game_custom_img",
                 placeholder="e.g. 'oil painting, baroque style, rich colors'",
             )
-            st.caption(
-                "🗺️ 開始遊戲後可在遊戲板生成大陸地圖，在角色頁籤生成角色肖像。"
-            )
+            st.caption(_t("map_hint"))
 
             st.markdown("---")
-            st.markdown("**Party (1-6 players)**")
+            st.markdown(f"**{_t('party_hdr')}**")
             num_players = st.selectbox(
-                "Number of players", list(range(1, 7)), 
+                _t("num_players"), list(range(1, 7)),
                 index=st.session_state.pref_num_players - 1,
                 key="new_game_num_players"
             )
@@ -307,10 +477,10 @@ def main_menu():
                 if i < num_players - 1:
                     st.markdown("---")
 
-            if st.form_submit_button("Start Adventure"):
+            if st.form_submit_button(_t("start_adventure")):
                 lead = player_fields[0]
                 if not save_name or not lead[0]:
-                    st.error("Save Name and Player 1 Name are required.")
+                    st.error(_t("save_required"))
                 else:
                     extra = []
                     for name, race, char_class, app, per, is_ai, ai_pers, ai_diff in player_fields[1:]:
@@ -340,15 +510,28 @@ def main_menu():
                         st.session_state.continent_map     = None
                         st.session_state.portraits         = {}
                         
-                        # Save preferences
-                        PersistenceManager.save_prefs({
-                            'active_model_id': st.session_state.active_model_id,
-                            'difficulty':  difficulty,
-                            'language':    language,
-                            'world_idx':   ws_idx,
-                            'img_style':   img_style_idx,
-                            'num_players': num_players
-                        })
+                        # Save preferences — includes per-slot race/class/app/per
+                        # (name excluded deliberately — user re-enters each session)
+                        new_prefs = {
+                            'active_model_id':   st.session_state.active_model_id,
+                            'difficulty':        difficulty,
+                            'language':          language,
+                            'world_idx':         ws_idx,
+                            'img_style':         img_style_idx,
+                            'num_players':       num_players,
+                            'custom_img_suffix': custom_img_suffix.strip(),
+                            'custom_lore':       custom_lore,
+                            # Player 1 (lead)
+                            'race_0':  lead[1], 'class_0': lead[2],
+                            'app_0':   lead[3], 'per_0':   lead[4],
+                        }
+                        for _si, _ep in enumerate(extra, start=1):
+                            new_prefs[f'race_{_si}']         = _ep['race']
+                            new_prefs[f'class_{_si}']        = _ep['char_class']
+                            new_prefs[f'is_ai_{_si}']        = _ep['is_ai']
+                            new_prefs[f'ai_personality_{_si}'] = _ep['ai_personality']
+                            new_prefs[f'ai_difficulty_{_si}']  = _ep['ai_difficulty']
+                        PersistenceManager.save_prefs(new_prefs)
                         
                         st.success(
                             f"Party [{names}]{suffix} created in **{ws['name']}**! Load it to play."
@@ -359,7 +542,7 @@ def main_menu():
                             'save_name': save_name,
                             'lead_fields': lead,
                             'difficulty': difficulty,
-                            'language': language,
+                            'language': st.session_state.pref_language,
                             'world_context': custom_lore,
                             'world_setting': ws_ids[ws_idx],
                             'extra_players': extra,
@@ -369,10 +552,10 @@ def main_menu():
                         st.rerun()
 
     with col2:
-        st.header("Load Game")
+        st.header(_t("load_game"))
         saves = st.session_state.save_manager.list_saves()
         if not saves:
-            st.info("No saves found.")
+            st.info(_t("no_saves"))
         else:
             save_labels = [
                 f"{s['save_name']} — {s['location']} ({s['party_size']}p · turn {s['turns']})"
