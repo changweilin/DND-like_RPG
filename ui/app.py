@@ -75,9 +75,10 @@ if 'save_manager' not in st.session_state:
         st.session_state.active_model_id = prefs['active_model_id']
 
     # Restore last-used image model (switches ImageGenerator model_id)
-    saved_img_model = prefs.get('active_img_model_id', config.IMAGE_MODEL_NAME)
-    st.session_state.active_img_model_id = saved_img_model
-    st.session_state.img_gen.switch_model(saved_img_model)
+    # Restore last-used image model into ImageGenerator (single source of truth)
+    st.session_state.img_gen.switch_model(
+        prefs.get('active_img_model_id', config.IMAGE_MODEL_NAME)
+    )
 
     # Defaults for new game fields from prefs
     st.session_state.pref_difficulty  = prefs.get('difficulty', 'Normal')
@@ -255,10 +256,27 @@ def _t(key):
 # ---------------------------------------------------------------------------
 
 def _is_img_model_cached(model_id):
-    """Return True if the HuggingFace model is already in local disk cache."""
+    """
+    Return True only if the model has a completed HuggingFace snapshot on disk.
+    Checks for a 'snapshots/' subdirectory so partially-downloaded models are
+    not mistakenly treated as ready (HF Hub creates the top-level dir immediately
+    at the start of a download).
+    Result is cached in session state per model_id so the os.path call is not
+    repeated on every Streamlit rerun.
+    """
+    cache_key = f'_img_cached_{model_id}'
+    if st.session_state.get(cache_key) is not None:
+        return st.session_state[cache_key]
     cache_dir  = os.path.expanduser('~/.cache/huggingface/hub')
     local_name = 'models--' + model_id.replace('/', '--')
-    return os.path.isdir(os.path.join(cache_dir, local_name))
+    result = os.path.isdir(os.path.join(cache_dir, local_name, 'snapshots'))
+    st.session_state[cache_key] = result
+    return result
+
+
+def _invalidate_img_cache(model_id):
+    """Clear the per-model cache entry so the next render re-checks disk."""
+    st.session_state.pop(f'_img_cached_{model_id}', None)
 
 
 def _start_img_model_download(model_id):
@@ -267,15 +285,15 @@ def _start_img_model_download(model_id):
     Progress (0-100, file-count based) is written to the module-level _img_dl dict.
     No-op if a download is already active.
     """
-    global _img_dl
     if _img_dl.get('active'):
         return  # already downloading something
 
-    _img_dl = {'active': True, 'model_id': model_id, 'progress': 0,
-               'done': False, 'error': None}
+    # Use .update() for all writes so the GIL-protected dict object is never
+    # replaced wholesale from the worker thread (avoids TOCTOU on the reference).
+    _img_dl.update({'active': True, 'model_id': model_id, 'progress': 0,
+                    'done': False, 'error': None})
 
     def _worker():
-        global _img_dl
         try:
             from huggingface_hub import HfApi, hf_hub_download
             api   = HfApi()
@@ -284,22 +302,21 @@ def _start_img_model_download(model_id):
             for i, filename in enumerate(files):
                 hf_hub_download(repo_id=model_id, filename=filename)
                 _img_dl['progress'] = int((i + 1) / total * 100) if total else 100
-            _img_dl = {'active': False, 'model_id': model_id,
-                       'progress': 100, 'done': True, 'error': None}
+            _img_dl.update({'active': False, 'progress': 100, 'done': True, 'error': None})
         except Exception as exc:
-            _img_dl = {'active': False, 'model_id': model_id,
-                       'progress': 0, 'done': False, 'error': str(exc)}
+            _img_dl.update({'active': False, 'progress': 0, 'done': False, 'error': str(exc)})
 
     threading.Thread(target=_worker, daemon=True).start()
 
 
 def _apply_img_model_switch(preset):
-    """Switch the active image model, update session state and persist to prefs."""
+    """Switch the active image model, update ImageGenerator and persist to prefs."""
     model_id = preset['id']
-    st.session_state.active_img_model_id = model_id
-    img_gen = st.session_state.get('img_gen')
+    img_gen  = st.session_state.get('img_gen')
     if img_gen:
         img_gen.switch_model(model_id)
+    # Invalidate the cache-check entry so the next render re-reads disk state
+    _invalidate_img_cache(model_id)
     prefs = PersistenceManager.load_prefs()
     prefs['active_img_model_id'] = model_id
     PersistenceManager.save_prefs(prefs)
@@ -321,7 +338,9 @@ def _render_image_model_selector():
         for p in presets
     ]
 
-    cur_id  = st.session_state.get('active_img_model_id', config.IMAGE_MODEL_NAME)
+    # Read canonical model_id from the ImageGenerator itself — no shadow state needed
+    img_gen = st.session_state.get('img_gen')
+    cur_id  = img_gen.model_id if img_gen else config.IMAGE_MODEL_NAME
     try:
         cur_idx = ids.index(cur_id)
     except ValueError:
@@ -362,6 +381,8 @@ def _render_image_model_selector():
                     st.rerun()
 
             elif dl.get('done') and dl_this and not is_active:
+                # Invalidate disk-cache check so render reflects the new snapshot
+                _invalidate_img_cache(model_id)
                 st.success(f"✅ {preset['name']} downloaded!")
                 if st.button(f"🔀 Switch to {preset['name']}",
                              key="img_switch_btn", use_container_width=True):
@@ -2021,8 +2042,8 @@ def game_loop():
         st.rerun()
 
     # ---- Tabs ----
-    tab_board, tab_story, tab_chars, tab_rules, tab_book = st.tabs(
-        ["🗺️ 遊戲板", "📖 故事", "👥 角色", "📜 規則", "📕 書本"]
+    tab_board, tab_story, tab_chars, tab_rules, tab_book, tab_god = st.tabs(
+        ["🗺️ 遊戲板", "📖 故事", "👥 角色", "📜 規則", "📕 書本", "🔮 上帝模式"]
     )
 
     with tab_board:
@@ -2039,6 +2060,275 @@ def game_loop():
 
     with tab_book:
         _render_book_tab(getattr(state, 'save_name', None))
+
+    with tab_god:
+        _render_god_mode_tab(party, state)
+
+# ---------------------------------------------------------------------------
+# God Mode tab — live DB schema + current values, RAG stats, engine config
+# ---------------------------------------------------------------------------
+
+# Schema descriptions mirrored from engine/game_state.py + engine/config.py comments.
+# Format: {table: {column: (type_label, description)}}
+_GOD_SCHEMA = {
+    "characters": {
+        "id":          ("INTEGER PK",  "Auto-increment primary key"),
+        "name":        ("STRING",      "Player character display name"),
+        "race":        ("STRING",      "Species — Human / Elf / Dwarf / Orc / Halfling"),
+        "char_class":  ("STRING",      "Class — Warrior / Mage / Rogue / Cleric"),
+        "appearance":  ("TEXT",        "Free-text physical description used for image-gen prompts"),
+        "personality": ("TEXT",        "Free-text personality injected into LLM system prompt"),
+        "hp":          ("INTEGER",     "Current hit points"),
+        "max_hp":      ("INTEGER",     "Maximum hit points (set by class on game creation)"),
+        "mp":          ("INTEGER",     "Current magic points"),
+        "max_mp":      ("INTEGER",     "Maximum magic points"),
+        "atk":         ("INTEGER",     "Attack stat — modifier = (atk-10)//2 added to d20 rolls"),
+        "def_stat":    ("INTEGER",     "Defence stat — reduces incoming damage by def_stat//2"),
+        "mov":         ("INTEGER",     "Movement range on the game board (cells per turn)"),
+        "gold":        ("INTEGER",     "Currency balance"),
+        "inventory":   ("JSON list",   "Items: [{name, quantity, description, …}]"),
+        "skills":      ("JSON list",   "Skill strings granted by class or found items"),
+    },
+    "game_state": {
+        "id":                  ("INTEGER PK",  "Auto-increment primary key"),
+        "save_name":           ("STRING UNIQUE","Human-readable save identifier chosen at creation"),
+        "player_id":           ("INTEGER FK",  "Foreign key → characters.id for the party leader"),
+        "party_ids":           ("JSON list",   "Ordered list of Character.id values; index 0 = leader"),
+        "active_player_index": ("INTEGER",     "Which party slot is currently taking their turn (0-based)"),
+        "current_location":    ("STRING",      "In-game location name; shown in sidebar and injected into prompts"),
+        "world_context":       ("TEXT",        "Narrative world description seeded into RAG world_lore at turn 0"),
+        "world_setting":       ("STRING",      "World preset id (e.g. 'dnd5e') — controls vocabulary & tone"),
+        "difficulty":          ("STRING",      "Easy / Normal / Hard — affects DC offsets and enemy stats"),
+        "language":            ("STRING",      "Narrative language for LLM output (e.g. 'English', '繁體中文')"),
+        "turn_count":          ("INTEGER",     "Number of completed turns since game creation"),
+        "relationships":       ("JSON dict",   "{npc_name: {affinity: int, state: str, goal: str}} — NPC tracker"),
+        "session_memory":      ("JSON list",   "Sliding window of last SESSION_MEMORY_WINDOW turns: [{turn, player_action, narrative, outcome}]"),
+        "known_entities":      ("JSON dict",   "{name_lower: {type, hp, max_hp, atk, def_stat, alive, …}} — live combat HP"),
+        "party_contributions": ("JSON dict",   "{str(char_id): {damage_dealt, healing_done, skill_checks_passed, turns_taken}}"),
+        "ai_configs":          ("JSON dict",   "{str(slot): {is_ai, personality, difficulty}} — AI party member settings"),
+    },
+}
+
+
+def _render_god_mode_tab(party, state):
+    """
+    上帝模式 — full read-only view of all database tables, live values,
+    ChromaDB RAG collections, and engine configuration constants.
+    """
+    st.markdown(
+        "<div style='background:#0d0d1a;border-left:4px solid #aa44ff;"
+        "padding:8px 14px;border-radius:6px;margin-bottom:12px'>"
+        "<span style='color:#cc88ff;font-size:1.05em;font-weight:bold'>"
+        "🔮 上帝模式 God Mode</span>"
+        "<span style='color:#888;font-size:0.82em;margin-left:10px'>"
+        "完整資料庫結構與即時數值 · Read-only live view</span></div>",
+        unsafe_allow_html=True,
+    )
+
+    # ----------------------------------------------------------------
+    # Characters table
+    # ----------------------------------------------------------------
+    st.subheader("👤 characters 資料表")
+    schema = _GOD_SCHEMA["characters"]
+    for char in party:
+        with st.expander(f"🔴 {char.name} ({char.race} {char.char_class})", expanded=False):
+            rows = []
+            live = {
+                "id": char.id, "name": char.name, "race": char.race,
+                "char_class": char.char_class, "appearance": char.appearance or "",
+                "personality": char.personality or "",
+                "hp": char.hp, "max_hp": char.max_hp,
+                "mp": char.mp, "max_mp": char.max_mp,
+                "atk": char.atk, "def_stat": char.def_stat, "mov": char.mov,
+                "gold": char.gold,
+                "inventory": char.inventory or [],
+                "skills": char.skills or [],
+            }
+            for col, (typ, desc) in schema.items():
+                val = live.get(col, "—")
+                rows.append({"欄位": col, "型別": typ, "說明": desc, "當前值": str(val)[:120]})
+            import pandas as pd
+            st.dataframe(
+                pd.DataFrame(rows),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "欄位":  st.column_config.TextColumn(width="small"),
+                    "型別":  st.column_config.TextColumn(width="small"),
+                    "說明":  st.column_config.TextColumn(width="large"),
+                    "當前值": st.column_config.TextColumn(width="medium"),
+                },
+            )
+
+    # ----------------------------------------------------------------
+    # GameState table
+    # ----------------------------------------------------------------
+    st.subheader("🌍 game_state 資料表")
+    schema_gs = _GOD_SCHEMA["game_state"]
+    live_gs = {
+        "id":                  state.id,
+        "save_name":           state.save_name,
+        "player_id":           state.player_id,
+        "party_ids":           state.party_ids or [],
+        "active_player_index": state.active_player_index or 0,
+        "current_location":    state.current_location,
+        "world_context":       (state.world_context or "")[:200] + ("…" if len(state.world_context or "") > 200 else ""),
+        "world_setting":       getattr(state, 'world_setting', 'dnd5e'),
+        "difficulty":          state.difficulty,
+        "language":            state.language,
+        "turn_count":          state.turn_count or 0,
+        "relationships":       state.relationships or {},
+        "session_memory":      f"[{len(state.session_memory or [])} turns]",
+        "known_entities":      f"[{len(state.known_entities or {})} entities]",
+        "party_contributions": state.party_contributions or {},
+        "ai_configs":          state.ai_configs or {},
+    }
+    rows_gs = []
+    for col, (typ, desc) in schema_gs.items():
+        val = live_gs.get(col, "—")
+        rows_gs.append({"欄位": col, "型別": typ, "說明": desc, "當前值": str(val)[:160]})
+    import pandas as pd
+    st.dataframe(
+        pd.DataFrame(rows_gs),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "欄位":  st.column_config.TextColumn(width="small"),
+            "型別":  st.column_config.TextColumn(width="small"),
+            "說明":  st.column_config.TextColumn(width="large"),
+            "當前值": st.column_config.TextColumn(width="medium"),
+        },
+    )
+
+    # ----------------------------------------------------------------
+    # JSON sub-tables — expand each complex JSON column individually
+    # ----------------------------------------------------------------
+    st.subheader("📂 JSON 欄位展開")
+
+    col_rel, col_ent = st.columns(2)
+    with col_rel:
+        st.markdown("**relationships (NPC 狀態)**")
+        rels = state.relationships or {}
+        if rels:
+            rel_rows = [
+                {"NPC": name,
+                 "affinity": str(d.get('affinity', 0) if isinstance(d, dict) else d),
+                 "state": d.get('state', '') if isinstance(d, dict) else '',
+                 "goal":  d.get('goal', '')  if isinstance(d, dict) else ''}
+                for name, d in rels.items()
+            ]
+            st.dataframe(pd.DataFrame(rel_rows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("（尚無 NPC）")
+
+    with col_ent:
+        st.markdown("**known_entities (戰鬥實體)**")
+        ents = state.known_entities or {}
+        if ents:
+            ent_rows = [
+                {"name": name,
+                 "type": d.get('type', ''),
+                 "hp": f"{d.get('hp','?')}/{d.get('max_hp','?')}",
+                 "atk": d.get('atk', '?'),
+                 "def": d.get('def_stat', '?'),
+                 "alive": '✅' if d.get('alive', True) else '💀'}
+                for name, d in ents.items()
+            ]
+            st.dataframe(pd.DataFrame(ent_rows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("（尚無遭遇實體）")
+
+    with st.expander("🧠 session_memory (滑動記憶窗口)", expanded=False):
+        mem = state.session_memory or []
+        if mem:
+            mem_rows = [
+                {"turn": m.get('turn', ''), "outcome": m.get('outcome', ''),
+                 "action": (m.get('player_action', '') or '')[:60],
+                 "narrative": (m.get('narrative', '') or '')[:80]}
+                for m in mem
+            ]
+            st.dataframe(pd.DataFrame(mem_rows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("（記憶窗口為空）")
+
+    with st.expander("🎒 inventory & skills (全隊)", expanded=False):
+        for char in party:
+            st.markdown(f"**{char.name}** — 金幣 {char.gold}")
+            inv = char.inventory or []
+            if inv:
+                st.dataframe(pd.DataFrame(inv), use_container_width=True, hide_index=True)
+            else:
+                st.caption("背包為空")
+            skills = char.skills or []
+            if skills:
+                st.caption("技能: " + ", ".join(str(s) for s in skills))
+
+    # ----------------------------------------------------------------
+    # ChromaDB RAG collections
+    # ----------------------------------------------------------------
+    st.subheader("🗂️ ChromaDB RAG 集合")
+    rag = st.session_state.get('rag')
+    rag_cols = [
+        ("world_lore",   "靜態世界觀資料：遊戲創建時注入，提供 LLM 世界背景知識"),
+        ("story_events", "動態事件記錄：每回合結束後儲存，供語意搜尋相關過去情節"),
+        ("game_rules",   "規則資料庫：怪物屬性表、咒語描述、DC 表格等機械規則"),
+    ]
+    rag_rows = []
+    for cname, cdesc in rag_cols:
+        count = "—"
+        if rag:
+            try:
+                col = getattr(rag, cname.replace('_', '_') + '_collection',
+                              getattr(rag, cname, None))
+                if col is None:
+                    # Try common attribute names
+                    for attr in (cname, cname + '_collection',
+                                 cname.replace('_', '') + '_collection'):
+                        col = getattr(rag, attr, None)
+                        if col:
+                            break
+                if col:
+                    count = str(col.count())
+            except Exception:
+                count = "—"
+        rag_rows.append({"集合": cname, "說明": cdesc, "文件數": count})
+    st.dataframe(pd.DataFrame(rag_rows), use_container_width=True, hide_index=True,
+                 column_config={"說明": st.column_config.TextColumn(width="large")})
+
+    # ----------------------------------------------------------------
+    # Engine configuration constants
+    # ----------------------------------------------------------------
+    st.subheader("⚙️ 引擎設定常數 (engine/config.py)")
+    cfg_rows = [
+        ("LLM_MODEL_NAME",          config.LLM_MODEL_NAME,          "Ollama/API 語言模型識別碼"),
+        ("IMAGE_MODEL_NAME",        config.IMAGE_MODEL_NAME,         "預設影像模型識別碼"),
+        ("VRAM_STRATEGY",           config.VRAM_STRATEGY,            "A=跳過影像 / B=換模型"),
+        ("USER_VRAM_GB",            config.USER_VRAM_GB,             "總 GPU VRAM 預算（GB）"),
+        ("IMAGE_VRAM_REQUIRED_GB",  config.IMAGE_VRAM_REQUIRED_GB,   "最低可用 VRAM 門檻（GB）"),
+        ("IMAGE_GEN_MAX_FAILURES",  config.IMAGE_GEN_MAX_FAILURES,   "連續失敗幾次後停用影像生成"),
+        ("IMAGE_GEN_MILESTONE_TURNS",config.IMAGE_GEN_MILESTONE_TURNS,"每 N 回合強制生成場景圖"),
+        ("SESSION_MEMORY_WINDOW",   config.SESSION_MEMORY_WINDOW,    "滑動記憶窗口大小（回合數）"),
+        ("CONTEXT_WINDOW_SIZE",     config.CONTEXT_WINDOW_SIZE,      "目標 token 預算（需與模型一致）"),
+        ("EMBEDDING_MODEL",         config.EMBEDDING_MODEL or "(default MiniLM)", "ChromaDB 嵌入模型路徑"),
+        ("SAVE_DIR",                config.SAVE_DIR,                 "SQLite 存檔目錄"),
+        ("CHROMA_DB_DIR",           config.CHROMA_DB_DIR,            "ChromaDB 持久化目錄"),
+    ]
+    st.dataframe(
+        pd.DataFrame(cfg_rows, columns=["常數", "值", "說明"]),
+        use_container_width=True, hide_index=True,
+        column_config={"說明": st.column_config.TextColumn(width="large")},
+    )
+
+    # Active image model details
+    img_gen = st.session_state.get('img_gen')
+    if img_gen:
+        p = config.get_image_preset(img_gen.model_id)
+        st.caption(
+            f"🖼️ 目前影像模型: **{p['name']}** ({p['provider']}) — "
+            f"{p.get('description','')} | "
+            f"disabled={img_gen.is_disabled()} fail_count={img_gen._fail_count}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Entry point

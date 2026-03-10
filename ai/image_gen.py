@@ -172,13 +172,18 @@ class ImageGenerator:
         print(f"[ImageGen] Unknown VRAM strategy '{config.VRAM_STRATEGY}' — skipping.")
         return None
 
+    def _get_api_key(self, provider_tag):
+        """Return API key from env for the active preset, or None if not set."""
+        env_key = self._preset().get('env_key', '')
+        key     = os.environ.get(env_key, '')
+        if not key:
+            print(f"[ImageGen/{provider_tag}] {env_key} not set — skipping.")
+        return key or None
+
     def _generate_openai(self, prompt):
         """DALL-E 3 via OpenAI REST API. Returns PIL Image or None."""
-        preset  = self._preset()
-        env_key = preset.get('env_key', 'OPENAI_API_KEY')
-        api_key = os.environ.get(env_key, '')
+        api_key = self._get_api_key('OpenAI')
         if not api_key:
-            print(f"[ImageGen/OpenAI] {env_key} not set — skipping.")
             return None
         try:
             import openai
@@ -200,11 +205,8 @@ class ImageGenerator:
 
     def _generate_stability(self, prompt):
         """Stability AI Core REST API. Returns PIL Image or None."""
-        preset  = self._preset()
-        env_key = preset.get('env_key', 'STABILITY_API_KEY')
-        api_key = os.environ.get(env_key, '')
+        api_key = self._get_api_key('Stability')
         if not api_key:
-            print(f"[ImageGen/Stability] {env_key} not set — skipping.")
             return None
         try:
             import requests

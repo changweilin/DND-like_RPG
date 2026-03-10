@@ -332,34 +332,55 @@ class LLMClient:
                 json_mode=True,
             )
             result = _validated_narrative(json.loads(_repair_json(raw)))
-            # Enforce minimum narrative length — retry once if too short
-            if len(result["narrative"]) < 300:
-                raw2 = self._chat(
-                    messages=[
-                        {"role": "system", "content": full_prompt},
-                        {"role": "user",   "content": outcome_context},
-                        {"role": "assistant", "content": raw},
-                        {"role": "user",
-                         "content": (
-                             "Your narrative is too short (under 300 characters). "
-                             "Please rewrite it with much more vivid atmospheric detail, "
-                             "keeping all other fields the same."
-                         )},
-                    ],
-                    json_mode=True,
-                )
-                try:
-                    result2 = _validated_narrative(json.loads(_repair_json(raw2)))
-                    if len(result2["narrative"]) > len(result["narrative"]):
-                        result = result2
-                except Exception:
-                    pass
+            result = self._ensure_min_length(
+                result, raw,
+                base_messages=[
+                    {"role": "system", "content": full_prompt},
+                    {"role": "user",   "content": outcome_context},
+                ],
+                min_chars=300,
+            )
             return result
         except Exception as e:
             print(f"Narrative rendering error: {e}")
             return _validated_narrative({
                 "narrative": "The world holds its breath... (Error generating response)",
             })
+
+    # ------------------------------------------------------------------
+    # Internal helper: ensure narrative meets minimum length via one retry
+    # ------------------------------------------------------------------
+
+    def _ensure_min_length(self, result, raw, base_messages, min_chars, combine=False):
+        """
+        If result["narrative"] is shorter than min_chars, ask the model to expand
+        it once.  If combine=True and the retry is still shorter, concatenate both.
+        Returns the (possibly updated) result dict.
+        """
+        if len(result["narrative"]) >= min_chars:
+            return result
+        retry_msg = (
+            f"Your narrative is only {len(result['narrative'])} characters "
+            f"but must be at least {min_chars}. "
+            "Please rewrite it with much more vivid atmospheric detail, "
+            "keeping all other fields the same."
+        )
+        try:
+            raw2    = self._chat(
+                messages=base_messages + [
+                    {"role": "assistant", "content": raw},
+                    {"role": "user",      "content": retry_msg},
+                ],
+                json_mode=True,
+            )
+            result2 = _validated_narrative(json.loads(_repair_json(raw2)))
+            if len(result2["narrative"]) > len(result["narrative"]):
+                return result2
+            if combine:
+                result["narrative"] = result["narrative"] + "\n\n" + result2["narrative"]
+        except Exception:
+            pass
+        return result
 
     # ------------------------------------------------------------------
     # Prologue generation — Turn 0 opening scene (≥ 1000 chars)
@@ -426,33 +447,15 @@ class LLMClient:
                 json_mode=True,
             )
             result = _validated_narrative(json.loads(_repair_json(raw)))
-            # Enforce minimum prologue length — retry and append if too short
-            if len(result["narrative"]) < 1000:
-                raw2 = self._chat(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user",   "content": "Begin the adventure with an epic prologue."},
-                        {"role": "assistant", "content": raw},
-                        {"role": "user",
-                         "content": (
-                             f"Your prologue is only {len(result['narrative'])} characters "
-                             "but must be at least 1000. Continue and greatly expand the "
-                             "narrative with more atmospheric detail, sensory descriptions, "
-                             "and world-building, then provide 3 choices."
-                         )},
-                    ],
-                    json_mode=True,
-                )
-                try:
-                    result2 = _validated_narrative(json.loads(_repair_json(raw2)))
-                    if len(result2["narrative"]) > len(result["narrative"]):
-                        result = result2
-                    else:
-                        # Combine both narratives
-                        result["narrative"] = (result["narrative"] + "\n\n"
-                                               + result2["narrative"])
-                except Exception:
-                    pass
+            result = self._ensure_min_length(
+                result, raw,
+                base_messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": "Begin the adventure with an epic prologue."},
+                ],
+                min_chars=1000,
+                combine=True,
+            )
             return result
         except Exception as e:
             print(f"Prologue generation error: {e}")
