@@ -5,6 +5,10 @@ import urllib.request
 from diffusers import AutoPipelineForText2Image
 from engine.config import config
 
+_PROVIDER_DIFFUSERS = 'diffusers'
+_PROVIDER_OPENAI    = 'openai'
+_PROVIDER_STABILITY = 'stability'
+
 
 class ImageGenerator:
     def __init__(self):

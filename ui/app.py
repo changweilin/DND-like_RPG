@@ -1064,6 +1064,17 @@ def _render_scene_label(scene_type):
     st.caption(f"{icon} *{label} scene*")
 
 
+def _render_prologue_badge(container=None):
+    """Render the prologue badge used in both the story tab and book renderer."""
+    ctx = container if container is not None else st
+    ctx.markdown(
+        "<div style='background:#0a0a1a;border-left:4px solid #4a6aaa;"
+        "padding:6px 10px;border-radius:4px;margin-bottom:6px;"
+        "font-size:0.82em;color:#8898cc'>📜 開場白 · Turn 0</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _render_world_map_widget(party, active_char):
     """Render the HTML world-map grid into the board tab."""
     html = build_map_html(
@@ -1234,12 +1245,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
         else:
             scene_type = item.get('scene_type', 'exploration')
             if item.get('is_prologue'):
-                st.markdown(
-                    "<div style='background:#0a0a1a;border-left:4px solid #4a6aaa;"
-                    "padding:8px 12px;border-radius:6px;margin-bottom:8px;"
-                    "font-size:0.82em;color:#8898cc'>📜 開場白 · Turn 0</div>",
-                    unsafe_allow_html=True,
-                )
+                _render_prologue_badge()
             else:
                 _render_scene_label(scene_type)
             _render_dice_result(item.get('dice_result'))
@@ -1656,12 +1662,7 @@ def _book_render_page_content(page, container=None):
 
     # Prologue badge
     if page.get('is_prologue'):
-        ctx.markdown(
-            "<div style='background:#0a0a1a;border-left:4px solid #4a6aaa;"
-            "padding:4px 10px;border-radius:4px;margin-bottom:6px;"
-            "font-size:0.78em;color:#8898cc'>📜 開場白 · Turn 0</div>",
-            unsafe_allow_html=True,
-        )
+        _render_prologue_badge(ctx)
 
     # Player action + unchosen choices with strikethrough
     actor  = page.get('actor', '')
