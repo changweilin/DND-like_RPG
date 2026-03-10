@@ -399,29 +399,7 @@ class EventManager:
         # Seed world lore into RAG (same as Step 2 of process_turn)
         self._seed_world_lore(current_state)
 
-        ws_id  = getattr(current_state, 'world_setting', None) or 'dnd5e'
-        ws     = config.get_world_setting(ws_id)
-        tm     = ws.get('term_map', {})
-
-        game_state_data = {
-            'language':      current_state.language or 'English',
-            'world_context': current_state.world_context or '',
-            'world_name':    ws['name'],
-            'location':      current_state.current_location or ws.get('starting_location', ''),
-            'difficulty':    current_state.difficulty or 'Normal',
-            'dm_title':      tm.get('dm_title', 'Game Master'),
-        }
-        party_data = [
-            {
-                'name':        c.name,
-                'race':        c.race,
-                'char_class':  c.char_class,
-                'personality': c.personality or '',
-            }
-            for c in party
-        ]
-
-        turn_data = self.llm.generate_prologue(game_state_data, party_data)
+        turn_data = self.llm.generate_prologue(current_state, party)
         narrative = turn_data.get('narrative', '')
         choices   = turn_data.get('choices', [])
 

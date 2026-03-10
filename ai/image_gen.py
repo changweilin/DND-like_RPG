@@ -33,7 +33,7 @@ class ImageGenerator:
         return config.get_image_preset(self.model_id)
 
     def _provider(self):
-        return self._preset().get('provider', 'diffusers')
+        return self._preset().get('provider', _PROVIDER_DIFFUSERS)
 
     # ------------------------------------------------------------------
     # VRAM safety gate
@@ -52,7 +52,7 @@ class ImageGenerator:
         if self._disabled:
             return False
         provider = self._provider()
-        if provider in ('openai', 'stability'):
+        if provider in (_PROVIDER_OPENAI, _PROVIDER_STABILITY):
             # Remote API — VRAM irrelevant; always attempt (key check is inside generate)
             return True
         # Local diffusers path
@@ -79,7 +79,7 @@ class ImageGenerator:
 
     def load_model(self):
         """Load diffusers pipeline into VRAM. No-op for cloud providers."""
-        if self._provider() != 'diffusers':
+        if self._provider() != _PROVIDER_DIFFUSERS:
             return
         if self.pipeline is None:
             print(f"[ImageGen] Loading {self.model_id} into VRAM…")
@@ -119,11 +119,13 @@ class ImageGenerator:
             return None
 
         provider = self._provider()
-        if provider == 'openai':
+        if provider == _PROVIDER_OPENAI:
             return self._generate_openai(prompt)
-        elif provider == 'stability':
+        elif provider == _PROVIDER_STABILITY:
             return self._generate_stability(prompt)
         else:
+            if not self.can_generate_safely():
+                return None
             return self._generate_diffusers(prompt)
 
     # ------------------------------------------------------------------
@@ -132,9 +134,6 @@ class ImageGenerator:
 
     def _generate_diffusers(self, prompt):
         """Local GPU inference via HuggingFace diffusers."""
-        if config.VRAM_STRATEGY == "A":
-            return None
-
         preset   = self._preset()
         steps    = preset.get('steps', 2)
         guidance = preset.get('guidance', 0.0)

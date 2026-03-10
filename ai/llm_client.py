@@ -386,7 +386,7 @@ class LLMClient:
     # Prologue generation — Turn 0 opening scene (≥ 1000 chars)
     # ------------------------------------------------------------------
 
-    def generate_prologue(self, game_state_data, party_data):
+    def generate_prologue(self, current_state, party):
         """
         Generate an immersive opening prologue of at least 1000 characters.
 
@@ -394,23 +394,25 @@ class LLMClient:
         with 3+ branching choices so the player can immediately act.
 
         Args:
-            game_state_data (dict): {language, world_context, world_name,
-                                     location, difficulty, dm_title}
-            party_data      (list[dict]): [{name, race, char_class, personality}]
+            current_state: GameState ORM object
+            party:         list[Character] ORM objects
 
         Returns a validated narrative dict (same schema as render_narrative).
         """
-        language   = game_state_data.get('language', 'English')
-        world_name = game_state_data.get('world_name', 'this world')
-        location   = game_state_data.get('location', 'the starting area')
-        difficulty = game_state_data.get('difficulty', 'Normal')
-        dm_title   = game_state_data.get('dm_title', 'Game Master')
-        world_ctx  = game_state_data.get('world_context', '')
+        ws_id      = getattr(current_state, 'world_setting', None) or 'dnd5e'
+        ws         = config.get_world_setting(ws_id)
+        tm         = ws.get('term_map', {})
+        language   = current_state.language or 'English'
+        world_name = ws['name']
+        location   = current_state.current_location or ws.get('starting_location', 'the starting area')
+        difficulty = current_state.difficulty or 'Normal'
+        dm_title   = tm.get('dm_title', 'Game Master')
+        world_ctx  = current_state.world_context or ''
 
         party_lines = '\n'.join(
-            f"  - {p['name']} ({p['race']} {p['char_class']})"
-            + (f": {p['personality']}" if p.get('personality') else "")
-            for p in party_data
+            f"  - {c.name} ({c.race} {c.char_class})"
+            + (f": {c.personality}" if c.personality else "")
+            for c in party
         )
 
         json_schema = (

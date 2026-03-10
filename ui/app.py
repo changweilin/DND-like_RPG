@@ -15,6 +15,9 @@ _img_dl = {
     'error':    None,    # error message string or None
 }
 
+_RACES   = ["Human", "Elf", "Dwarf", "Orc", "Halfling"]
+_CLASSES = ["Warrior", "Mage", "Rogue", "Cleric"]
+
 from engine.save_load import SaveLoadManager
 from engine.config import config
 from engine.dice import DiceRoller
@@ -89,8 +92,6 @@ if 'save_manager' not in st.session_state:
 
     # Pre-populate new-game form widget state from saved prefs
     # (name is deliberately excluded — user must re-enter each session)
-    _RACES   = ["Human", "Elf", "Dwarf", "Orc", "Halfling"]
-    _CLASSES = ["Warrior", "Mage", "Rogue", "Cleric"]
     for _slot in range(6):
         _r = prefs.get(f'race_{_slot}', 'Human')
         if _r in _RACES:
@@ -437,7 +438,7 @@ def _render_image_model_selector():
                         os.environ[env_key] = entered
                         st.rerun()
 
-            if has_key or bool(os.environ.get(env_key, '')):
+            if has_key:
                 if is_active:
                     st.success(f"▶ **{preset['name']}** is active")
                 else:
@@ -584,9 +585,9 @@ def _player_config_fields(idx, key_prefix):
 
     cols = st.columns([2, 1, 1])
     name       = cols[0].text_input(_t("name"),  key=f"{key_prefix}_name_{idx}")
-    race       = cols[1].selectbox(_t("race"), ["Human", "Elf", "Dwarf", "Orc", "Halfling"],
+    race       = cols[1].selectbox(_t("race"), _RACES,
                                    key=f"{key_prefix}_race_{idx}")
-    char_class = cols[2].selectbox(_t("char_class"), ["Warrior", "Mage", "Rogue", "Cleric"],
+    char_class = cols[2].selectbox(_t("char_class"), _CLASSES,
                                    key=f"{key_prefix}_class_{idx}")
 
     base = config.CLASS_BASE_STATS.get(char_class.lower(), {})
