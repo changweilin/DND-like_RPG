@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venv/Scripts/python.exe:*)"
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"import ast; ast.parse\\(open\\('ui/app.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"import ast; ast.parse\\(open\\('ui/app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(grep -n \"_gs\\\\|\\\\.language\\\\|pref_language\\\\|expire\\\\|commit\\\\|VRAM 顯示\\\\|_render_model_switcher\\\\|_active_preset\\\\|st.sidebar.expander.*llm\" \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\\\\ui\\\\app.py\" | grep -v \"^.*#.*$\" | head -35)",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) or print\\(f'OK: {f}'\\) for f in ['ui/app.py', 'ai/llm_client.py', 'logic/events.py']]\" 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport ast\nfor f in ['ui/app.py', 'ai/llm_client.py', 'logic/events.py']:\n    ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\)\n    print\\(f'OK: {f}'\\)\n\")",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport ast\nfor f in ['ai/llm_client.py', 'logic/events.py', 'ui/app.py']:\n    ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\)\n    print\\(f'OK: {f}'\\)\n\")"
     ]
   }
 }

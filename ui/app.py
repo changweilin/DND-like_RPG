@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import datetime
 import threading
+import torch
 
 # ---------------------------------------------------------------------------
 # Background image-model download state (module-level so worker thread can
@@ -82,6 +83,7 @@ if 'save_manager' not in st.session_state:
     st.session_state.img_gen.switch_model(
         prefs.get('active_img_model_id', config.IMAGE_MODEL_NAME)
     )
+    st.session_state.img_gen_enabled = prefs.get('img_gen_enabled', True)
 
     # Defaults for new game fields from prefs
     st.session_state.pref_difficulty  = prefs.get('difficulty', 'Normal')
@@ -126,7 +128,9 @@ _SCENE_ICONS = {
 # ---------------------------------------------------------------------------
 _UI_STRINGS = {
     "English": {
-        "model_expander":  "⚙️ Model & Language",
+        "model_expander":      "⚙️ Model & Language",
+        "llm_model_expander":  "⚙️ LLM Model",
+        "language_expander":   "🌐 Language",
         "switch_model":    "Switch Model",
         "ui_language":     "🌐 UI Language",
         "new_game":        "New Game",
@@ -155,7 +159,9 @@ _UI_STRINGS = {
         "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
     },
     "繁體中文": {
-        "model_expander":  "⚙️ 模型與語言",
+        "model_expander":      "⚙️ 模型與語言",
+        "llm_model_expander":  "⚙️ LLM 模型",
+        "language_expander":   "🌐 語言",
         "switch_model":    "切換模型",
         "ui_language":     "🌐 介面語言",
         "new_game":        "新遊戲",
@@ -184,7 +190,9 @@ _UI_STRINGS = {
         "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
     },
     "日本語": {
-        "model_expander":  "⚙️ モデルと言語",
+        "model_expander":      "⚙️ モデルと言語",
+        "llm_model_expander":  "⚙️ LLMモデル",
+        "language_expander":   "🌐 言語",
         "switch_model":    "モデル切替",
         "ui_language":     "🌐 UI言語",
         "new_game":        "新規ゲーム",
@@ -213,7 +221,9 @@ _UI_STRINGS = {
         "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
     },
     "Español": {
-        "model_expander":  "⚙️ Modelo e Idioma",
+        "model_expander":      "⚙️ Modelo e Idioma",
+        "llm_model_expander":  "⚙️ Modelo LLM",
+        "language_expander":   "🌐 Idioma",
         "switch_model":    "Cambiar modelo",
         "ui_language":     "🌐 Idioma de interfaz",
         "new_game":        "Nuevo Juego",
@@ -251,6 +261,15 @@ def _t(key):
     lang    = st.session_state.get('pref_language', 'English')
     strings = _UI_STRINGS.get(lang, _UI_STRINGS['English'])
     return strings.get(key, _UI_STRINGS['English'].get(key, key))
+
+# Sentinel model-ID used when the user disables image generation entirely
+_DISABLED_IMG_ID = "__disabled__"
+
+
+def _img_enabled():
+    """Return True when image generation is active (user has not disabled it)."""
+    return st.session_state.get('img_gen_enabled', True)
+
 
 # ---------------------------------------------------------------------------
 # Image model download helpers
@@ -333,117 +352,132 @@ def _render_image_model_selector():
     - Switch button applies change without reloading the page.
     """
     presets = config.IMAGE_MODEL_PRESETS
-    ids     = [p['id'] for p in presets]
-    labels  = [
+    # Prepend the disabled sentinel so index 0 always means "off"
+    all_ids    = [_DISABLED_IMG_ID] + [p['id'] for p in presets]
+    all_labels = ["🚫 不啟用 (Disabled)"] + [
         f"[{'LOCAL' if p['provider']=='diffusers' else 'CLOUD'}] {p['name']}"
         for p in presets
     ]
 
-    # Read canonical model_id from the ImageGenerator itself — no shadow state needed
     img_gen = st.session_state.get('img_gen')
-    cur_id  = img_gen.model_id if img_gen else config.IMAGE_MODEL_NAME
-    try:
-        cur_idx = ids.index(cur_id)
-    except ValueError:
-        cur_idx = 0
+    if not _img_enabled():
+        cur_idx = 0                                     # sentinel is selected
+    else:
+        cur_id = img_gen.model_id if img_gen else config.IMAGE_MODEL_NAME
+        try:
+            cur_idx = all_ids.index(cur_id)
+        except ValueError:
+            cur_idx = 1                                 # fall back to first real model
 
     with st.sidebar.expander("🖼️ Image Model", expanded=False):
         sel_idx = st.selectbox(
             "Model",
-            range(len(presets)),
+            range(len(all_ids)),
             index=cur_idx,
-            format_func=lambda i: labels[i],
+            format_func=lambda i: all_labels[i],
             key="img_model_selector",
         )
-        preset   = presets[sel_idx]
-        provider = preset.get('provider', 'diffusers')
-        model_id = preset['id']
 
-        st.caption(preset.get('description', ''))
-        vram = preset.get('vram_gb', 0)
-        if vram:
-            st.caption(f"💾 VRAM: ~{vram} GB")
-
-        is_active = (model_id == cur_id)
-
-        # ---- Local diffusers ------------------------------------------------
-        if provider == 'diffusers':
-            dl      = _img_dl
-            dl_this = (dl.get('model_id') == model_id)
-            cached  = _is_img_model_cached(model_id)
-
-            if dl.get('active') and dl_this:
-                # Download in progress for this model
-                pct = dl.get('progress', 0)
-                st.progress(pct / 100,
-                            text=f"⬇️ Downloading {preset['name']}… {pct}%")
-                if st.button("🔄 Refresh progress", key="img_dl_refresh",
-                             use_container_width=True):
-                    st.rerun()
-
-            elif dl.get('done') and dl_this and not is_active:
-                # Invalidate disk-cache check so render reflects the new snapshot
-                _invalidate_img_cache(model_id)
-                st.success(f"✅ {preset['name']} downloaded!")
-                if st.button(f"🔀 Switch to {preset['name']}",
-                             key="img_switch_btn", use_container_width=True):
-                    _apply_img_model_switch(preset)
-                    st.rerun()
-
-            elif dl.get('error') and dl_this:
-                st.error(f"❌ Download failed: {dl['error']}")
-                if st.button("🔄 Retry download", key="img_retry_dl",
-                             use_container_width=True):
-                    _start_img_model_download(model_id)
-                    st.rerun()
-
-            elif not cached:
-                st.warning(f"⬇️ **{preset['name']}** not in local cache.")
-                if st.button(f"⬇️ Download & Switch",
-                             key="img_dl_btn", use_container_width=True):
-                    _start_img_model_download(model_id)
-                    st.info("Download started in background. "
-                            "You may continue using the app. "
-                            "Click **Refresh progress** to check status.")
-                    st.rerun()
-
-            elif is_active:
-                st.success(f"▶ **{preset['name']}** is active")
-
-            else:
-                st.success(f"✅ {preset['name']} cached locally.")
-                if st.button(f"🔀 Switch to {preset['name']}",
-                             key="img_switch_btn", use_container_width=True):
-                    _apply_img_model_switch(preset)
-                    st.rerun()
-
-        # ---- Cloud API providers --------------------------------------------
+        # ---- Disabled sentinel -----------------------------------------------
+        if sel_idx == 0:
+            if _img_enabled():
+                st.session_state.img_gen_enabled = False
+                prefs = PersistenceManager.load_prefs()
+                prefs['img_gen_enabled'] = False
+                PersistenceManager.save_prefs(prefs)
+                st.rerun()
+            st.info("🚫 影像生成已停用，所有生成按鈕均已凍結。")
+            # Still render the global download bar below, then return early
         else:
-            env_key = preset.get('env_key', '')
-            has_key = bool(os.environ.get(env_key, ''))
+            if not _img_enabled():
+                st.session_state.img_gen_enabled = True
+                prefs = PersistenceManager.load_prefs()
+                prefs['img_gen_enabled'] = True
+                PersistenceManager.save_prefs(prefs)
+                st.rerun()
 
-            if has_key:
-                st.success(f"🔑 `{env_key}` is set")
-            else:
-                st.warning(f"🔑 `{env_key}` not found in environment")
-                entered = st.text_input(
-                    f"Enter {env_key}:",
-                    type="password",
-                    key=f"img_api_key_{env_key}",
-                )
-                if entered:
-                    if st.button("💾 Save key (this session)",
-                                 key=f"img_save_key_{env_key}",
+        if sel_idx != 0:
+            # remap back to the real presets list (offset by 1 for the sentinel)
+            preset   = presets[sel_idx - 1]
+            provider = preset.get('provider', 'diffusers')
+            model_id = preset['id']
+            is_active = (model_id == (img_gen.model_id if img_gen else config.IMAGE_MODEL_NAME))
+
+            st.caption(preset.get('description', ''))
+            vram = preset.get('vram_gb', 0)
+            if vram:
+                st.caption(f"💾 VRAM: ~{vram} GB")
+
+            # ---- Local diffusers --------------------------------------------
+            if provider == 'diffusers':
+                dl      = _img_dl
+                dl_this = (dl.get('model_id') == model_id)
+                cached  = _is_img_model_cached(model_id)
+
+                if dl.get('active') and dl_this:
+                    pct = dl.get('progress', 0)
+                    st.progress(pct / 100,
+                                text=f"⬇️ Downloading {preset['name']}… {pct}%")
+                    if st.button("🔄 Refresh progress", key="img_dl_refresh",
                                  use_container_width=True):
-                        os.environ[env_key] = entered
                         st.rerun()
 
-            if has_key:
-                if is_active:
+                elif dl.get('done') and dl_this and not is_active:
+                    _invalidate_img_cache(model_id)
+                    st.success(f"✅ {preset['name']} downloaded!")
+                    _apply_img_model_switch(preset)
+                    st.rerun()
+
+                elif dl.get('error') and dl_this:
+                    st.error(f"❌ Download failed: {dl['error']}")
+                    if st.button("🔄 Retry download", key="img_retry_dl",
+                                 use_container_width=True):
+                        _start_img_model_download(model_id)
+                        st.rerun()
+
+                elif not cached:
+                    st.warning(f"⬇️ **{preset['name']}** not in local cache.")
+                    if st.button(f"⬇️ Download & Switch",
+                                 key="img_dl_btn", use_container_width=True):
+                        _start_img_model_download(model_id)
+                        st.info("Download started in background. "
+                                "You may continue using the app. "
+                                "Click **Refresh progress** to check status.")
+                        st.rerun()
+
+                elif is_active:
                     st.success(f"▶ **{preset['name']}** is active")
+
                 else:
-                    if st.button(f"🔀 Switch to {preset['name']}",
-                                 key="img_switch_btn", use_container_width=True):
+                    st.success(f"✅ {preset['name']} cached locally.")
+                    _apply_img_model_switch(preset)
+                    st.rerun()
+
+            # ---- Cloud API providers ----------------------------------------
+            else:
+                env_key = preset.get('env_key', '')
+                has_key = bool(os.environ.get(env_key, ''))
+
+                if has_key:
+                    st.success(f"🔑 `{env_key}` is set")
+                else:
+                    st.warning(f"🔑 `{env_key}` not found in environment")
+                    entered = st.text_input(
+                        f"Enter {env_key}:",
+                        type="password",
+                        key=f"img_api_key_{env_key}",
+                    )
+                    if entered:
+                        if st.button("💾 Save key (this session)",
+                                     key=f"img_save_key_{env_key}",
+                                     use_container_width=True):
+                            os.environ[env_key] = entered
+                            st.rerun()
+
+                if has_key:
+                    if is_active:
+                        st.success(f"▶ **{preset['name']}** is active")
+                    else:
                         _apply_img_model_switch(preset)
                         st.rerun()
 
@@ -494,10 +528,9 @@ def _check_model_updates():
 # Model switcher sidebar panel
 # ---------------------------------------------------------------------------
 
-def _render_model_switcher():
-    """Sidebar expander: select model + UI language, switch live."""
-    with st.sidebar.expander(_t("model_expander"), expanded=False):
-        # ---- Language selector (top of expander) ----
+def _render_language_switcher():
+    """Sidebar expander: select UI language, switch live on selection."""
+    with st.sidebar.expander(_t("language_expander"), expanded=False):
         try:
             lang_idx = _LANGUAGES.index(st.session_state.pref_language)
         except ValueError:
@@ -510,15 +543,58 @@ def _render_model_switcher():
             key="sidebar_language_select",
         )
         if _LANGUAGES[new_lang_idx] != st.session_state.pref_language:
-            st.session_state.pref_language = _LANGUAGES[new_lang_idx]
+            new_lang = _LANGUAGES[new_lang_idx]
+            st.session_state.pref_language = new_lang
             prefs = PersistenceManager.load_prefs()
-            prefs['language'] = _LANGUAGES[new_lang_idx]
+            prefs['language'] = new_lang
             PersistenceManager.save_prefs(prefs)
             st.rerun()
 
-        st.divider()
+    # Always keep game_state.language in sync with pref_language.
+    # Do NOT call session.commit() here — SQLAlchemy expire_on_commit would clear
+    # the attribute, and the subsequent lazy-load races with _build_system_prompt.
+    # Instead just set the Python attribute directly; SQLAlchemy's Unit of Work
+    # will include this dirty field in the next commit inside process_turn.
+    _gs = st.session_state.get('game_state')
+    if _gs is not None:
+        _gs.language = st.session_state.pref_language
 
-        # ---- Model selector ----
+
+def _render_model_switcher():
+    """Sidebar expander: select LLM model, switch live on dropdown selection."""
+    # VRAM / CUDA status panel — shown ABOVE the expander so it's always visible
+    _active_preset = next(
+        (p for p in config.MODEL_PRESETS
+         if p['id'] == st.session_state.get('active_model_id')),
+        config.MODEL_PRESETS[0],
+    )
+    _vram_req = _active_preset.get('vram_gb', 0)
+    _provider = _active_preset.get('provider', 'ollama')
+    if _provider == 'ollama':
+        _cuda_ok = torch.cuda.is_available()
+        if _cuda_ok:
+            try:
+                _free_b, _total_b = torch.cuda.mem_get_info()
+                _free_gb  = _free_b  / (1024 ** 3)
+                _total_gb = _total_b / (1024 ** 3)
+                _gpu_name = torch.cuda.get_device_name(0)
+                st.sidebar.caption(
+                    f"🖥️ **{_gpu_name}** — {_total_gb:.1f} GB total · {_free_gb:.1f} GB free"
+                )
+                if _vram_req:
+                    if _total_gb >= _vram_req:
+                        st.sidebar.success(f"✅ VRAM 足夠（需 ~{_vram_req} GB）")
+                    else:
+                        st.sidebar.error(
+                            f"❌ VRAM 不足（需 ~{_vram_req} GB，GPU 僅 {_total_gb:.1f} GB）"
+                        )
+            except Exception:
+                st.sidebar.warning(f"⚠️ CUDA 可用，但無法讀取 VRAM（需 ~{_vram_req} GB）")
+        else:
+            msg = f"❌ 無 CUDA GPU（需 ~{_vram_req} GB）" if _vram_req else "❌ 無 CUDA GPU"
+            st.sidebar.error(msg)
+
+    with st.sidebar.expander(_t("llm_model_expander"), expanded=False):
         preset_labels = [f"[{p['category']}] {p['name']}" for p in config.MODEL_PRESETS]
         preset_ids    = [p['id'] for p in config.MODEL_PRESETS]
         try:
@@ -534,6 +610,8 @@ def _render_model_switcher():
             key="model_selector",
         )
         preset = config.MODEL_PRESETS[selected_idx]
+        new_id = preset['id']
+
         st.caption(preset.get('description', ''))
         if preset.get('pros'):
             st.markdown(f"✅ **Pros:** {preset['pros']}")
@@ -547,18 +625,16 @@ def _render_model_switcher():
             else:
                 st.warning(f"🔑 `{env_key}` not found in environment")
 
-        vram = preset.get('vram_gb')
-        if vram:
-            st.caption(f"💾 VRAM: ~{vram} GB")
-
-        if st.button(_t("switch_model"), key="switch_model_btn"):
-            new_id = preset['id']
+        # Auto-switch when dropdown selection differs from active model
+        if new_id != st.session_state.active_model_id:
             st.session_state.llm.switch_model(new_id)
             st.session_state.active_model_id = new_id
             prefs = PersistenceManager.load_prefs()
             prefs['active_model_id'] = new_id
             PersistenceManager.save_prefs(prefs)
-            st.success(f"Switched to **{preset['name']}**")
+            st.success(f"✅ Switched to **{preset['name']}**")
+        else:
+            st.success(f"▶ **{preset['name']}** is active")
 
 # ---------------------------------------------------------------------------
 # Main Menu helpers
@@ -634,6 +710,7 @@ def _player_config_fields(idx, key_prefix):
 
 def main_menu():
     _check_model_updates()
+    _render_language_switcher()
     _render_model_switcher()
     _render_image_model_selector()
 
@@ -734,13 +811,12 @@ def main_menu():
                     if party is not None:
                         names    = ", ".join(c.name for c in party)
                         ai_count = sum(1 for e in extra if e.get('is_ai'))
-                        suffix   = f" ({ai_count} AI)" if ai_count else ""
                         # Store image style selection for this session
                         st.session_state.image_style       = _style_keys[img_style_idx]
                         st.session_state.custom_img_suffix = custom_img_suffix.strip()
                         st.session_state.continent_map     = None
                         st.session_state.portraits         = {}
-                        
+
                         # Save preferences — includes per-slot race/class/app/per
                         # (name excluded deliberately — user re-enters each session)
                         new_prefs = {
@@ -757,16 +833,29 @@ def main_menu():
                             'app_0':   lead[3], 'per_0':   lead[4],
                         }
                         for _si, _ep in enumerate(extra, start=1):
-                            new_prefs[f'race_{_si}']         = _ep['race']
-                            new_prefs[f'class_{_si}']        = _ep['char_class']
-                            new_prefs[f'is_ai_{_si}']        = _ep['is_ai']
+                            new_prefs[f'race_{_si}']           = _ep['race']
+                            new_prefs[f'class_{_si}']          = _ep['char_class']
+                            new_prefs[f'is_ai_{_si}']          = _ep['is_ai']
                             new_prefs[f'ai_personality_{_si}'] = _ep['ai_personality']
                             new_prefs[f'ai_difficulty_{_si}']  = _ep['ai_difficulty']
                         PersistenceManager.save_prefs(new_prefs)
-                        
-                        st.success(
-                            f"Party [{names}]{suffix} created in **{ws['name']}**! Load it to play."
+
+                        # Auto-load the new game immediately (no separate Load step)
+                        active_idx  = (game_state.active_player_index or 0) % len(party)
+                        active_char = party[active_idx]
+                        st.session_state.current_session = session
+                        st.session_state.game_state      = game_state
+                        st.session_state.party           = party
+                        st.session_state.player          = active_char
+                        st.session_state.history         = []
+                        st.session_state.event_manager   = EventManager(
+                            st.session_state.llm, st.session_state.rag, session
                         )
+                        st.session_state.world_map        = {}
+                        st.session_state.player_positions = {}
+                        st.session_state.manual_dice      = {}
+                        st.session_state.book_page_idx   = 0
+                        st.rerun()
                     else:
                         # Duplicate name handle
                         st.session_state.duplicate_save_pending = {
@@ -863,7 +952,23 @@ def main_menu():
                 st.session_state.image_style       = pending['img_style']
                 st.session_state.custom_img_suffix = pending['custom_img_suffix']
                 st.session_state.duplicate_save_pending = None
-                st.success(f"Overwrite successful for '{pending['save_name']}'!")
+                # Auto-load the overwritten game immediately
+                active_idx  = (game_state.active_player_index or 0) % len(party)
+                active_char = party[active_idx]
+                st.session_state.current_session = session
+                st.session_state.game_state      = game_state
+                st.session_state.party           = party
+                st.session_state.player          = active_char
+                st.session_state.history         = []
+                st.session_state.event_manager   = EventManager(
+                    st.session_state.llm, st.session_state.rag, session
+                )
+                st.session_state.world_map        = {}
+                st.session_state.player_positions = {}
+                st.session_state.manual_dice      = {}
+                st.session_state.portraits        = {}
+                st.session_state.continent_map    = None
+                st.session_state.book_page_idx   = 0
                 st.rerun()
             else:
                 st.error("Failed to overwrite.")
@@ -1166,12 +1271,14 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     if continent_img is not None:
         st.image(continent_img, caption=f"🌍 {ws['name']}  ·  風格: {style_name}",
                  use_container_width=True)
-        if st.button("🔄 重新生成地圖", key="regen_map_btn"):
+        if st.button("🔄 重新生成地圖", key="regen_map_btn",
+                     disabled=not _img_enabled()):
             st.session_state.continent_map = None
             _generate_continent_map(ws)
     else:
         gen_col, _ = st.columns([2, 3])
-        if gen_col.button("🎨 生成大陸地圖", key="gen_map_btn", use_container_width=True):
+        if gen_col.button("🎨 生成大陸地圖", key="gen_map_btn",
+                          use_container_width=True, disabled=not _img_enabled()):
             _generate_continent_map(ws)
         else:
             st.caption(
@@ -1321,6 +1428,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "all_choices": list(current_choices),   # records all branch options for strikethrough
         })
         with st.spinner(f"📖 {dm_lbl} 正在思考…"):
+            state.language = st.session_state.pref_language
             response, choices, turn_data, dice_result = (
                 st.session_state.event_manager.process_turn(
                     action_taken, state, active_char, party=party
@@ -1339,7 +1447,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             img_style        = st.session_state.get('image_style', 'fantasy_art')
             custom_suf       = st.session_state.get('custom_img_suffix', '')
 
-            if not img_gen.is_disabled():
+            if _img_enabled() and not img_gen.is_disabled():
                 # Determine previous scene type from history for transition detection
                 prev_scene = 'exploration'
                 for _h in reversed(st.session_state.history):
@@ -1468,7 +1576,8 @@ def _render_characters_tab(party, state, active_char):
                 if portrait is not None:
                     st.image(portrait, caption=char.name, use_container_width=True)
                     if st.button("🔄", key=f"regen_por_{char.id}",
-                                 help=f"重新生成 {char.name} 肖像"):
+                                 help=f"重新生成 {char.name} 肖像",
+                                 disabled=not _img_enabled()):
                         del st.session_state.portraits[char.id]
                         _generate_portrait(char, ws)
                 else:
@@ -1480,7 +1589,8 @@ def _render_characters_tab(party, state, active_char):
                         unsafe_allow_html=True,
                     )
                     if st.button(f"🎨 生成肖像", key=f"gen_por_{char.id}",
-                                 use_container_width=True):
+                                 use_container_width=True,
+                                 disabled=not _img_enabled()):
                         _generate_portrait(char, ws)
 
             with stat_col:
@@ -1851,7 +1961,7 @@ def _render_image_style_switcher():
             st.session_state.custom_img_suffix = new_custom
 
         if st.button("🔄 重新生成所有影像", use_container_width=True,
-                     key="sidebar_regen_images"):
+                     key="sidebar_regen_images", disabled=not _img_enabled()):
             st.session_state.continent_map = None
             st.session_state.portraits     = {}
             st.rerun()
@@ -1945,6 +2055,7 @@ def game_loop():
         f"*(memory: last {config.SESSION_MEMORY_WINDOW})*"
     )
     _render_npc_tracker(state)
+    _render_language_switcher()
     _render_model_switcher()
     _render_image_model_selector()
     _render_image_style_switcher()
@@ -1992,6 +2103,7 @@ def game_loop():
         tm_p    = config.get_world_setting(ws_id_p).get('term_map', {})
         dm_lbl_p = tm_p.get('dm_title', 'GM')
         with st.spinner(f"📖 {dm_lbl_p} 正在書寫開場白…"):
+            state.language = st.session_state.pref_language
             pro_narrative, pro_choices, pro_data = (
                 st.session_state.event_manager.generate_prologue(state, party)
             )
@@ -2021,6 +2133,7 @@ def game_loop():
         personality = active_ai.get('personality', 'tactical')
         p_name      = config.AI_PERSONALITIES.get(personality, {}).get('name', personality.title())
         with st.spinner(f"🤖 {flag} {active_char.name} ({p_name}) is deciding…"):
+            state.language = st.session_state.pref_language
             action_text, response, choices, turn_data, dice_result = (
                 st.session_state.event_manager.run_ai_turn(state, party)
             )

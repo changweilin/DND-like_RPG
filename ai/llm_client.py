@@ -4,6 +4,22 @@ import re
 import ollama
 from engine.config import config
 
+
+def _is_correct_language(text, language):
+    """Heuristic: does text appear to be in the requested language?"""
+    if not text or not language:
+        return True
+    lang_low = language.lower()
+    cjk  = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    kana = sum(1 for c in text if '\u3040' <= c <= '\u30ff')
+    ratio = (cjk + kana) / max(len(text), 1)
+    if '中文' in lang_low or 'chinese' in lang_low:
+        return ratio >= 0.08
+    if '日本' in lang_low or 'japanese' in lang_low:
+        return ratio >= 0.08
+    # English / Spanish / default: should NOT be CJK-dominant
+    return ratio < 0.05
+
 # ---------------------------------------------------------------------------
 # JSON helpers
 # ---------------------------------------------------------------------------
@@ -287,7 +303,7 @@ class LLMClient:
     # (Waidrin: LLM generates structured Narrative Events, not chat)
     # ------------------------------------------------------------------
 
-    def render_narrative(self, system_prompt, outcome_context, rag_context=""):
+    def render_narrative(self, system_prompt, outcome_context, rag_context="", language="English"):
         """
         Phase 2: Convert structured rule-engine outcome into a Narrative Event.
 
@@ -319,7 +335,8 @@ class LLMClient:
             f"{system_prompt}\n\n"
             f"Relevant Memory (RAG):\n{rag_context}\n\n"
             "NARRATIVE RULES:\n"
-            "  • narrative field MUST be at least 300 characters of atmospheric prose\n"
+            "  • narrative field MUST be at least 300 characters of vivid, immersive prose\n"
+            "  • Write in the SAME language specified in the system prompt above\n"
             "  • choices MUST contain at least 3 distinct options\n"
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
@@ -339,7 +356,10 @@ class LLMClient:
                     {"role": "user",   "content": outcome_context},
                 ],
                 min_chars=300,
+                combine=True,
+                language=language,
             )
+            result = self._localize_narrative(result, language)
             return result
         except Exception as e:
             print(f"Narrative rendering error: {e}")
@@ -351,36 +371,250 @@ class LLMClient:
     # Internal helper: ensure narrative meets minimum length via one retry
     # ------------------------------------------------------------------
 
-    def _ensure_min_length(self, result, raw, base_messages, min_chars, combine=False):
+    def _ensure_min_length(self, result, raw, base_messages, min_chars,
+                           combine=False, language="English"):
         """
-        If result["narrative"] is shorter than min_chars, ask the model to expand
-        it once.  If combine=True and the retry is still shorter, concatenate both.
-        Returns the (possibly updated) result dict.
+        Two-pass quality check on the narrative field:
+          Pass 1 — Too short: ask the model to CONTINUE from where it left off
+                   (plain-text append; avoids JSON re-generation failures).
+          Pass 2 — Wrong language: ask the model to TRANSLATE the result
+                   (plain-text; avoids triggering a full rewrite).
+        Both passes use plain-text responses so JSON parsing cannot fail.
         """
-        if len(result["narrative"]) >= min_chars:
+        narrative = result["narrative"]
+
+        # Pass 1: too short → ask to continue, not rewrite
+        if len(narrative) < min_chars:
+            shortage = min_chars - len(narrative)
+            continue_msg = (
+                f"Continue the narrative from exactly where it ended. "
+                f"Write approximately {shortage} more characters of vivid, "
+                f"immersive prose. "
+                f"Write EXCLUSIVELY in {language}. "
+                "Return plain text only — no JSON, no markdown."
+            )
+            try:
+                continuation = self._chat(
+                    messages=base_messages + [
+                        {"role": "assistant", "content": narrative},
+                        {"role": "user",      "content": continue_msg},
+                    ],
+                    json_mode=False,
+                ).strip()
+                if continuation:
+                    narrative = narrative + "\n\n" + continuation
+            except Exception:
+                pass
+
+        # Pass 2: wrong language → ask to translate, not rewrite
+        if not _is_correct_language(narrative, language):
+            translate_msg = (
+                f"The text below is not written in {language}. "
+                f"Translate it into {language}, preserving every detail and atmosphere. "
+                "Return the translated text only — no JSON, no commentary.\n\n"
+                f"{narrative}"
+            )
+            try:
+                translated = self._chat(
+                    messages=[{"role": "user", "content": translate_msg}],
+                    json_mode=False,
+                ).strip()
+                if translated:
+                    narrative = translated
+            except Exception:
+                pass
+
+        result["narrative"] = narrative
+        return result
+
+    # ------------------------------------------------------------------
+    # Localisation helpers — translate generated text to target language
+    # ------------------------------------------------------------------
+
+    def _translate_text(self, text, language):
+        """Translate a single string to language if it is not already correct."""
+        if not text or _is_correct_language(text, language):
+            return text
+        try:
+            return self._chat(
+                messages=[{"role": "user", "content":
+                    f"Translate the following text to {language}. "
+                    "Return only the translation, no commentary:\n\n" + text}],
+                json_mode=False,
+            ).strip() or text
+        except Exception:
+            return text
+
+    def _localize_narrative(self, result, language):
+        """
+        Batch-translate choices, items_found and location_change to language
+        in a single LLM call (section-marker protocol).
+        Only fires when at least one field is not already in the target language.
+        """
+        choices  = result.get("choices") or []
+        items    = result.get("items_found") or []
+        location = result.get("location_change") or ""
+
+        item_strs = [
+            (i if isinstance(i, str) else i.get('name', '')) for i in items
+        ]
+
+        needs = (
+            any(s and not _is_correct_language(s, language) for s in choices)
+            or any(s and not _is_correct_language(s, language) for s in item_strs)
+            or (location and not _is_correct_language(location, language))
+        )
+        if not needs:
             return result
-        retry_msg = (
-            f"Your narrative is only {len(result['narrative'])} characters "
-            f"but must be at least {min_chars}. "
-            "Please rewrite it with much more vivid atmospheric detail, "
-            "keeping all other fields the same."
+
+        parts = []
+        if choices:
+            parts.append("##CHOICES##\n" + "\n".join(
+                f"{i + 1}. {c}" for i, c in enumerate(choices)
+            ))
+        if item_strs:
+            parts.append("##ITEMS##\n" + "\n".join(
+                f"{i + 1}. {s}" for i, s in enumerate(item_strs)
+            ))
+        if location:
+            parts.append(f"##LOCATION##\n{location}")
+
+        if not parts:
+            return result
+
+        prompt = (
+            f"Translate the following text sections to {language}.\n"
+            "Keep each section header (##CHOICES##, ##ITEMS##, ##LOCATION##) exactly.\n"
+            "Keep numbered items numbered. Return only the translated sections.\n\n"
+            + "\n\n".join(parts)
         )
         try:
-            raw2    = self._chat(
-                messages=base_messages + [
-                    {"role": "assistant", "content": raw},
-                    {"role": "user",      "content": retry_msg},
-                ],
-                json_mode=True,
-            )
-            result2 = _validated_narrative(json.loads(_repair_json(raw2)))
-            if len(result2["narrative"]) > len(result["narrative"]):
-                return result2
-            if combine:
-                result["narrative"] = result["narrative"] + "\n\n" + result2["narrative"]
-        except Exception:
-            pass
+            raw = self._chat(
+                messages=[{"role": "user", "content": prompt}],
+                json_mode=False,
+            ).strip()
+
+            def _extract(tag, text):
+                m = re.search(rf'##{tag}##\s*(.*?)(?=##\w+##|$)', text, re.DOTALL)
+                return m.group(1).strip() if m else ""
+
+            def _parse_numbered(text):
+                lines = [re.sub(r'^\d+\.\s*', '', l).strip()
+                         for l in text.splitlines() if l.strip()]
+                return [l for l in lines if l]
+
+            choices_raw = _extract("CHOICES", raw)
+            if choices_raw:
+                tr = _parse_numbered(choices_raw)
+                if len(tr) >= len(choices):
+                    result["choices"] = tr[:len(choices)]
+
+            items_raw = _extract("ITEMS", raw)
+            if items_raw and items:
+                tr = _parse_numbered(items_raw)
+                new_items = []
+                for idx, orig in enumerate(items):
+                    name = tr[idx] if idx < len(tr) else (
+                        orig if isinstance(orig, str) else orig.get('name', ''))
+                    if isinstance(orig, dict):
+                        entry = dict(orig)
+                        entry['name'] = name
+                        new_items.append(entry)
+                    else:
+                        new_items.append(name)
+                result["items_found"] = new_items
+
+            location_raw = _extract("LOCATION", raw)
+            if location_raw:
+                result["location_change"] = location_raw
+
+        except Exception as e:
+            print(f"[_localize_narrative] {e}")
+
         return result
+
+    def _localize_stat_block(self, stat_block, language):
+        """
+        Batch-translate the text fields of a stat block dict
+        (description, special_ability, skills list, loot list).
+        Fires only when at least one field is wrong language.
+        """
+        desc    = stat_block.get("description", "")
+        special = stat_block.get("special_ability", "")
+        skills  = stat_block.get("skills") or []
+        loot    = stat_block.get("loot") or []
+
+        needs = (
+            (desc    and not _is_correct_language(desc,    language))
+            or (special and not _is_correct_language(special, language))
+            or any(s and not _is_correct_language(s, language) for s in skills)
+            or any(s and not _is_correct_language(s, language) for s in loot)
+        )
+        if not needs:
+            return stat_block
+
+        parts = []
+        if desc:
+            parts.append(f"##DESCRIPTION##\n{desc}")
+        if special:
+            parts.append(f"##SPECIAL##\n{special}")
+        if skills:
+            parts.append("##SKILLS##\n" + "\n".join(
+                f"{i + 1}. {s}" for i, s in enumerate(skills)
+            ))
+        if loot:
+            parts.append("##LOOT##\n" + "\n".join(
+                f"{i + 1}. {s}" for i, s in enumerate(loot)
+            ))
+
+        if not parts:
+            return stat_block
+
+        prompt = (
+            f"Translate the following text sections to {language}.\n"
+            "Keep each header (##DESCRIPTION##, ##SPECIAL##, ##SKILLS##, ##LOOT##) exactly.\n"
+            "Keep numbered items numbered. Return only the translated sections.\n\n"
+            + "\n\n".join(parts)
+        )
+        try:
+            raw = self._chat(
+                messages=[{"role": "user", "content": prompt}],
+                json_mode=False,
+            ).strip()
+
+            def _extract(tag, text):
+                m = re.search(rf'##{tag}##\s*(.*?)(?=##\w+##|$)', text, re.DOTALL)
+                return m.group(1).strip() if m else ""
+
+            def _parse_numbered(text):
+                lines = [re.sub(r'^\d+\.\s*', '', l).strip()
+                         for l in text.splitlines() if l.strip()]
+                return [l for l in lines if l]
+
+            desc_raw = _extract("DESCRIPTION", raw)
+            if desc_raw:
+                stat_block["description"] = desc_raw
+
+            special_raw = _extract("SPECIAL", raw)
+            if special_raw:
+                stat_block["special_ability"] = special_raw
+
+            skills_raw = _extract("SKILLS", raw)
+            if skills_raw and skills:
+                tr = _parse_numbered(skills_raw)
+                if tr:
+                    stat_block["skills"] = tr[:len(skills)] if len(tr) >= len(skills) else tr
+
+            loot_raw = _extract("LOOT", raw)
+            if loot_raw and loot:
+                tr = _parse_numbered(loot_raw)
+                if tr:
+                    stat_block["loot"] = tr[:len(loot)] if len(tr) >= len(loot) else tr
+
+        except Exception as e:
+            print(f"[_localize_stat_block] {e}")
+
+        return stat_block
 
     # ------------------------------------------------------------------
     # Prologue generation — Turn 0 opening scene (≥ 1000 chars)
@@ -457,7 +691,9 @@ class LLMClient:
                 ],
                 min_chars=1000,
                 combine=True,
+                language=language,
             )
+            result = self._localize_narrative(result, language)
             return result
         except Exception as e:
             print(f"Prologue generation error: {e}")
@@ -474,7 +710,8 @@ class LLMClient:
     # (Inspired by Infinite Monster Engine: dynamic TRPG-compliant stat blocks)
     # ------------------------------------------------------------------
 
-    def generate_entity_stat_block(self, entity_name, entity_type="npc", world_context=""):
+    def generate_entity_stat_block(self, entity_name, entity_type="npc",
+                                    world_context="", language="English"):
         """
         Dynamically generate a stat block for an NPC or monster on first encounter.
 
@@ -483,7 +720,7 @@ class LLMClient:
         This mirrors the Infinite Monster Engine's approach: define constraints
         (entity type, world context) and let the LLM produce rule-compliant stats.
 
-        Returns a validated stat block dict.
+        Returns a validated stat block dict with all text fields in language.
         """
         system_prompt = (
             "You are a TRPG game master generating a concise stat block.\n"
@@ -500,7 +737,9 @@ class LLMClient:
             '  "description": "<one atmospheric sentence>",\n'
             '  "loot": ["<item1>", "<item2>"]\n'
             '}\n\n'
-            f"World context: {world_context}"
+            f"World context: {world_context}\n"
+            f"CRITICAL: Write description, special_ability, skills, and loot "
+            f"EXCLUSIVELY in {language}."
         )
         try:
             raw = self._chat(
@@ -510,7 +749,9 @@ class LLMClient:
                 ],
                 json_mode=True,
             )
-            return _validated_stat_block(json.loads(_repair_json(raw)), entity_name)
+            stat_block = _validated_stat_block(json.loads(_repair_json(raw)), entity_name)
+            stat_block = self._localize_stat_block(stat_block, language)
+            return stat_block
         except Exception as e:
             print(f"Stat block generation error for {entity_name!r}: {e}")
             return _validated_stat_block({}, entity_name)

@@ -324,7 +324,10 @@ class EventManager:
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
         outcome_context = "\n".join(outcome_parts)
 
-        turn_data = self.llm.render_narrative(system_prompt, outcome_context, rag_context)
+        turn_data = self.llm.render_narrative(
+            system_prompt, outcome_context, rag_context,
+            language=current_state.language or 'English',
+        )
 
         narrative = turn_data.get('narrative', "The DM stares blankly into space...")
         choices   = turn_data.get('choices', ["Look around", "Wait"])
@@ -767,6 +770,7 @@ class EventManager:
             entity_name=entity_name,
             entity_type=entity_type,
             world_context=current_state.world_context,
+            language=current_state.language or 'English',
         )
 
         # Store in RAG for semantic retrieval

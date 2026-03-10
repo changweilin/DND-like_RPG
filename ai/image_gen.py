@@ -60,6 +60,11 @@ class ImageGenerator:
             return False
         if not torch.cuda.is_available():
             return False
+        # Strategy B swaps models to free VRAM before loading the image model.
+        # Skip the free-VRAM pre-check — let _generate_diffusers() handle OOM
+        # via its built-in failure counter and auto-disable mechanism.
+        if config.VRAM_STRATEGY == "B":
+            return True
         try:
             free_bytes = torch.cuda.mem_get_info()[0]
             free_gb    = free_bytes / (1024 ** 3)
