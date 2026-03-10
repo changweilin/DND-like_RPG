@@ -1,4 +1,7 @@
+import io
+import os
 import torch
+import urllib.request
 from diffusers import AutoPipelineForText2Image
 from engine.config import config
 
@@ -11,6 +14,24 @@ class ImageGenerator:
         self._disabled   = False  # permanently off for this session after too many OOM
 
     # ------------------------------------------------------------------
+    # Model switching
+    # ------------------------------------------------------------------
+
+    def switch_model(self, model_id):
+        """Hot-swap the active image model. Unloads any loaded pipeline first."""
+        if model_id != self.model_id:
+            self.unload_model()
+        self.model_id    = model_id
+        self._fail_count = 0
+        self._disabled   = False
+
+    def _preset(self):
+        return config.get_image_preset(self.model_id)
+
+    def _provider(self):
+        return self._preset().get('provider', 'diffusers')
+
+    # ------------------------------------------------------------------
     # VRAM safety gate
     # ------------------------------------------------------------------
 
@@ -20,17 +41,17 @@ class ImageGenerator:
 
     def can_generate_safely(self):
         """
-        True if conditions allow an image generation attempt:
-          - not permanently disabled
-          - VRAM strategy is not A (skip)
-          - GPU is available
-          - free VRAM >= IMAGE_VRAM_REQUIRED_GB threshold
-
-        Falls back to True when the CUDA memory API is unavailable (non-GPU env
-        will be caught by the strategy check anyway).
+        True if conditions allow an image generation attempt.
+        Cloud providers (openai, stability) skip VRAM checks — they need only
+        a valid API key, checked separately.
         """
         if self._disabled:
             return False
+        provider = self._provider()
+        if provider in ('openai', 'stability'):
+            # Remote API — VRAM irrelevant; always attempt (key check is inside generate)
+            return True
+        # Local diffusers path
         if config.VRAM_STRATEGY == "A":
             return False
         if not torch.cuda.is_available():
@@ -49,15 +70,25 @@ class ImageGenerator:
         self._fail_count = 0
 
     # ------------------------------------------------------------------
-    # Model lifecycle
+    # Local diffusers lifecycle
     # ------------------------------------------------------------------
 
     def load_model(self):
+        """Load diffusers pipeline into VRAM. No-op for cloud providers."""
+        if self._provider() != 'diffusers':
+            return
         if self.pipeline is None:
             print(f"[ImageGen] Loading {self.model_id} into VRAM…")
-            self.pipeline = AutoPipelineForText2Image.from_pretrained(
-                self.model_id, torch_dtype=torch.float16, variant="fp16"
-            )
+            preset = self._preset()
+            # Some models don't ship a fp16 variant — fall back to standard load
+            try:
+                self.pipeline = AutoPipelineForText2Image.from_pretrained(
+                    self.model_id, torch_dtype=torch.float16, variant="fp16"
+                )
+            except Exception:
+                self.pipeline = AutoPipelineForText2Image.from_pretrained(
+                    self.model_id, torch_dtype=torch.float16
+                )
             self.pipeline.enable_model_cpu_offload()
 
     def unload_model(self):
@@ -68,33 +99,52 @@ class ImageGenerator:
             self.pipeline = None
 
     # ------------------------------------------------------------------
-    # Generation
+    # Main generation entry point — dispatches by provider
     # ------------------------------------------------------------------
 
     def generate_image(self, prompt, context_type="scene"):
         """
-        Generate an image from prompt.  Returns PIL Image or None.
+        Generate an image from prompt. Returns PIL Image or None.
 
-        Handles:
-          - Strategy A: always skip
-          - Strategy B: load → generate (2 steps) → unload each call
-          - OOM / exception: increment fail counter; disable after MAX_FAILURES
+        Dispatches to the correct backend based on the active model's provider:
+          diffusers  — local GPU inference (Strategy A/B VRAM rules apply)
+          openai     — DALL-E 3 via OpenAI REST API
+          stability  — Stability AI Core via REST API
         """
-        if config.VRAM_STRATEGY == "A":
-            return None
         if self._disabled:
             return None
+
+        provider = self._provider()
+        if provider == 'openai':
+            return self._generate_openai(prompt)
+        elif provider == 'stability':
+            return self._generate_stability(prompt)
+        else:
+            return self._generate_diffusers(prompt)
+
+    # ------------------------------------------------------------------
+    # Provider implementations
+    # ------------------------------------------------------------------
+
+    def _generate_diffusers(self, prompt):
+        """Local GPU inference via HuggingFace diffusers."""
+        if config.VRAM_STRATEGY == "A":
+            return None
+
+        preset   = self._preset()
+        steps    = preset.get('steps', 2)
+        guidance = preset.get('guidance', 0.0)
 
         if config.VRAM_STRATEGY == "B":
             try:
                 self.load_model()
                 image = self.pipeline(
                     prompt=prompt,
-                    num_inference_steps=2,
-                    guidance_scale=0.0,
+                    num_inference_steps=steps,
+                    guidance_scale=guidance,
                 ).images[0]
                 self.unload_model()
-                self._fail_count = 0   # reset streak on success
+                self._fail_count = 0
                 return image
 
             except torch.cuda.OutOfMemoryError:
@@ -121,3 +171,58 @@ class ImageGenerator:
 
         print(f"[ImageGen] Unknown VRAM strategy '{config.VRAM_STRATEGY}' — skipping.")
         return None
+
+    def _generate_openai(self, prompt):
+        """DALL-E 3 via OpenAI REST API. Returns PIL Image or None."""
+        preset  = self._preset()
+        env_key = preset.get('env_key', 'OPENAI_API_KEY')
+        api_key = os.environ.get(env_key, '')
+        if not api_key:
+            print(f"[ImageGen/OpenAI] {env_key} not set — skipping.")
+            return None
+        try:
+            import openai
+            from PIL import Image
+            client = openai.OpenAI(api_key=api_key)
+            resp   = client.images.generate(
+                model="dall-e-3",
+                prompt=prompt[:1000],   # DALL-E 3 prompt length limit
+                size="1024x1024",
+                quality="standard",
+                n=1,
+            )
+            url = resp.data[0].url
+            with urllib.request.urlopen(url) as r:
+                return Image.open(io.BytesIO(r.read())).copy()
+        except Exception as e:
+            print(f"[ImageGen/OpenAI] {e}")
+            return None
+
+    def _generate_stability(self, prompt):
+        """Stability AI Core REST API. Returns PIL Image or None."""
+        preset  = self._preset()
+        env_key = preset.get('env_key', 'STABILITY_API_KEY')
+        api_key = os.environ.get(env_key, '')
+        if not api_key:
+            print(f"[ImageGen/Stability] {env_key} not set — skipping.")
+            return None
+        try:
+            import requests
+            from PIL import Image
+            response = requests.post(
+                "https://api.stability.ai/v2beta/stable-image/generate/core",
+                headers={
+                    "authorization": f"Bearer {api_key}",
+                    "accept":        "image/*",
+                },
+                files={"none": ''},
+                data={"prompt": prompt[:2000], "output_format": "webp"},
+                timeout=60,
+            )
+            if response.status_code == 200:
+                return Image.open(io.BytesIO(response.content)).copy()
+            print(f"[ImageGen/Stability] HTTP {response.status_code}: {response.text[:200]}")
+            return None
+        except Exception as e:
+            print(f"[ImageGen/Stability] {e}")
+            return None

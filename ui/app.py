@@ -1,6 +1,19 @@
 import streamlit as st
 import os
 import datetime
+import threading
+
+# ---------------------------------------------------------------------------
+# Background image-model download state (module-level so worker thread can
+# write progress without needing access to Streamlit session state).
+# ---------------------------------------------------------------------------
+_img_dl = {
+    'active':   False,   # download thread running
+    'model_id': None,    # model being downloaded
+    'progress': 0,       # 0-100 (file-count based)
+    'done':     False,   # finished successfully
+    'error':    None,    # error message string or None
+}
 
 from engine.save_load import SaveLoadManager
 from engine.config import config
@@ -60,6 +73,11 @@ if 'save_manager' not in st.session_state:
     prefs = PersistenceManager.load_prefs()
     if prefs.get('active_model_id'):
         st.session_state.active_model_id = prefs['active_model_id']
+
+    # Restore last-used image model (switches ImageGenerator model_id)
+    saved_img_model = prefs.get('active_img_model_id', config.IMAGE_MODEL_NAME)
+    st.session_state.active_img_model_id = saved_img_model
+    st.session_state.img_gen.switch_model(saved_img_model)
 
     # Defaults for new game fields from prefs
     st.session_state.pref_difficulty  = prefs.get('difficulty', 'Normal')
@@ -231,6 +249,196 @@ def _t(key):
     lang    = st.session_state.get('pref_language', 'English')
     strings = _UI_STRINGS.get(lang, _UI_STRINGS['English'])
     return strings.get(key, _UI_STRINGS['English'].get(key, key))
+
+# ---------------------------------------------------------------------------
+# Image model download helpers
+# ---------------------------------------------------------------------------
+
+def _is_img_model_cached(model_id):
+    """Return True if the HuggingFace model is already in local disk cache."""
+    cache_dir  = os.path.expanduser('~/.cache/huggingface/hub')
+    local_name = 'models--' + model_id.replace('/', '--')
+    return os.path.isdir(os.path.join(cache_dir, local_name))
+
+
+def _start_img_model_download(model_id):
+    """
+    Start downloading a HuggingFace diffusers model in a background daemon thread.
+    Progress (0-100, file-count based) is written to the module-level _img_dl dict.
+    No-op if a download is already active.
+    """
+    global _img_dl
+    if _img_dl.get('active'):
+        return  # already downloading something
+
+    _img_dl = {'active': True, 'model_id': model_id, 'progress': 0,
+               'done': False, 'error': None}
+
+    def _worker():
+        global _img_dl
+        try:
+            from huggingface_hub import HfApi, hf_hub_download
+            api   = HfApi()
+            files = list(api.list_repo_files(model_id))
+            total = len(files)
+            for i, filename in enumerate(files):
+                hf_hub_download(repo_id=model_id, filename=filename)
+                _img_dl['progress'] = int((i + 1) / total * 100) if total else 100
+            _img_dl = {'active': False, 'model_id': model_id,
+                       'progress': 100, 'done': True, 'error': None}
+        except Exception as exc:
+            _img_dl = {'active': False, 'model_id': model_id,
+                       'progress': 0, 'done': False, 'error': str(exc)}
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def _apply_img_model_switch(preset):
+    """Switch the active image model, update session state and persist to prefs."""
+    model_id = preset['id']
+    st.session_state.active_img_model_id = model_id
+    img_gen = st.session_state.get('img_gen')
+    if img_gen:
+        img_gen.switch_model(model_id)
+    prefs = PersistenceManager.load_prefs()
+    prefs['active_img_model_id'] = model_id
+    PersistenceManager.save_prefs(prefs)
+
+
+def _render_image_model_selector():
+    """
+    Sidebar expander for selecting the image generation model.
+
+    - Local diffusers models: checks HuggingFace cache, offers background
+      download with per-file progress bar + Refresh button.
+    - Cloud models (OpenAI, Stability): API key check + password input flow.
+    - Switch button applies change without reloading the page.
+    """
+    presets = config.IMAGE_MODEL_PRESETS
+    ids     = [p['id'] for p in presets]
+    labels  = [
+        f"[{'LOCAL' if p['provider']=='diffusers' else 'CLOUD'}] {p['name']}"
+        for p in presets
+    ]
+
+    cur_id  = st.session_state.get('active_img_model_id', config.IMAGE_MODEL_NAME)
+    try:
+        cur_idx = ids.index(cur_id)
+    except ValueError:
+        cur_idx = 0
+
+    with st.sidebar.expander("🖼️ Image Model", expanded=False):
+        sel_idx = st.selectbox(
+            "Model",
+            range(len(presets)),
+            index=cur_idx,
+            format_func=lambda i: labels[i],
+            key="img_model_selector",
+        )
+        preset   = presets[sel_idx]
+        provider = preset.get('provider', 'diffusers')
+        model_id = preset['id']
+
+        st.caption(preset.get('description', ''))
+        vram = preset.get('vram_gb', 0)
+        if vram:
+            st.caption(f"💾 VRAM: ~{vram} GB")
+
+        is_active = (model_id == cur_id)
+
+        # ---- Local diffusers ------------------------------------------------
+        if provider == 'diffusers':
+            dl      = _img_dl
+            dl_this = (dl.get('model_id') == model_id)
+            cached  = _is_img_model_cached(model_id)
+
+            if dl.get('active') and dl_this:
+                # Download in progress for this model
+                pct = dl.get('progress', 0)
+                st.progress(pct / 100,
+                            text=f"⬇️ Downloading {preset['name']}… {pct}%")
+                if st.button("🔄 Refresh progress", key="img_dl_refresh",
+                             use_container_width=True):
+                    st.rerun()
+
+            elif dl.get('done') and dl_this and not is_active:
+                st.success(f"✅ {preset['name']} downloaded!")
+                if st.button(f"🔀 Switch to {preset['name']}",
+                             key="img_switch_btn", use_container_width=True):
+                    _apply_img_model_switch(preset)
+                    st.rerun()
+
+            elif dl.get('error') and dl_this:
+                st.error(f"❌ Download failed: {dl['error']}")
+                if st.button("🔄 Retry download", key="img_retry_dl",
+                             use_container_width=True):
+                    _start_img_model_download(model_id)
+                    st.rerun()
+
+            elif not cached:
+                st.warning(f"⬇️ **{preset['name']}** not in local cache.")
+                if st.button(f"⬇️ Download & Switch",
+                             key="img_dl_btn", use_container_width=True):
+                    _start_img_model_download(model_id)
+                    st.info("Download started in background. "
+                            "You may continue using the app. "
+                            "Click **Refresh progress** to check status.")
+                    st.rerun()
+
+            elif is_active:
+                st.success(f"▶ **{preset['name']}** is active")
+
+            else:
+                st.success(f"✅ {preset['name']} cached locally.")
+                if st.button(f"🔀 Switch to {preset['name']}",
+                             key="img_switch_btn", use_container_width=True):
+                    _apply_img_model_switch(preset)
+                    st.rerun()
+
+        # ---- Cloud API providers --------------------------------------------
+        else:
+            env_key = preset.get('env_key', '')
+            has_key = bool(os.environ.get(env_key, ''))
+
+            if has_key:
+                st.success(f"🔑 `{env_key}` is set")
+            else:
+                st.warning(f"🔑 `{env_key}` not found in environment")
+                entered = st.text_input(
+                    f"Enter {env_key}:",
+                    type="password",
+                    key=f"img_api_key_{env_key}",
+                )
+                if entered:
+                    if st.button("💾 Save key (this session)",
+                                 key=f"img_save_key_{env_key}",
+                                 use_container_width=True):
+                        os.environ[env_key] = entered
+                        st.rerun()
+
+            if has_key or bool(os.environ.get(env_key, '')):
+                if is_active:
+                    st.success(f"▶ **{preset['name']}** is active")
+                else:
+                    if st.button(f"🔀 Switch to {preset['name']}",
+                                 key="img_switch_btn", use_container_width=True):
+                        _apply_img_model_switch(preset)
+                        st.rerun()
+
+    # Global download progress bar at very bottom of sidebar (visible even when
+    # the expander is collapsed, so user always sees ongoing downloads)
+    dl = _img_dl
+    if dl.get('active'):
+        pct = dl.get('progress', 0)
+        st.sidebar.progress(
+            pct / 100,
+            text=f"⬇️ Downloading {dl.get('model_id', '')} … {pct}%",
+        )
+    elif dl.get('done') and not dl.get('error'):
+        st.sidebar.success(f"✅ Downloaded: {dl.get('model_id', '')}")
+    elif dl.get('error'):
+        st.sidebar.error(f"❌ Download error: {dl['error']}")
+
 
 # ---------------------------------------------------------------------------
 # Daily model update check (Ollama local models only)
@@ -405,6 +613,7 @@ def _player_config_fields(idx, key_prefix):
 def main_menu():
     _check_model_updates()
     _render_model_switcher()
+    _render_image_model_selector()
 
     st.title("D&D AI RPG Engine")
 
@@ -1714,6 +1923,7 @@ def game_loop():
     )
     _render_npc_tracker(state)
     _render_model_switcher()
+    _render_image_model_selector()
     _render_image_style_switcher()
 
     if st.sidebar.button("Save & Quit"):

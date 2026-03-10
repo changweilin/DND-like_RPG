@@ -368,6 +368,99 @@ class GameConfig:
     ]
 
     # ---------------------------------------------------------------------------
+    # Image generation model registry
+    #
+    # Fields:
+    #   id          — HuggingFace repo_id (diffusers) or logical id (cloud)
+    #   name        — display name in the UI
+    #   provider    — "diffusers" | "openai" | "stability"
+    #   vram_gb     — approximate VRAM required (0 for cloud models)
+    #   description — one-line summary shown in the selector
+    #   steps       — default inference steps (diffusers only)
+    #   guidance    — guidance_scale (diffusers; 0.0 for turbo/flow models)
+    #   env_key     — environment variable for API key (cloud only)
+    #   tags        — freeform labels
+    # ---------------------------------------------------------------------------
+    IMAGE_MODEL_PRESETS = [
+        {
+            "id":          "stabilityai/sdxl-turbo",
+            "name":        "SDXL-Turbo",
+            "provider":    "diffusers",
+            "vram_gb":     4.0,
+            "description": "1-step ultra-fast generation. Low VRAM. Default choice.",
+            "steps":       1,
+            "guidance":    0.0,
+            "tags":        ["fast", "low-vram", "local"],
+        },
+        {
+            "id":          "Lykon/dreamshaper-8",
+            "name":        "DreamShaper 8",
+            "provider":    "diffusers",
+            "vram_gb":     4.0,
+            "description": "Fantasy & portrait fine-tune of SD1.5. Great for RPG scenes.",
+            "steps":       20,
+            "guidance":    7.5,
+            "tags":        ["fantasy", "portrait", "local"],
+        },
+        {
+            "id":          "runwayml/stable-diffusion-v1-5",
+            "name":        "SD v1.5",
+            "provider":    "diffusers",
+            "vram_gb":     4.0,
+            "description": "Classic Stable Diffusion 1.5. Wide LoRA ecosystem.",
+            "steps":       20,
+            "guidance":    7.5,
+            "tags":        ["classic", "local"],
+        },
+        {
+            "id":          "stabilityai/stable-diffusion-xl-base-1.0",
+            "name":        "SDXL Base 1.0",
+            "provider":    "diffusers",
+            "vram_gb":     6.0,
+            "description": "Higher quality than Turbo. Needs ~6 GB VRAM.",
+            "steps":       20,
+            "guidance":    7.5,
+            "tags":        ["quality", "local"],
+        },
+        {
+            "id":          "black-forest-labs/FLUX.1-schnell",
+            "name":        "FLUX.1-schnell",
+            "provider":    "diffusers",
+            "vram_gb":     8.0,
+            "description": "State-of-art 4-step model. Best local quality. Needs ~8 GB VRAM.",
+            "steps":       4,
+            "guidance":    0.0,
+            "tags":        ["sota", "quality", "local"],
+        },
+        {
+            "id":          "dalle3",
+            "name":        "DALL·E 3",
+            "provider":    "openai",
+            "vram_gb":     0,
+            "description": "OpenAI cloud API. Best quality. Requires OPENAI_API_KEY.",
+            "env_key":     "OPENAI_API_KEY",
+            "tags":        ["cloud", "premium"],
+        },
+        {
+            "id":          "stability-core",
+            "name":        "Stability AI Core",
+            "provider":    "stability",
+            "vram_gb":     0,
+            "description": "Stability AI cloud REST API. Requires STABILITY_API_KEY.",
+            "env_key":     "STABILITY_API_KEY",
+            "tags":        ["cloud"],
+        },
+    ]
+
+    @classmethod
+    def get_image_preset(cls, model_id):
+        """Return IMAGE_MODEL_PRESETS entry for model_id, or the first preset as default."""
+        for p in cls.IMAGE_MODEL_PRESETS:
+            if p["id"] == model_id:
+                return p
+        return cls.IMAGE_MODEL_PRESETS[0]
+
+    # ---------------------------------------------------------------------------
     # World setting registry
     # Each entry defines a switchable TRPG universe. Game mechanics are always
     # DnD-based under the hood; term_map provides vocabulary substitutions that
