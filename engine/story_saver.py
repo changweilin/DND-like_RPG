@@ -94,30 +94,35 @@ def compress_game_log(history):
     Returns list of page dicts:
       {page, turn, actor, action, narrative, image_path, label, scene_type}
     """
-    pages          = []
-    page_no        = 0
-    pending_action = None
-    pending_actor  = None
+    pages           = []
+    page_no         = 0
+    pending_action  = None
+    pending_actor   = None
+    pending_choices = []
 
     for item in history:
         if item.get('role') == 'player':
-            pending_action = item.get('content', '')
-            pending_actor  = item.get('actor', '')
+            pending_action   = item.get('content', '')
+            pending_actor    = item.get('actor', '')
+            pending_choices  = item.get('all_choices', [])  # all branch options offered
         elif item.get('role') == 'dm':
             page_no   += 1
             narrative  = item.get('content', '')
             pages.append({
-                'page':       page_no,
-                'turn':       item.get('turn', page_no),
-                'actor':      pending_actor or '',
-                'action':     pending_action or '',
-                'narrative':  narrative,        # full text — trimmed below if needed
-                'image_path': item.get('image_path', ''),
-                'label':      item.get('cinematic_label') or '',
-                'scene_type': item.get('scene_type', 'exploration'),
+                'page':            page_no,
+                'turn':            item.get('turn', page_no),
+                'actor':           pending_actor or '',
+                'action':          pending_action or '',
+                'all_choices':     list(pending_choices),
+                'narrative':       narrative,        # full text — trimmed below if needed
+                'image_path':      item.get('image_path', ''),
+                'label':           item.get('cinematic_label') or '',
+                'scene_type':      item.get('scene_type', 'exploration'),
+                'is_prologue':     item.get('is_prologue', False),
             })
-            pending_action = None
-            pending_actor  = None
+            pending_action  = None
+            pending_actor   = None
+            pending_choices = []
 
     # Truncate older pages to 300 chars; keep last FULL_PRESERVE_TURNS complete
     cutoff = max(0, len(pages) - FULL_PRESERVE_TURNS)
@@ -144,14 +149,15 @@ def restore_history_from_log(story_log, n=2):
     for page in recent:
         if page.get('action'):
             history.append({
-                'role':    'player',
-                'actor':   page.get('actor', ''),
-                'content': page.get('action', ''),
+                'role':        'player',
+                'actor':       page.get('actor', ''),
+                'content':     page.get('action', ''),
+                'all_choices': page.get('all_choices', []),
             })
         history.append({
             'role':            'dm',
             'content':         page.get('narrative', ''),
-            'choices':         [],
+            'choices':         page.get('all_choices', []),  # for UI re-rendering
             'scene_type':      page.get('scene_type', 'exploration'),
             'dice_result':     None,
             'image':           None,          # PIL not persisted across sessions
@@ -159,6 +165,7 @@ def restore_history_from_log(story_log, n=2):
             'is_cinematic':    bool(page.get('label')),
             'cinematic_label': page.get('label', ''),
             'turn':            page.get('turn', 0),
+            'is_prologue':     page.get('is_prologue', False),
         })
     return history
 

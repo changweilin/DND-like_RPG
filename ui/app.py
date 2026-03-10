@@ -807,11 +807,31 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             actor  = item.get('actor', '')
             prefix = f"**{actor}:**" if actor else "**You:**"
             st.markdown(f"{prefix} {item['content']}")
+            # Show unchosen branching choices with strikethrough
+            all_ch = item.get('all_choices', [])
+            if len(all_ch) > 1:
+                chosen = item.get('content', '')
+                parts  = []
+                for c in all_ch:
+                    if c == chosen:
+                        parts.append(f"✅ **{c}**")
+                    else:
+                        parts.append(f"~~{c}~~")
+                st.caption("🔀 " + "  ·  ".join(parts))
         else:
             scene_type = item.get('scene_type', 'exploration')
-            _render_scene_label(scene_type)
+            if item.get('is_prologue'):
+                st.markdown(
+                    "<div style='background:#0a0a1a;border-left:4px solid #4a6aaa;"
+                    "padding:8px 12px;border-radius:6px;margin-bottom:8px;"
+                    "font-size:0.82em;color:#8898cc'>📜 開場白 · Turn 0</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                _render_scene_label(scene_type)
             _render_dice_result(item.get('dice_result'))
-            st.markdown(f"**{dm_lbl}:** {item['content']}")
+            label = f"**{dm_lbl}:**" if not item.get('is_prologue') else f"**{dm_lbl} 開場白:**"
+            st.markdown(f"{label} {item['content']}")
             if item.get('image'):
                 if item.get('is_cinematic') and item.get('cinematic_label'):
                     st.markdown(
@@ -836,14 +856,14 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
         st.warning(f"**{active_char.name}** 已倒下！等待下一位玩家…")
 
     elif current_choices:
-        # Branching narrative choices — display prominently
+        # Branching narrative choices — display prominently (≥3 choices, 3-col layout)
         st.markdown("---")
         st.markdown(
             f"<div style='font-size:1.1em;font-weight:bold;color:#c0c0ff;"
             f"margin-bottom:6px'>🔀 {flag} {active_char.name}，選擇你的行動:</div>",
             unsafe_allow_html=True,
         )
-        n_cols     = min(len(current_choices), 2)
+        n_cols      = min(max(len(current_choices), 3), 3)
         choice_cols = st.columns(n_cols)
         for idx, choice in enumerate(current_choices):
             letter = 'ABCDE'[idx] if idx < 5 else str(idx + 1)
@@ -875,9 +895,10 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
     # Process action
     if action_taken and active_char.hp > 0:
         st.session_state.history.append({
-            "role":    "player",
-            "actor":   f"{flag} {active_char.name}" if len(party) > 1 else "",
-            "content": action_taken,
+            "role":        "player",
+            "actor":       f"{flag} {active_char.name}" if len(party) > 1 else "",
+            "content":     action_taken,
+            "all_choices": list(current_choices),   # records all branch options for strikethrough
         })
         with st.spinner(f"📖 {dm_lbl} 正在思考…"):
             response, choices, turn_data, dice_result = (
@@ -1220,7 +1241,16 @@ def _book_render_page_content(page, container=None):
                   caption=page.get('label') or f"Turn {page['turn']}",
                   use_container_width=True)
 
-    # Player action line
+    # Prologue badge
+    if page.get('is_prologue'):
+        ctx.markdown(
+            "<div style='background:#0a0a1a;border-left:4px solid #4a6aaa;"
+            "padding:4px 10px;border-radius:4px;margin-bottom:6px;"
+            "font-size:0.78em;color:#8898cc'>📜 開場白 · Turn 0</div>",
+            unsafe_allow_html=True,
+        )
+
+    # Player action + unchosen choices with strikethrough
     actor  = page.get('actor', '')
     action = page.get('action', '')
     if actor or action:
@@ -1229,6 +1259,12 @@ def _book_render_page_content(page, container=None):
             f"<div class='book-action'>🗣 {actor_str}{action}</div>",
             unsafe_allow_html=True,
         )
+        all_ch = page.get('all_choices', [])
+        if len(all_ch) > 1:
+            parts = []
+            for c in all_ch:
+                parts.append(f"✅ **{c}**" if c == action else f"~~{c}~~")
+            ctx.caption("🔀 " + "  ·  ".join(parts))
 
     # Narrative body
     ctx.markdown(
@@ -1534,6 +1570,33 @@ def game_loop():
         badge_parts.append(party_badge)
     st.caption("  ·  ".join(badge_parts))
 
+    # ---- Generate prologue on Turn 0 ----
+    if (state.turn_count or 0) == 0 and not st.session_state.history:
+        ws_id_p = getattr(state, 'world_setting', None) or 'dnd5e'
+        tm_p    = config.get_world_setting(ws_id_p).get('term_map', {})
+        dm_lbl_p = tm_p.get('dm_title', 'GM')
+        with st.spinner(f"📖 {dm_lbl_p} 正在書寫開場白…"):
+            pro_narrative, pro_choices, pro_data = (
+                st.session_state.event_manager.generate_prologue(state, party)
+            )
+        st.session_state.history.append({
+            "role":            "dm",
+            "content":         pro_narrative,
+            "choices":         pro_choices,
+            "scene_type":      pro_data.get('scene_type', 'exploration'),
+            "dice_result":     None,
+            "image":           None,
+            "image_path":      '',
+            "is_cinematic":    False,
+            "cinematic_label": None,
+            "turn":            0,
+            "is_prologue":     True,
+        })
+        save_name_p = getattr(state, 'save_name', None)
+        if save_name_p:
+            save_game_log(save_name_p, compress_game_log(st.session_state.history))
+        st.rerun()
+
     # ---- Auto-run AI turns (before tab rendering) ----
     ai_cfgs   = getattr(state, 'ai_configs', None) or {}
     active_ai = ai_cfgs.get(str(active_idx), {})
@@ -1548,9 +1611,10 @@ def game_loop():
         if turn_data.get('location_change'):
             _move_player_on_map(active_char, turn_data['location_change'])
         st.session_state.history.append({
-            "role":    "player",
-            "actor":   f"{flag} 🤖 {active_char.name}",
-            "content": action_text,
+            "role":       "player",
+            "actor":      f"{flag} 🤖 {active_char.name}",
+            "content":    action_text,
+            "all_choices": [],
         })
         st.session_state.history.append({
             "role":        "dm",
@@ -1559,6 +1623,7 @@ def game_loop():
             "scene_type":  turn_data.get('scene_type', 'exploration'),
             "dice_result": dice_result,
             "image":       None,
+            "image_path":  '',
         })
         st.rerun()
 

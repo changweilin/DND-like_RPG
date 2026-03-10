@@ -42,7 +42,7 @@ def _validated_narrative(data):
         # the UI can apply different styling/icons per scene type.
         "scene_type": "exploration",   # combat | social | exploration | puzzle | rest
         "narrative": "Something happens...",
-        "choices": ["Look around", "Wait"],
+        "choices": ["Look around", "Wait and observe", "Ask for information"],
         "damage_taken": 0,
         "hp_healed": 0,
         "mp_used": 0,
@@ -53,6 +53,11 @@ def _validated_narrative(data):
     for k in defaults:
         if k in data:
             defaults[k] = data[k]
+    # Ensure at least 3 choices
+    if len(defaults["choices"]) < 3:
+        defaults["choices"] = (defaults["choices"]
+                               + ["Look around", "Wait and observe", "Ask for information"]
+                               )[:3]
     return defaults
 
 def _validated_stat_block(data, entity_name):
@@ -300,7 +305,7 @@ class LLMClient:
         json_schema = (
             '{\n'
             '  "scene_type": "<combat|social|exploration|puzzle|rest>",\n'
-            '  "narrative": "Atmospheric story description of what happened.",\n'
+            '  "narrative": "Atmospheric story description (MINIMUM 300 characters of vivid prose).",\n'
             '  "choices": ["Choice A", "Choice B", "Choice C"],\n'
             '  "damage_taken": 0,\n'
             '  "hp_healed": 0,\n'
@@ -313,6 +318,9 @@ class LLMClient:
         full_prompt = (
             f"{system_prompt}\n\n"
             f"Relevant Memory (RAG):\n{rag_context}\n\n"
+            "NARRATIVE RULES:\n"
+            "  • narrative field MUST be at least 300 characters of atmospheric prose\n"
+            "  • choices MUST contain at least 3 distinct options\n"
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
         try:
@@ -323,11 +331,137 @@ class LLMClient:
                 ],
                 json_mode=True,
             )
-            return _validated_narrative(json.loads(_repair_json(raw)))
+            result = _validated_narrative(json.loads(_repair_json(raw)))
+            # Enforce minimum narrative length — retry once if too short
+            if len(result["narrative"]) < 300:
+                raw2 = self._chat(
+                    messages=[
+                        {"role": "system", "content": full_prompt},
+                        {"role": "user",   "content": outcome_context},
+                        {"role": "assistant", "content": raw},
+                        {"role": "user",
+                         "content": (
+                             "Your narrative is too short (under 300 characters). "
+                             "Please rewrite it with much more vivid atmospheric detail, "
+                             "keeping all other fields the same."
+                         )},
+                    ],
+                    json_mode=True,
+                )
+                try:
+                    result2 = _validated_narrative(json.loads(_repair_json(raw2)))
+                    if len(result2["narrative"]) > len(result["narrative"]):
+                        result = result2
+                except Exception:
+                    pass
+            return result
         except Exception as e:
             print(f"Narrative rendering error: {e}")
             return _validated_narrative({
                 "narrative": "The world holds its breath... (Error generating response)",
+            })
+
+    # ------------------------------------------------------------------
+    # Prologue generation — Turn 0 opening scene (≥ 1000 chars)
+    # ------------------------------------------------------------------
+
+    def generate_prologue(self, game_state_data, party_data):
+        """
+        Generate an immersive opening prologue of at least 1000 characters.
+
+        The prologue sets the scene, introduces the party's arrival, and ends
+        with 3+ branching choices so the player can immediately act.
+
+        Args:
+            game_state_data (dict): {language, world_context, world_name,
+                                     location, difficulty, dm_title}
+            party_data      (list[dict]): [{name, race, char_class, personality}]
+
+        Returns a validated narrative dict (same schema as render_narrative).
+        """
+        language   = game_state_data.get('language', 'English')
+        world_name = game_state_data.get('world_name', 'this world')
+        location   = game_state_data.get('location', 'the starting area')
+        difficulty = game_state_data.get('difficulty', 'Normal')
+        dm_title   = game_state_data.get('dm_title', 'Game Master')
+        world_ctx  = game_state_data.get('world_context', '')
+
+        party_lines = '\n'.join(
+            f"  - {p['name']} ({p['race']} {p['char_class']})"
+            + (f": {p['personality']}" if p.get('personality') else "")
+            for p in party_data
+        )
+
+        json_schema = (
+            '{\n'
+            '  "scene_type": "exploration",\n'
+            '  "narrative": "Epic opening prologue — MINIMUM 1000 characters of atmospheric prose.",\n'
+            '  "choices": ["Choice A", "Choice B", "Choice C"],\n'
+            '  "damage_taken": 0, "hp_healed": 0, "mp_used": 0,\n'
+            '  "items_found": [], "location_change": "", "npc_relationship_changes": {}\n'
+            '}'
+        )
+
+        system_prompt = (
+            f"You are a master {dm_title} opening a {world_name} campaign.\n"
+            f"Write ALL text exclusively in {language}.\n"
+            f"Setting: {world_name}. Starting location: {location}. Difficulty: {difficulty}.\n"
+            f"Party arriving:\n{party_lines}\n"
+            f"World lore:\n{world_ctx[:800]}\n\n"
+            "PROLOGUE RULES:\n"
+            "  • narrative MUST be at least 1000 characters of vivid, atmospheric prose\n"
+            "  • Paint the world with rich sensory detail (sights, sounds, smells)\n"
+            "  • Introduce the starting location, hint at upcoming dangers and mysteries\n"
+            "  • End by presenting the party's immediate situation\n"
+            "  • choices MUST contain exactly 3 distinct opening actions the party can take\n"
+            f"CRITICAL: Respond ONLY with valid JSON matching this schema:\n{json_schema}"
+        )
+
+        try:
+            raw = self._chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": "Begin the adventure with an epic prologue."},
+                ],
+                json_mode=True,
+            )
+            result = _validated_narrative(json.loads(_repair_json(raw)))
+            # Enforce minimum prologue length — retry and append if too short
+            if len(result["narrative"]) < 1000:
+                raw2 = self._chat(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user",   "content": "Begin the adventure with an epic prologue."},
+                        {"role": "assistant", "content": raw},
+                        {"role": "user",
+                         "content": (
+                             f"Your prologue is only {len(result['narrative'])} characters "
+                             "but must be at least 1000. Continue and greatly expand the "
+                             "narrative with more atmospheric detail, sensory descriptions, "
+                             "and world-building, then provide 3 choices."
+                         )},
+                    ],
+                    json_mode=True,
+                )
+                try:
+                    result2 = _validated_narrative(json.loads(_repair_json(raw2)))
+                    if len(result2["narrative"]) > len(result["narrative"]):
+                        result = result2
+                    else:
+                        # Combine both narratives
+                        result["narrative"] = (result["narrative"] + "\n\n"
+                                               + result2["narrative"])
+                except Exception:
+                    pass
+            return result
+        except Exception as e:
+            print(f"Prologue generation error: {e}")
+            return _validated_narrative({
+                "narrative": (
+                    f"The adventure begins in {location}. "
+                    "The air is thick with anticipation as your party arrives, "
+                    "ready to face whatever challenges lie ahead in this realm."
+                ),
             })
 
     # ------------------------------------------------------------------

@@ -2308,6 +2308,29 @@ def test_compress_game_log():
     else:
         _fail(f"image_path: {pages[0].get('image_path')}"); errors += 1
 
+    # all_choices stored when provided by player entry
+    hist_choices = [
+        {'role': 'player', 'actor': 'Hero', 'content': 'A. attack',
+         'all_choices': ['A. attack', 'B. retreat', 'C. negotiate']},
+        {'role': 'dm', 'content': 'You attack!', 'scene_type': 'combat', 'turn': 1},
+    ]
+    pages_ch = compress_game_log(hist_choices)
+    if pages_ch[0].get('all_choices') == ['A. attack', 'B. retreat', 'C. negotiate']:
+        _ok("all_choices stored in page ✓")
+    else:
+        _fail(f"all_choices: {pages_ch[0].get('all_choices')}"); errors += 1
+
+    # is_prologue flag stored for prologue DM entries
+    prologue_hist = [
+        {'role': 'dm', 'content': 'Welcome, adventurers!', 'scene_type': 'exploration',
+         'turn': 0, 'is_prologue': True},
+    ]
+    pro_pages = compress_game_log(prologue_hist)
+    if pro_pages[0].get('is_prologue') is True:
+        _ok("is_prologue flag stored ✓")
+    else:
+        _fail(f"is_prologue: {pro_pages[0].get('is_prologue')}"); errors += 1
+
     # Last-12 pages kept FULL — single page within window not truncated
     long_hist = [
         {'role': 'player', 'content': 'Look around.'},
@@ -2555,6 +2578,62 @@ def test_image_filename_convention():
     return errors == 0
 
 
+def test_narrative_constraints():
+    """I5b: _validated_narrative enforces ≥3 choices; prologue schema accepted."""
+    _section("I5b · narrative ≥3 choices + prologue validated_narrative")
+    errors = 0
+    # Import without triggering Ollama
+    import sys, types
+    # Patch ollama to avoid connection
+    fake_ollama = types.ModuleType('ollama')
+    fake_ollama.chat = lambda **kw: None
+    had_ollama = 'ollama' in sys.modules
+    sys.modules.setdefault('ollama', fake_ollama)
+    try:
+        from ai.llm_client import _validated_narrative
+    finally:
+        if not had_ollama:
+            sys.modules.pop('ollama', None)
+
+    # 0 choices → padded to 3
+    result = _validated_narrative({"narrative": "A", "choices": []})
+    if len(result["choices"]) >= 3:
+        _ok("0 choices padded to ≥3 ✓")
+    else:
+        _fail(f"choices: {result['choices']}"); errors += 1
+
+    # 1 choice → padded to 3
+    result = _validated_narrative({"narrative": "A", "choices": ["Only one"]})
+    if len(result["choices"]) >= 3:
+        _ok("1 choice padded to ≥3 ✓")
+    else:
+        _fail(f"choices count: {len(result['choices'])}"); errors += 1
+
+    # 2 choices → padded to 3
+    result = _validated_narrative({"narrative": "A", "choices": ["A", "B"]})
+    if len(result["choices"]) >= 3:
+        _ok("2 choices padded to ≥3 ✓")
+    else:
+        _fail(f"choices count: {len(result['choices'])}"); errors += 1
+
+    # 4 choices → kept as-is
+    result = _validated_narrative({"narrative": "A", "choices": ["A", "B", "C", "D"]})
+    if len(result["choices"]) == 4:
+        _ok("4 choices kept intact ✓")
+    else:
+        _fail(f"choices count: {len(result['choices'])}"); errors += 1
+
+    # Default (no choices key) → at least 3
+    result = _validated_narrative({"narrative": "Something happens..."})
+    if len(result["choices"]) >= 3:
+        _ok("Default choices ≥3 ✓")
+    else:
+        _fail(f"Default choices: {result['choices']}"); errors += 1
+
+    print(f"\n  Result: {'PASS' if errors == 0 else f'FAIL — {errors} error(s)'}")
+    return errors == 0
+
+
 # ---------------------------------------------------------------------------
 # Vocabulary diff table (bonus display)
 # ---------------------------------------------------------------------------
@@ -2664,6 +2743,7 @@ if __name__ == '__main__':
     results['I4b restore_history_from_log']       = test_restore_history_from_log()
     results['I4 book mode page count']            = test_book_page_count()
     results['I5 image filename convention']       = test_image_filename_convention()
+    results['I5b narrative ≥3 choices enforce']   = test_narrative_constraints()
 
     # Bonus table
     print_vocabulary_diff_table()
