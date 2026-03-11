@@ -1,6 +1,77 @@
 import os
+import json
 from engine.game_state import DatabaseManager, GameState, Character
 from engine.config import config, GameConfig
+
+
+def _generate_world_context(llm, rag, ws, language):
+    # Query world_reference for this world's crawled text, then ask the LLM
+    # to write a rich 2000-char overview.  Returns "" on any failure.
+    refs = rag.retrieve_world_reference(ws['id'], ws['name'], n_results=6)
+    ref_text = "\n".join(refs) if refs else ""
+    system_msg = (
+        f"You are a game master writing a world overview for a {ws['name']} campaign. "
+        f"Return plain text only — no JSON, no headers."
+    )
+    user_msg = (
+        f"Write a rich 2000-character overview of this world in {language}. "
+        f"Cover: geography, factions, tone, major threats, daily life.\n"
+        f"Reference material:\n{ref_text}\n"
+        f"Base lore: {ws.get('world_lore', '')}"
+    )
+    try:
+        text = llm._chat(
+            messages=[{"role": "system", "content": system_msg},
+                      {"role": "user",   "content": user_msg}],
+            json_mode=False,
+        ).strip()
+        return text if len(text) > 50 else ""
+    except Exception as e:
+        print(f"[save_load] _generate_world_context failed: {e}")
+        return ""
+
+
+def _seed_world_rules(llm, rag, ws, language):
+    # Skip if we already seeded rules for this world to keep the call idempotent.
+    first_rule_id = f"world_{ws['id']}_0"
+    try:
+        existing = rag.rules_collection.get(ids=[first_rule_id], include=[])
+        if existing['ids']:
+            return
+    except Exception:
+        pass
+
+    # Pull relevant reference text to ground the rule generation
+    refs = rag.retrieve_world_reference(ws['id'], "rules mechanics social combat", n_results=4)
+    ref_text = "\n".join(refs) if refs else ws.get('world_lore', ws['name'])
+
+    user_msg = (
+        f"Generate 6 world-specific game rules for {ws['name']}. "
+        f"Each rule is a single sentence describing a mechanical or social rule "
+        f"unique to this setting. "
+        f"Return a JSON array of exactly 6 strings. "
+        f"Reference: {ref_text}"
+    )
+    try:
+        text = llm._chat(
+            messages=[{"role": "system", "content": "Return a JSON array of strings only."},
+                      {"role": "user",   "content": user_msg}],
+            json_mode=True,
+        ).strip()
+        # Extract JSON array from the response (may have surrounding prose)
+        start = text.find('[')
+        end = text.rfind(']')
+        if start == -1 or end == -1:
+            return
+        rules = json.loads(text[start:end + 1])
+        if not isinstance(rules, list):
+            return
+        for i, rule_text in enumerate(rules[:8]):
+            rule_id = f"world_{ws['id']}_{i}"
+            rag.add_game_rule(str(rule_text), rule_id,
+                              metadata={"type": "world_rule", "world_id": ws['id']})
+    except Exception as e:
+        print(f"[save_load] _seed_world_rules failed: {e}")
 
 
 class SaveLoadManager:
@@ -19,7 +90,8 @@ class SaveLoadManager:
                         appearance, personality,
                         difficulty="Normal", language="English",
                         world_context="", world_setting="dnd5e",
-                        extra_players=None):
+                        extra_players=None,
+                        llm=None, rag=None):
         """
         Create a new game with 1-4 players.
 
@@ -150,6 +222,17 @@ class SaveLoadManager:
         )
         session.add(game_state)
         session.commit()
+
+        # Auto-generate world_context from crawled reference data if not supplied
+        if llm and rag and not world_context.strip():
+            generated = _generate_world_context(llm, rag, ws, language)
+            if generated:
+                game_state.world_context = generated
+                session.commit()
+
+        # Seed world-specific mechanical/social rules into the shared game_rules RAG
+        if llm and rag:
+            _seed_world_rules(llm, rag, ws, language)
 
         return party, game_state, session
 

@@ -158,7 +158,7 @@ def restore_history_from_log(story_log, n=2):
         history.append({
             'role':            'dm',
             'content':         page.get('narrative', ''),
-            'choices':         page.get('dm_choices', page.get('all_choices', [])),  # next-turn branch options
+            'choices':         page.get('all_choices', []),  # for UI re-rendering
             'scene_type':      page.get('scene_type', 'exploration'),
             'dice_result':     None,
             'image':           None,          # PIL not persisted across sessions

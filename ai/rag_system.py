@@ -56,6 +56,9 @@ class RAGSystem:
         # Game rules: skill DCs, combat, spells, entity stat blocks, etc.
         # Seed with D&D 5e SRD JSON converted to markdown for best retrieval.
         self.rules_collection = self.client.get_or_create_collection(name="game_rules")
+        # Shared cross-game reference material crawled from wikis and TRPG sites.
+        # Keyed by world_setting id — populated by tools/crawl_world_lore.py.
+        self.reference_collection = self.client.get_or_create_collection(name="world_reference")
 
         # Seed basic rules on first run (TaskingAI-inspired: retrieve exact rule at use time)
         self._seed_basic_rules_if_empty()
@@ -106,6 +109,47 @@ class RAGSystem:
         except Exception as e:
             # Duplicate ID = stat block already exists; safe to ignore
             print(f"Stat block for {entity_name!r} already stored ({e})")
+
+    def add_world_reference(self, text, ref_id, world_id, url=""):
+        # Store a crawled text chunk in the shared world_reference collection.
+        # Silently ignores duplicate IDs so the crawler is idempotent.
+        try:
+            self.reference_collection.add(
+                documents=[text],
+                ids=[str(ref_id)],
+                metadatas=[{"world_id": world_id, "url": url, "type": "world_reference"}],
+            )
+        except Exception:
+            pass
+
+    def world_reference_seeded(self, world_id):
+        # Return True if any crawled entries for this world_id already exist.
+        try:
+            result = self.reference_collection.get(
+                where={"world_id": {"$eq": world_id}},
+                limit=1,
+            )
+            return len(result['ids']) > 0
+        except Exception:
+            return False
+
+    def retrieve_world_reference(self, world_id, query, n_results=5):
+        # Semantic search within the world_reference collection filtered by world_id.
+        # Returns a list of document strings (empty list on any failure).
+        try:
+            total = self.reference_collection.count()
+            if total == 0:
+                return []
+            result = self.reference_collection.query(
+                query_texts=[query],
+                n_results=min(n_results, total),
+                where={"world_id": {"$eq": world_id}},
+            )
+            if result and result['documents'] and result['documents'][0]:
+                return result['documents'][0]
+        except Exception:
+            pass
+        return []
 
     # ------------------------------------------------------------------
     # Query methods

@@ -7,7 +7,10 @@
       "Bash(grep -n \"_gs\\\\|\\\\.language\\\\|pref_language\\\\|expire\\\\|commit\\\\|VRAM 顯示\\\\|_render_model_switcher\\\\|_active_preset\\\\|st.sidebar.expander.*llm\" \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\\\\ui\\\\app.py\" | grep -v \"^.*#.*$\" | head -35)",
       "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) or print\\(f'OK: {f}'\\) for f in ['ui/app.py', 'ai/llm_client.py', 'logic/events.py']]\" 2>&1)",
       "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport ast\nfor f in ['ui/app.py', 'ai/llm_client.py', 'logic/events.py']:\n    ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\)\n    print\\(f'OK: {f}'\\)\n\")",
-      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport ast\nfor f in ['ai/llm_client.py', 'logic/events.py', 'ui/app.py']:\n    ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\)\n    print\\(f'OK: {f}'\\)\n\")"
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport ast\nfor f in ['ai/llm_client.py', 'logic/events.py', 'ui/app.py']:\n    ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\)\n    print\\(f'OK: {f}'\\)\n\")",
+      "Bash(find /c/Users/user/Documents/Python/DND-like_RPG -name \"*.py\" -not -path \"*/.venv/*\" 2>/dev/null | head -30)",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport sys; sys.path.insert\\(0, '.'\\)\nfrom engine.save_load import _generate_world_context, _seed_world_rules\nfrom engine.config import GameConfig\nws = GameConfig.get_world_setting\\('pathfinder'\\)\nprint\\('ws id:', ws['id']\\)\nprint\\('ws name:', ws['name']\\)\nprint\\('_generate_world_context and _seed_world_rules imported OK'\\)\n\")",
+      "Bash(cd \"C:\\\\Users\\\\user\\\\Documents\\\\Python\\\\DND-like_RPG\" && python -c \"\nimport sys; sys.path.insert\\(0, '.'\\)\nfrom ai.rag_system import RAGSystem\nr = RAGSystem\\(\\)\nprint\\('world_reference collection:', r.reference_collection.count\\(\\), 'entries'\\)\nprint\\('RAGSystem methods: add_world_reference, world_reference_seeded, retrieve_world_reference — OK'\\)\n\")"
     ]
   }
 }

@@ -619,22 +619,47 @@ def _render_model_switcher():
             st.markdown(f"⚠️ **Cons:** {preset['cons']}")
 
         env_key = preset.get('env_key')
+        key_ready = True  # False if cloud model selected but key missing
+
         if env_key:
-            if os.environ.get(env_key):
+            has_key = bool(os.environ.get(env_key, ''))
+            if has_key:
                 st.success(f"🔑 `{env_key}` is set")
             else:
+                key_ready = False
                 st.warning(f"🔑 `{env_key}` not found in environment")
+                entered = st.text_input(
+                    f"Enter {env_key}:",
+                    type="password",
+                    key=f"llm_api_key_{env_key}",
+                    placeholder="Paste your API key here…",
+                )
+                if entered:
+                    if st.button("💾 套用金鑰 Apply key (this session)",
+                                 key=f"llm_save_key_{env_key}",
+                                 use_container_width=True):
+                        os.environ[env_key] = entered
+                        st.rerun()
+                else:
+                    st.caption(
+                        f"⚠️ 選擇此模型前需先填入 `{env_key}`。  "
+                        "The model will switch once a valid key is saved."
+                    )
 
         # Auto-switch when dropdown selection differs from active model
+        # Block switch for cloud models until the API key is actually present.
         if new_id != st.session_state.active_model_id:
-            st.session_state.llm.switch_model(new_id)
-            st.session_state.active_model_id = new_id
-            prefs = PersistenceManager.load_prefs()
-            prefs['active_model_id'] = new_id
-            PersistenceManager.save_prefs(prefs)
-            st.success(f"✅ Switched to **{preset['name']}**")
+            if key_ready:
+                st.session_state.llm.switch_model(new_id)
+                st.session_state.active_model_id = new_id
+                prefs = PersistenceManager.load_prefs()
+                prefs['active_model_id'] = new_id
+                PersistenceManager.save_prefs(prefs)
+                st.success(f"✅ Switched to **{preset['name']}**")
+            # else: key not ready — don't switch; warning already shown above
         else:
-            st.success(f"▶ **{preset['name']}** is active")
+            if key_ready:
+                st.success(f"▶ **{preset['name']}** is active")
 
 # ---------------------------------------------------------------------------
 # Main Menu helpers
@@ -774,8 +799,8 @@ def main_menu():
             st.markdown("---")
             st.markdown(f"**{_t('party_hdr')}**")
             num_players = st.selectbox(
-                _t("num_players"), list(range(1, 7)),
-                index=st.session_state.pref_num_players - 1,
+                _t("num_players"), list(range(1, config.MAX_PARTY_SIZE + 1)),
+                index=min(st.session_state.pref_num_players - 1, config.MAX_PARTY_SIZE - 1),
                 key="new_game_num_players"
             )
 
@@ -806,6 +831,8 @@ def main_menu():
                             world_context=custom_lore,
                             world_setting=ws_ids[ws_idx],
                             extra_players=extra or None,
+                            llm=st.session_state.llm,
+                            rag=st.session_state.rag,
                         )
                     )
                     if party is not None:
@@ -947,6 +974,8 @@ def main_menu():
                 world_context=pending['world_context'],
                 world_setting=pending['world_setting'],
                 extra_players=pending['extra_players'] or None,
+                llm=st.session_state.llm,
+                rag=st.session_state.rag,
             )
             if party:
                 st.session_state.image_style       = pending['img_style']
@@ -2060,9 +2089,7 @@ def game_loop():
     _render_image_model_selector()
     _render_image_style_switcher()
 
-    if st.sidebar.button("Save & Quit"):
-        st.session_state.current_session.commit()
-        st.session_state.current_session.close()
+    def _clear_game_state():
         for key in ('current_session', 'game_state', 'player', 'event_manager'):
             st.session_state[key] = None
         st.session_state.party             = []
@@ -2072,6 +2099,20 @@ def game_loop():
         st.session_state.manual_dice       = {}
         st.session_state.continent_map     = None
         st.session_state.portraits         = {}
+
+    sq_col, qq_col = st.sidebar.columns(2)
+    if sq_col.button("💾 儲存離開", use_container_width=True):
+        # Flush story log then commit DB
+        save_name_sq = getattr(state, 'save_name', None)
+        if save_name_sq and st.session_state.history:
+            save_game_log(save_name_sq, compress_game_log(st.session_state.history))
+        st.session_state.current_session.commit()
+        st.session_state.current_session.close()
+        _clear_game_state()
+        st.rerun()
+    if qq_col.button("🚪 不儲存離開", use_container_width=True):
+        st.session_state.current_session.close()
+        _clear_game_state()
         st.rerun()
 
     # ---- Header ----
@@ -2156,16 +2197,26 @@ def game_loop():
         })
         st.rerun()
 
-    # ---- Tabs ----
-    tab_board, tab_story, tab_chars, tab_rules, tab_book, tab_god = st.tabs(
-        ["🗺️ 遊戲板", "📖 故事", "👥 角色", "📜 規則", "📕 書本", "🔮 上帝模式"]
+    # ---- Sticky tab bar CSS ----
+    st.markdown(
+        "<style>"
+        ".stTabs [data-baseweb='tab-list']{"
+        "position:sticky;top:0;z-index:998;"
+        "background:var(--background-color,#0e1117);padding-bottom:2px;}"
+        "</style>",
+        unsafe_allow_html=True,
     )
 
-    with tab_board:
-        _render_game_board_tab(party, state, active_char, active_idx)
+    # ---- Tabs (故事 first = default selected) ----
+    tab_story, tab_board, tab_chars, tab_rules, tab_book, tab_god = st.tabs(
+        ["📖 故事", "🗺️ 遊戲板", "👥 角色", "📜 規則", "📕 書本", "🔮 上帝模式"]
+    )
 
     with tab_story:
         _render_story_tab(party, state, active_char, active_idx, ws_id)
+
+    with tab_board:
+        _render_game_board_tab(party, state, active_char, active_idx)
 
     with tab_chars:
         _render_characters_tab(party, state, active_char)

@@ -58,7 +58,7 @@ class GameConfig:
     # Multi-player party configuration
     # ---------------------------------------------------------------------------
 
-    MAX_PARTY_SIZE = 6
+    MAX_PARTY_SIZE = 5
     MIN_PARTY_SIZE = 1
 
     # Per-player flag emoji (index 0-5 → player slot 0-5).

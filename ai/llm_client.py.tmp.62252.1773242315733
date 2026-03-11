@@ -5,23 +5,6 @@ import ollama
 from engine.config import config
 
 
-_PLACEHOLDER_RE = re.compile(
-    r'^(choice|option|選項|action|行動|分歧|第.個選項)\s*[a-z\d]?$',
-    re.IGNORECASE,
-)
-
-def _has_placeholder_choices(choices):
-    """True if any choice looks like a generic placeholder (e.g. 'Choice A', '選項B')."""
-    if not choices:
-        return True
-    for c in choices:
-        if not c or not c.strip():
-            return True
-        if _PLACEHOLDER_RE.match(c.strip()):
-            return True
-    return False
-
-
 def _is_correct_language(text, language):
     """
     Traditional (non-LLM) language detection using Unicode character analysis.
@@ -129,18 +112,10 @@ def _validated_narrative(data):
         "location_change": "",
         "npc_relationship_changes": {},
     }
-    # String fields — coerce to str so callers can always call len() safely
-    _STR_FIELDS = {'narrative', 'scene_type', 'location_change'}
     for k in defaults:
         if k in data:
-            v = data[k]
-            if k in _STR_FIELDS:
-                defaults[k] = str(v) if v is not None else defaults[k]
-            else:
-                defaults[k] = v
+            defaults[k] = data[k]
     # Ensure at least 3 choices
-    if not isinstance(defaults["choices"], list):
-        defaults["choices"] = []
     if len(defaults["choices"]) < 3:
         defaults["choices"] = (defaults["choices"]
                                + ["Look around", "Wait and observe", "Ask for information"]
@@ -413,7 +388,7 @@ class LLMClient:
             '{\n'
             '  "scene_type": "<combat|social|exploration|puzzle|rest>",\n'
             '  "narrative": "Atmospheric story description (MINIMUM 300 characters of vivid prose).",\n'
-            f'  "choices": ["<具體行動或事件，用{language}寫>", "<第二個選項>", "<第三個選項>"],\n'
+            '  "choices": ["Choice A", "Choice B", "Choice C"],\n'
             '  "damage_taken": 0,\n'
             '  "hp_healed": 0,\n'
             '  "mp_used": 0,\n'
@@ -459,8 +434,6 @@ class LLMClient:
             language=language,
         )
         result = self._localize_narrative(result, language)
-        if _has_placeholder_choices(result.get('choices', [])):
-            result = self._fix_placeholder_choices(result, result['narrative'], language)
         return result
 
     # ------------------------------------------------------------------
@@ -482,10 +455,6 @@ class LLMClient:
         reduced to avoid unnecessary retries on quality CJK responses.
         """
         narrative = result["narrative"]
-        # Safety net: narrative must be a str for len() to work
-        if not isinstance(narrative, str):
-            narrative = str(narrative) if narrative is not None else ""
-            result["narrative"] = narrative
 
         # Adjust threshold for CJK languages so short-but-dense text isn't
         # incorrectly flagged as too short and retried into English.
@@ -495,12 +464,8 @@ class LLMClient:
         else:
             effective_min = min_chars
 
-        # Pass 1: relay-continuation loop — verify with len() after each call,
-        # keep relaying until the threshold is met or MAX_RELAY attempts used up.
-        MAX_RELAY = 3
-        for _attempt in range(MAX_RELAY):
-            if len(narrative) >= effective_min:
-                break
+        # Pass 1: too short → ask to continue, not rewrite
+        if len(narrative) < effective_min:
             shortage = effective_min - len(narrative)
             continue_msg = (
                 f"Continue the narrative from exactly where it ended. "
@@ -519,10 +484,8 @@ class LLMClient:
                 ).strip()
                 if continuation:
                     narrative = narrative + "\n\n" + continuation
-                else:
-                    break  # model returned empty — no point retrying
             except Exception:
-                break  # network / model error — stop relay
+                pass
 
         # Pass 2: wrong language → ask to translate, not rewrite
         if not _is_correct_language(narrative, language):
@@ -562,35 +525,6 @@ class LLMClient:
             ).strip() or text
         except Exception:
             return text
-
-    def _fix_placeholder_choices(self, result, narrative, language):
-        """
-        If choices are still generic placeholders after generation, ask the LLM
-        to produce real choices derived from the narrative content.
-        Returns result with choices replaced (or unchanged on failure).
-        """
-        prompt = (
-            f"Based on the following story narrative, provide exactly 3 concrete "
-            f"actions or decisions the player can take next. "
-            f"Write EXCLUSIVELY in {language}. "
-            "Return ONLY a JSON array of 3 strings, e.g. [\"action1\", \"action2\", \"action3\"]. "
-            "No markdown, no extra keys.\n\n"
-            f"Narrative:\n{narrative[:800]}"
-        )
-        try:
-            raw = self._chat(
-                messages=[{"role": "user", "content": prompt}],
-                json_mode=False,
-            ).strip()
-            # extract the JSON array from the response
-            m = re.search(r'\[.*\]', raw, re.DOTALL)
-            if m:
-                choices = json.loads(m.group(0))
-                if isinstance(choices, list) and len(choices) >= 3:
-                    result["choices"] = [str(c) for c in choices[:3]]
-        except Exception:
-            pass
-        return result
 
     def _localize_narrative(self, result, language):
         """
@@ -800,7 +734,7 @@ class LLMClient:
             '{\n'
             '  "scene_type": "exploration",\n'
             '  "narrative": "Epic opening prologue — MINIMUM 1000 characters of atmospheric prose.",\n'
-            f'  "choices": ["<具體開場行動，用{language}寫>", "<第二個選項>", "<第三個選項>"],\n'
+            '  "choices": ["Choice A", "Choice B", "Choice C"],\n'
             '  "damage_taken": 0, "hp_healed": 0, "mp_used": 0,\n'
             '  "items_found": [], "location_change": "", "npc_relationship_changes": {}\n'
             '}'
@@ -848,8 +782,6 @@ class LLMClient:
             language=language,
         )
         result = self._localize_narrative(result, language)
-        if _has_placeholder_choices(result.get('choices', [])):
-            result = self._fix_placeholder_choices(result, result['narrative'], language)
         return result
 
     # ------------------------------------------------------------------
