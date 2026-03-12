@@ -14,6 +14,7 @@ import os
 import time
 import hashlib
 import argparse
+import subprocess
 
 # Project root on PYTHONPATH so absolute imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -80,22 +81,56 @@ CRAWL_TARGETS = {
 
 # HTTP headers that reduce bot-blocking on wiki sites
 _HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (compatible; DND-like-RPG-lore-crawler/1.0; "
-        "+https://github.com/your-repo)"
-    )
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
 }
 
 _CHUNK_SIZE = 400   # target characters per RAG chunk
+
+
+def _fetch_with_curl(url):
+    # Fallback using system curl.exe which often bypasses TLS fingerprinting blocks
+    try:
+        cmd = [
+            "curl.exe", "-s", "-L",
+            "-H", f"User-Agent: {_HEADERS['User-Agent']}",
+            "-H", f"Accept: {_HEADERS['Accept']}",
+            "-H", f"Accept-Language: {_HEADERS['Accept-Language']}",
+            url
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout
+    except Exception as e:
+        print(f"  [DEBUG] curl fallback failed: {e}")
+    return None
 
 
 def _fetch_page(url):
     # Returns the raw HTML string or None on any network / HTTP error.
     try:
         resp = requests.get(url, headers=_HEADERS, timeout=15)
+        if resp.status_code == 403:
+            # Try curl fallback on 403
+            html = _fetch_with_curl(url)
+            if html:
+                return html
         resp.raise_for_status()
         return resp.text
     except Exception as e:
+        # Final attempt if any other error occurred
+        html = _fetch_with_curl(url)
+        if html:
+            return html
         print(f"  [WARN] Could not fetch {url}: {e}")
         return None
 
