@@ -209,7 +209,6 @@ class SaveLoadManager:
             relationships={},
             session_memory=[],
             known_entities={},
-            allow_custom_action=1 if allow_custom_action else 0,
         )
         session.add(game_state)
         session.commit()

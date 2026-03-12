@@ -91,7 +91,6 @@ class SaveLoadManager:
                         difficulty="Normal", language="English",
                         world_context="", world_setting="dnd5e",
                         extra_players=None,
-                        allow_custom_action=True,
                         llm=None, rag=None):
         """
         Create a new game with 1-4 players.
@@ -120,6 +119,10 @@ class SaveLoadManager:
 
         ws = GameConfig.get_world_setting(world_setting)
         starting_location = ws['starting_location']
+        starting_npc = ws.get('starting_npc', {
+            "name": "Village Elder", "affinity": 10, "state": "Friendly",
+            "goal": "Protect the settlement",
+        })
         effective_world_context = (
             world_context.strip() or ws.get('world_lore', 'A world waiting to be explored.')
         )
@@ -171,6 +174,7 @@ class SaveLoadManager:
         session.commit()
 
         party_ids = [c.id for c in party]
+        npc_name  = starting_npc['name']
 
         # Initial contribution tracker — one entry per character
         init_contributions = {
@@ -206,10 +210,15 @@ class SaveLoadManager:
             party_contributions=init_contributions,
             ai_configs=init_ai_configs,
             turn_count=0,
-            relationships={},
+            relationships={
+                npc_name: {
+                    "affinity": starting_npc.get('affinity', 0),
+                    "state":    starting_npc.get('state', 'Neutral'),
+                    "goal":     starting_npc.get('goal', ''),
+                }
+            },
             session_memory=[],
             known_entities={},
-            allow_custom_action=1 if allow_custom_action else 0,
         )
         session.add(game_state)
         session.commit()

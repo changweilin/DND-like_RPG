@@ -91,7 +91,6 @@ class SaveLoadManager:
                         difficulty="Normal", language="English",
                         world_context="", world_setting="dnd5e",
                         extra_players=None,
-                        allow_custom_action=True,
                         llm=None, rag=None):
         """
         Create a new game with 1-4 players.
@@ -209,7 +208,6 @@ class SaveLoadManager:
             relationships={},
             session_memory=[],
             known_entities={},
-            allow_custom_action=1 if allow_custom_action else 0,
         )
         session.add(game_state)
         session.commit()

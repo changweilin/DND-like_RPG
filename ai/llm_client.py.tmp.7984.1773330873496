@@ -450,7 +450,6 @@ class LLMClient:
             f"  • Write EXCLUSIVELY in {language} — do NOT use any other language\n"
             "  • choices MUST contain at least 3 distinct options\n"
             "  • characters_present MUST list every named NPC / character who appears or speaks in the narrative\n"
-            "  • choices MUST explore directions NOT already taken — if CHOICES CONSTRAINT is present, do not repeat or paraphrase any listed action\n"
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
         base_messages = [
@@ -613,38 +612,6 @@ class LLMClient:
         except Exception:
             pass
         return result
-
-    def generate_diverse_choices(self, narrative, avoid_choices, count=3, language="English"):
-        """
-        Generate action choices that are distinct from avoid_choices.
-        Called by EventManager._filter_similar_choices when generated choices are
-        too similar to recently taken or recently offered actions.
-        Returns a list of strings (may be empty on failure).
-        """
-        avoid_str = "\n".join(f"- {c}" for c in avoid_choices[:12] if c)
-        prompt = (
-            f"Generate exactly {count} action choices for a TRPG player.\n"
-            f"These choices are FORBIDDEN (too similar to recent actions — do NOT repeat or paraphrase them):\n"
-            f"{avoid_str}\n\n"
-            f"Narrative context:\n{narrative[:400]}\n\n"
-            f"Requirements:\n"
-            f"  • Each choice must be genuinely different in direction from all forbidden options\n"
-            f"  • Write exclusively in {language}\n"
-            f"Return ONLY a JSON array of {count} strings: [\"action1\", \"action2\", ...]"
-        )
-        try:
-            raw = self._chat(
-                messages=[{"role": "user", "content": prompt}],
-                json_mode=False,
-            ).strip()
-            m = re.search(r'\[.*\]', raw, re.DOTALL)
-            if m:
-                result = json.loads(m.group(0))
-                if isinstance(result, list):
-                    return [str(c) for c in result if c]
-        except Exception as e:
-            print(f"generate_diverse_choices error: {e}")
-        return []
 
     def _localize_narrative(self, result, language):
         """

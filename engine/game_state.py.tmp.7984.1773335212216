@@ -121,7 +121,6 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN turn_count INTEGER DEFAULT 0",
             "ALTER TABLE game_state ADD COLUMN session_memory TEXT DEFAULT '[]'",
             "ALTER TABLE game_state ADD COLUMN known_entities TEXT DEFAULT '{}'",
-            "ALTER TABLE game_state ADD COLUMN allow_custom_action INTEGER DEFAULT 1",
         ]
         with engine.connect() as conn:
             for sql in migrations:

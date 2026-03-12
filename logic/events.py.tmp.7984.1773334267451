@@ -430,13 +430,11 @@ class EventManager:
                                          characters_present=characters_present)
 
         # --- Step 10a: Update sliding-window session memory ---
-        # Filter out party members — only NPCs belong in characters_present
-        npc_only_present = [n for n in characters_present if n not in party_names]
         self._update_session_memory(
             current_state, player_action, narrative, outcome_label,
             choices=choices,
             location=current_state.current_location,
-            characters_present=npc_only_present,
+            characters_present=characters_present,
         )
 
         # --- Step 10b: Persist Narrative Event to RAG long-term memory ---
@@ -917,6 +915,8 @@ class EventManager:
             line += f"Player: {entry.get('player_action', '')} → {entry.get('outcome', '')}"
             if unchosen:
                 line += f" | 未選: {'; '.join(unchosen)}"
+            if offered:
+                line += f" | 新選項: {'; '.join(offered)}"
             lines.append(line)
         return "\n".join(lines)
 

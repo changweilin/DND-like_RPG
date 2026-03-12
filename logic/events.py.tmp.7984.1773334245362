@@ -355,9 +355,8 @@ class EventManager:
         characters_present = [n for n in (turn_data.get('characters_present') or []) if n and n.strip()]
 
         # Filter choices by character-set similarity vs. last turn's chosen/unchosen actions
-        _prev_mem    = current_state.session_memory or []
-        _last_mem    = _prev_mem[-1] if _prev_mem else {}
-        prev_offered = _last_mem.get('offered_choices') or _last_mem.get('choices') or []
+        last_mem     = (current_state.session_memory or [and None)[-1] or {} if current_state.session_memory else {}
+        prev_offered = last_mem.get('offered_choices') or last_mem.get('choices') or []
         unchosen_last = [c for c in prev_offered if c and c.strip() != player_action.strip()]
         choices = self._filter_similar_choices(
             choices, player_action, unchosen_last, narrative,
@@ -430,13 +429,11 @@ class EventManager:
                                          characters_present=characters_present)
 
         # --- Step 10a: Update sliding-window session memory ---
-        # Filter out party members — only NPCs belong in characters_present
-        npc_only_present = [n for n in characters_present if n not in party_names]
         self._update_session_memory(
             current_state, player_action, narrative, outcome_label,
             choices=choices,
             location=current_state.current_location,
-            characters_present=npc_only_present,
+            characters_present=characters_present,
         )
 
         # --- Step 10b: Persist Narrative Event to RAG long-term memory ---
@@ -622,59 +619,6 @@ class EventManager:
                 )
         except Exception as e:
             print(f"NPC reaction step error: {e}")
-
-    # ------------------------------------------------------------------
-    # Internal helpers — choice diversity filtering
-    # ------------------------------------------------------------------
-
-    def _filter_similar_choices(self, choices, chosen_action, unchosen_prev, narrative, language):
-        """
-        Enforce diversity on newly generated choices using character-set similarity.
-
-        Thresholds:
-          chosen_action  (what player just did):           must be < 20% similar
-          unchosen_prev  (last turn's non-selected opts):  must be < 50% similar
-
-        Choices that fail are replaced by requesting alternatives from the LLM.
-        Always returns at least 3 choices.
-        """
-        CHOSEN_THRESH  = 0.20
-        UNCHOSEN_THRESH = 0.50
-
-        def passes(c):
-            if chosen_action and _char_similarity(c, chosen_action) >= CHOSEN_THRESH:
-                return False
-            return not any(_char_similarity(c, u) >= UNCHOSEN_THRESH for u in (unchosen_prev or []))
-
-        good = [c for c in choices if passes(c)]
-        if len(good) == len(choices):
-            return choices  # all pass — skip LLM call
-
-        needed = max(3, len(choices)) - len(good)
-        avoid  = [chosen_action] + list(unchosen_prev or []) + choices
-        try:
-            replacements = self.llm.generate_diverse_choices(
-                narrative=narrative,
-                avoid_choices=[c for c in avoid if c],
-                count=needed + 1,   # request extra in case some still fail
-                language=language,
-            )
-            for c in replacements:
-                if len(good) >= max(3, len(choices)):
-                    break
-                if passes(c):
-                    good.append(c)
-        except Exception as e:
-            print(f"Choice diversity retry error: {e}")
-
-        # Ensure minimum 3 — fall back to originals only if still short
-        for c in choices:
-            if len(good) >= max(3, len(choices)):
-                break
-            if c not in good:
-                good.append(c)
-
-        return good[:max(3, len(choices))]
 
     # ------------------------------------------------------------------
     # Internal helpers — NPC auto-registration and scene lifecycle
@@ -917,6 +861,8 @@ class EventManager:
             line += f"Player: {entry.get('player_action', '')} → {entry.get('outcome', '')}"
             if unchosen:
                 line += f" | 未選: {'; '.join(unchosen)}"
+            if offered:
+                line += f" | 新選項: {'; '.join(offered)}"
             lines.append(line)
         return "\n".join(lines)
 

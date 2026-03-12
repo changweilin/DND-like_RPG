@@ -796,6 +796,9 @@ def main_menu():
             )
             st.caption(_t("map_hint"))
 
+            allow_custom_action = st.checkbox("允許自訂行動輸入", value=True,
+                                              help="勾選後，遊戲中可輸入非選項的自訂行動")
+
             st.markdown("---")
             st.markdown(f"**{_t('party_hdr')}**")
             num_players = st.selectbox(
@@ -831,6 +834,7 @@ def main_menu():
                             world_context=custom_lore,
                             world_setting=ws_ids[ws_idx],
                             extra_players=extra or None,
+                            allow_custom_action=allow_custom_action,
                             llm=st.session_state.llm,
                             rag=st.session_state.rag,
                         )
@@ -1145,7 +1149,7 @@ def _render_party_sidebar(party, state, active_char):
 
 
 def _render_npc_tracker(state):
-    """Sidebar: NPC affinity bars, mood, and goals."""
+    """Sidebar: NPC affinity bars, mood, goals, and scene-volatile state."""
     rels = state.relationships or {}
     if not rels:
         return
@@ -1156,14 +1160,26 @@ def _render_npc_tracker(state):
             affinity = data.get('affinity', 0)
             mood     = data.get('state', 'Neutral')
             goal     = data.get('goal', '')
+            proper   = data.get('proper_name', '')
+            emotion  = data.get('emotion', '')
+            action   = data.get('action', '')
+            health   = data.get('health', '')
         else:
             affinity, mood, goal = int(data), 'Neutral', ''
+            proper = emotion = action = health = ''
 
+        display = f"{name} ({proper})" if proper and proper != name else name
         bar = _affinity_bar(affinity)
-        st.sidebar.write(f"**{name}**")
+        # Show emotion badge if NPC is currently in scene
+        emotion_badge = f"　🎭 *{emotion}*" if emotion else ""
+        st.sidebar.write(f"**{display}**{emotion_badge}")
         st.sidebar.write(f"  {bar} {affinity:+d} · {mood}")
+        if health and health.lower() not in ('healthy', '健康', ''):
+            st.sidebar.caption(f"  ❤️ {health}")
+        if action:
+            st.sidebar.caption(f"  ▶ {action}")
         if goal:
-            st.sidebar.caption(f"  Goal: {goal}")
+            st.sidebar.caption(f"  ◎ {goal}")
 
 
 def _affinity_bar(affinity):
@@ -1430,11 +1446,12 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             ):
                 action_taken = choice
 
-        with st.expander("✏️ 或自訂行動…"):
-            with st.form("custom_action_form", clear_on_submit=True):
-                custom = st.text_input("輸入其他行動:")
-                if st.form_submit_button("執行") and custom:
-                    action_taken = custom
+        if getattr(state, 'allow_custom_action', 1):
+            with st.expander("✏️ 或自訂行動…"):
+                with st.form("custom_action_form", clear_on_submit=True):
+                    custom = st.text_input("輸入其他行動:")
+                    if st.form_submit_button("執行") and custom:
+                        action_taken = custom
     else:
         # Free-text action input
         with st.form("action_form", clear_on_submit=True):
@@ -2101,16 +2118,14 @@ def game_loop():
         st.session_state.portraits         = {}
 
     sq_col, qq_col = st.sidebar.columns(2)
-    if sq_col.button("💾 儲存離開", use_container_width=True):
-        # Flush story log then commit DB
+    if sq_col.button("💾 儲存", use_container_width=True):
+        # Flush story log then commit DB — stay in game
         save_name_sq = getattr(state, 'save_name', None)
         if save_name_sq and st.session_state.history:
             save_game_log(save_name_sq, compress_game_log(st.session_state.history))
         st.session_state.current_session.commit()
-        st.session_state.current_session.close()
-        _clear_game_state()
-        st.rerun()
-    if qq_col.button("🚪 不儲存離開", use_container_width=True):
+        st.toast("遊戲已儲存！", icon="💾")
+    if qq_col.button("🚪 離開", use_container_width=True):
         st.session_state.current_session.close()
         _clear_game_state()
         st.rerun()
@@ -2312,7 +2327,7 @@ def _render_god_mode_tab(party, state):
             }
             for col, (typ, desc) in schema.items():
                 val = live.get(col, "—")
-                rows.append({"欄位": col, "型別": typ, "說明": desc, "當前值": str(val)[:120]})
+                rows.append({"欄位": col, "型別": typ, "說明": desc, "當前值": str(val)})
             import pandas as pd
             st.dataframe(
                 pd.DataFrame(rows),
@@ -2338,7 +2353,7 @@ def _render_god_mode_tab(party, state):
         "party_ids":           state.party_ids or [],
         "active_player_index": state.active_player_index or 0,
         "current_location":    state.current_location,
-        "world_context":       (state.world_context or "")[:200] + ("…" if len(state.world_context or "") > 200 else ""),
+        "world_context":       state.world_context or "",
         "world_setting":       getattr(state, 'world_setting', 'dnd5e'),
         "difficulty":          state.difficulty,
         "language":            state.language,
@@ -2352,7 +2367,7 @@ def _render_god_mode_tab(party, state):
     rows_gs = []
     for col, (typ, desc) in schema_gs.items():
         val = live_gs.get(col, "—")
-        rows_gs.append({"欄位": col, "型別": typ, "說明": desc, "當前值": str(val)[:160]})
+        rows_gs.append({"欄位": col, "型別": typ, "說明": desc, "當前值": str(val)})
     import pandas as pd
     st.dataframe(
         pd.DataFrame(rows_gs),
@@ -2366,29 +2381,62 @@ def _render_god_mode_tab(party, state):
         },
     )
 
+    with st.expander("📖 world_context 完整內容", expanded=False):
+        st.text_area("world_context", value=state.world_context or "", height=200,
+                     disabled=True, label_visibility="collapsed")
+
     # ----------------------------------------------------------------
     # JSON sub-tables — expand each complex JSON column individually
     # ----------------------------------------------------------------
     st.subheader("📂 JSON 欄位展開")
 
-    col_rel, col_ent = st.columns(2)
-    with col_rel:
-        st.markdown("**relationships (NPC 狀態)**")
-        rels = state.relationships or {}
-        if rels:
-            rel_rows = [
-                {"NPC": name,
-                 "affinity": str(d.get('affinity', 0) if isinstance(d, dict) else d),
-                 "state": d.get('state', '') if isinstance(d, dict) else '',
-                 "goal":  d.get('goal', '')  if isinstance(d, dict) else ''}
-                for name, d in rels.items()
-            ]
-            st.dataframe(pd.DataFrame(rel_rows), use_container_width=True, hide_index=True)
-        else:
+    # NPC relationships — full profile cards
+    rels = state.relationships or {}
+    with st.expander("📋 NPC 完整檔案 (Full NPC Profiles)", expanded=True):
+        if not rels:
             st.caption("（尚無 NPC）")
+        for name, d in rels.items():
+            if not isinstance(d, dict):
+                continue
+            proper   = d.get('proper_name', name)
+            aliases  = d.get('aliases') or []
+            bio      = d.get('biography', '')
+            persona  = d.get('personality', '')
+            traits   = d.get('traits', '')
+            health   = d.get('health', '')
+            action   = d.get('action', '')
+            emotion  = d.get('emotion', '')
+            affinity = d.get('affinity', 0)
+            state_lbl= d.get('state', 'Neutral')
+            goal     = d.get('goal', '')
 
-    with col_ent:
-        st.markdown("**known_entities (戰鬥實體)**")
+            header = f"**{name}**"
+            if proper and proper != name:
+                header += f"（本名：{proper}）"
+            if emotion:
+                header += f"　🎭 {emotion}"
+            st.markdown(header)
+
+            info_cols = st.columns(3)
+            info_cols[0].metric("Affinity", f"{affinity:+d}", label_visibility="visible")
+            info_cols[1].write(f"**狀態** {state_lbl}")
+            info_cols[2].write(f"**健康** {health or '—'}")
+
+            if aliases:
+                st.caption(f"代稱／稱號：{' · '.join(aliases)}")
+            if action:
+                st.caption(f"行動：{action}")
+            if goal:
+                st.caption(f"目標：{goal}")
+            if persona:
+                st.info(f"**性格** {persona}", icon="🧠")
+            if traits:
+                st.info(f"**特質** {traits}", icon="👁️")
+            if bio:
+                st.info(f"**生平** {bio}", icon="📜")
+            st.markdown("---")
+
+    with st.expander("⚔️ known_entities (戰鬥實體)", expanded=False):
         ents = state.known_entities or {}
         if ents:
             ent_rows = [
@@ -2407,12 +2455,20 @@ def _render_god_mode_tab(party, state):
     with st.expander("🧠 session_memory (滑動記憶窗口)", expanded=False):
         mem = state.session_memory or []
         if mem:
-            mem_rows = [
-                {"turn": m.get('turn', ''), "outcome": m.get('outcome', ''),
-                 "action": (m.get('player_action', '') or '')[:60],
-                 "narrative": (m.get('narrative', '') or '')[:80]}
-                for m in mem
-            ]
+            mem_rows = []
+            for m in mem:
+                chars    = m.get('characters_present') or []
+                unchosen = m.get('unchosen_choices') or []
+                mem_rows.append({
+                    "turn":      m.get('turn', ''),
+                    "location":  m.get('location', ''),
+                    "出場NPC":   ', '.join(chars) if chars else '—',
+                    "outcome":   m.get('outcome', ''),
+                    "已選行動":   (m.get('player_action', '') or '')[:50],
+                    "未選選項1":  unchosen[0][:50] if len(unchosen) > 0 else '—',
+                    "未選選項2":  unchosen[1][:50] if len(unchosen) > 1 else '—',
+                    "narrative": (m.get('narrative', '') or '')[:60],
+                })
             st.dataframe(pd.DataFrame(mem_rows), use_container_width=True, hide_index=True)
         else:
             st.caption("（記憶窗口為空）")
@@ -2439,20 +2495,18 @@ def _render_god_mode_tab(party, state):
         ("story_events", "動態事件記錄：每回合結束後儲存，供語意搜尋相關過去情節"),
         ("game_rules",   "規則資料庫：怪物屬性表、咒語描述、DC 表格等機械規則"),
     ]
+    # Map collection display names to RAGSystem attribute names
+    _RAG_ATTR_MAP = {
+        'world_lore':   'lore_collection',
+        'story_events': 'story_collection',
+        'game_rules':   'rules_collection',
+    }
     rag_rows = []
     for cname, cdesc in rag_cols:
         count = "—"
         if rag:
             try:
-                col = getattr(rag, cname.replace('_', '_') + '_collection',
-                              getattr(rag, cname, None))
-                if col is None:
-                    # Try common attribute names
-                    for attr in (cname, cname + '_collection',
-                                 cname.replace('_', '') + '_collection'):
-                        col = getattr(rag, attr, None)
-                        if col:
-                            break
+                col = getattr(rag, _RAG_ATTR_MAP.get(cname, cname + '_collection'), None)
                 if col:
                     count = str(col.count())
             except Exception:
