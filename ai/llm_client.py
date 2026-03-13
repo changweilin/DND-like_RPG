@@ -517,8 +517,27 @@ class LLMClient:
         else:
             effective_min = min_chars
 
-        # Pass 1: relay-continuation loop — verify with len() after each call,
-        # keep relaying until the threshold is met or MAX_RELAY attempts used up.
+        # Pass 1: wrong language → translate first so relay only sees target language.
+        # Original text is not stored or used as context after this point.
+        if not _is_correct_language(narrative, language):
+            translate_msg = (
+                f"The text below is not written in {language}. "
+                f"Translate it into {language}, preserving every detail and atmosphere. "
+                "Return the translated text only — no JSON, no commentary.\n\n"
+                f"{narrative}"
+            )
+            try:
+                translated = self._chat(
+                    messages=[{"role": "user", "content": translate_msg}],
+                    json_mode=False,
+                ).strip()
+                if translated:
+                    narrative = translated
+            except Exception:
+                pass
+
+        # Pass 2: relay-continuation loop — length is measured on translated text only.
+        # base_messages assistant context never contains the original-language text.
         MAX_RELAY = 3
         for _attempt in range(MAX_RELAY):
             if len(narrative) >= effective_min:
@@ -545,24 +564,6 @@ class LLMClient:
                     break  # model returned empty — no point retrying
             except Exception:
                 break  # network / model error — stop relay
-
-        # Pass 2: wrong language → ask to translate, not rewrite
-        if not _is_correct_language(narrative, language):
-            translate_msg = (
-                f"The text below is not written in {language}. "
-                f"Translate it into {language}, preserving every detail and atmosphere. "
-                "Return the translated text only — no JSON, no commentary.\n\n"
-                f"{narrative}"
-            )
-            try:
-                translated = self._chat(
-                    messages=[{"role": "user", "content": translate_msg}],
-                    json_mode=False,
-                ).strip()
-                if translated:
-                    narrative = translated
-            except Exception:
-                pass
 
         result["narrative"] = narrative
         return result
