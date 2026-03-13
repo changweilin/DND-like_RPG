@@ -732,24 +732,37 @@ class EventManager:
         Thresholds:
           chosen_action  (what player just did):           must be < 20% similar
           unchosen_prev  (last turn's non-selected opts):  must be < 50% similar
+          inter-choice   (any two choices in same turn):   must be < 20% similar
 
         Choices that fail are replaced by requesting alternatives from the LLM.
         Always returns at least 3 choices.
         """
-        CHOSEN_THRESH  = 0.20
-        UNCHOSEN_THRESH = 0.50
+        CHOSEN_THRESH      = 0.20
+        UNCHOSEN_THRESH    = 0.50
+        INTER_CHOICE_THRESH = 0.20
 
-        def passes(c):
+        # accepted_good is threaded in so each candidate is also checked against
+        # already-accepted choices (inter-choice diversity within the same turn).
+        def passes(c, accepted_good):
             if chosen_action and _char_similarity(c, chosen_action) >= CHOSEN_THRESH:
                 return False
-            return not any(_char_similarity(c, u) >= UNCHOSEN_THRESH for u in (unchosen_prev or []))
+            if any(_char_similarity(c, u) >= UNCHOSEN_THRESH for u in (unchosen_prev or [])):
+                return False
+            return not any(_char_similarity(c, g) >= INTER_CHOICE_THRESH for g in accepted_good)
 
-        good = [c for c in choices if passes(c)]
-        if len(good) == len(choices):
-            return choices  # all pass — skip LLM call
+        # Build good list greedily so inter-choice check accumulates correctly.
+        good = []
+        for c in choices:
+            if passes(c, good):
+                good.append(c)
 
-        needed = max(3, len(choices)) - len(good)
-        avoid  = [chosen_action] + list(unchosen_prev or []) + choices
+        target = max(3, len(choices))
+        if len(good) == target:
+            return good  # all pass — skip LLM call
+
+        needed = target - len(good)
+        # avoid list = everything already seen or accepted, so LLM gets full context
+        avoid = [chosen_action] + list(unchosen_prev or []) + choices
         try:
             replacements = self.llm.generate_diverse_choices(
                 narrative=narrative,
@@ -758,21 +771,21 @@ class EventManager:
                 language=language,
             )
             for c in replacements:
-                if len(good) >= max(3, len(choices)):
+                if len(good) >= target:
                     break
-                if passes(c):
+                if passes(c, good):
                     good.append(c)
         except Exception as e:
             print(f"Choice diversity retry error: {e}")
 
         # Ensure minimum 3 — fall back to originals only if still short
         for c in choices:
-            if len(good) >= max(3, len(choices)):
+            if len(good) >= target:
                 break
             if c not in good:
                 good.append(c)
 
-        return good[:max(3, len(choices))]
+        return good[:target]
 
     # ------------------------------------------------------------------
     # Internal helpers — NPC auto-registration and scene lifecycle

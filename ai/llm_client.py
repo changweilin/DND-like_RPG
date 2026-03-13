@@ -57,11 +57,11 @@ def _is_correct_language(text, language):
     cjk_kana_ratio = (cjk + kana) / total
 
     if '中文' in lang_low or 'chinese' in lang_low:
-        return cjk_ratio >= 0.08
+        return cjk_ratio >= 0.80
     if '日本' in lang_low or 'japanese' in lang_low:
-        return cjk_kana_ratio >= 0.08
+        return cjk_kana_ratio >= 0.80
     if '한국' in lang_low or 'korean' in lang_low:
-        return hangul / total >= 0.08
+        return hangul / total >= 0.80
 
     # For non-CJK languages: text must not be CJK-dominant
     if cjk_kana_ratio >= 0.05:
@@ -558,9 +558,9 @@ class LLMClient:
                     ],
                     json_mode=False,
                 ).strip()
-                if continuation:
+                if continuation and _is_correct_language(continuation, language):
                     narrative = narrative + "\n\n" + continuation
-                else:
+                elif not continuation:
                     break  # model returned empty — no point retrying
             except Exception:
                 break  # network / model error — stop relay
