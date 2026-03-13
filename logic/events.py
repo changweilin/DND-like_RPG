@@ -1,3 +1,4 @@
+import re
 import time
 import random
 from sqlalchemy.orm.attributes import flag_modified
@@ -5,6 +6,28 @@ from engine.dice import DiceRoller
 from engine.character import CharacterLogic
 from engine.world import WorldManager
 from engine.config import config
+from engine.intent_parser import (
+    try_parse as _rule_parse_intent,
+    detect_entity_type,
+    get_entity_base_stats,
+    calculate_affinity_delta,
+)
+
+# Rule engine constants for _calculate_mechanics()
+_MP_COST_TABLE = {
+    'arcana':    4,
+    'medicine':  2,
+}
+_MP_COST_DEFAULT = 3  # fallback for unrecognised magic skills
+
+# Physical skills where a critical failure deals minor fall/trap damage
+_PHYSICAL_SKILLS = {'athletics', 'acrobatics'}
+
+# Regex for healing intent in raw player text
+_HEAL_RE = re.compile(
+    r'(heal|cure|mend|restore|potion|治療|恢復|回復|藥水|復原)',
+    re.I,
+)
 
 def _char_similarity(a, b):
     """Character-set overlap: |chars(a) ∩ chars(b)| / min(len(a), len(b))"""
@@ -249,14 +272,23 @@ class EventManager:
         if (current_state.turn_count or 0) == 0 and not self.rag.world_lore_seeded():
             self._seed_world_lore(current_state)
 
-        # --- Step 3: Parse intent with Guided Thinking (One Trillion approach) ---
-        game_context_summary = (
-            f"Character: {character.name}, {character.race} {character.char_class}. "
-            f"HP: {character.hp}/{character.max_hp}, MP: {character.mp}/{character.max_mp}. "
-            f"Location: {current_state.current_location}. "
-            f"Difficulty: {current_state.difficulty}."
+        # --- Step 3: Parse intent — rule engine first, LLM fallback ---
+        # Rule engine handles clear keyword patterns (attack, magic, stealth, social …)
+        # without an LLM call.  Ambiguous or complex inputs fall back to the LLM's
+        # Guided Thinking parser (One Trillion and One Nights approach).
+        intent = _rule_parse_intent(
+            player_action,
+            known_entities=current_state.known_entities or {},
+            difficulty=current_state.difficulty or 'Normal',
         )
-        intent = self.llm.parse_intent(player_action, game_context_summary)
+        if intent is None:
+            game_context_summary = (
+                f"Character: {character.name}, {character.race} {character.char_class}. "
+                f"HP: {character.hp}/{character.max_hp}, MP: {character.mp}/{character.max_mp}. "
+                f"Location: {current_state.current_location}. "
+                f"Difficulty: {current_state.difficulty}."
+            )
+            intent = self.llm.parse_intent(player_action, game_context_summary)
 
         # --- Step 4: Dynamic entity stat block (Infinite Monster Engine) ---
         target = intent.get('target', '').strip()
@@ -281,6 +313,12 @@ class EventManager:
             modifier = char_logic.get_skill_modifier(skill) if skill else 0
             dice_result   = self.dice.roll_skill_check(dc=intent['dc'], modifier=modifier)
             outcome_label = _OUTCOME_LABELS[dice_result['outcome']]
+
+        # --- Step 6.5: Rule engine mechanics ---
+        # damage_taken / hp_healed / mp_used are computed here, never by the LLM.
+        mechanics = self._calculate_mechanics(
+            intent, dice_result, combat_result, player_action, character, current_state,
+        )
 
         # --- Step 7: Render Narrative Event (LLM Phase 2) ---
         session_memory_text = self._format_session_memory(current_state)
@@ -327,6 +365,19 @@ class EventManager:
                 f"= {dice_result['total']} — {_OUTCOME_LABELS[dice_result['outcome']]}"
             )
 
+        # Inject rule-engine mechanics as hard facts for the narrator
+        mech_parts = []
+        if mechanics['damage_taken'] > 0:
+            mech_parts.append(f"player takes {mechanics['damage_taken']} raw damage")
+        if mechanics['hp_healed'] > 0:
+            mech_parts.append(f"player recovers {mechanics['hp_healed']} HP")
+        if mechanics['mp_used'] > 0:
+            mech_parts.append(f"player expends {mechanics['mp_used']} MP")
+        if mech_parts:
+            outcome_parts.append(
+                "Mechanical outcomes (hard facts — narrate these): " + "; ".join(mech_parts) + "."
+            )
+
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
 
         # Inject recently chosen actions so the LLM generates DIFFERENT choices
@@ -364,24 +415,47 @@ class EventManager:
             current_state.language or 'English',
         )
 
-        # Fallback: if LLM forgot characters_present, seed it from npc_relationship_changes —
-        # but ONLY for NPCs already tracked in relationships, never for unknown names.
-        # This prevents RAG-hallucinated NPCs (e.g. Mr. Johnson from a previous game)
-        # from being auto-registered just because the LLM mentioned them.
-        if not characters_present:
-            existing_rels = current_state.relationships or {}
-            for npc_name in (turn_data.get('npc_relationship_changes') or {}):
-                if npc_name and npc_name.strip() and npc_name in existing_rels:
-                    characters_present.append(npc_name)
+        # Build a mutable set for dedup throughout the three supplement passes below.
+        _present_lower_set = {n.lower() for n in characters_present}
+
+        # Supplement pass 1 — npc_relationship_changes keys.
+        # If the LLM generated a relationship change for an NPC this turn, they
+        # were in the scene even if characters_present was left empty or incomplete.
+        for npc_name in (turn_data.get('npc_relationship_changes') or {}):
+            if npc_name and npc_name.strip() and npc_name.lower() not in _present_lower_set:
+                characters_present.append(npc_name)
+                _present_lower_set.add(npc_name.lower())
+
+        # Supplement pass 2 — narrative text scan for already-tracked NPCs.
+        # The LLM sometimes forgets to populate characters_present even when a known
+        # NPC clearly appears in the narrative it just wrote.  Scan the narrative for
+        # every NPC name (and their proper_name / aliases) that is already tracked in
+        # relationships.  This is deterministic and cannot hallucinate new NPCs.
+        narrative_lower = narrative.lower()
+        for npc_name, npc_data in (current_state.relationships or {}).items():
+            if npc_name.lower() in _present_lower_set:
+                continue
+            # Collect all name variants for this NPC
+            search_names = [npc_name]
+            if isinstance(npc_data, dict):
+                if npc_data.get('proper_name'):
+                    search_names.append(npc_data['proper_name'])
+                for alias in (npc_data.get('aliases') or []):
+                    if alias:
+                        search_names.append(alias)
+            if any(n.lower() in narrative_lower for n in search_names if n and len(n) > 1):
+                characters_present.append(npc_name)
+                _present_lower_set.add(npc_name.lower())
 
         # --- Step 7.5: Auto-register new NPCs from the scene ---
         party_names = {c.name for c in all_chars}
         self._auto_register_npcs(characters_present, current_state, world, party_names)
 
         # --- Step 8: Apply deterministic mechanics ---
-        damage_taken = turn_data.get('damage_taken', 0)
-        hp_healed    = turn_data.get('hp_healed', 0)
-        mp_used      = turn_data.get('mp_used', 0)
+        # Values come from the rule engine (Step 6.5), NOT from the LLM narrative output.
+        damage_taken = mechanics['damage_taken']
+        hp_healed    = mechanics['hp_healed']
+        mp_used      = mechanics['mp_used']
 
         if damage_taken:
             char_logic.take_damage(damage_taken)
@@ -426,8 +500,12 @@ class EventManager:
         scene_type = turn_data.get('scene_type', 'exploration')
         npc_changes = turn_data.get('npc_relationship_changes') or {}
         if scene_type == 'social' or npc_changes or characters_present:
-            self._evaluate_npc_reactions(narrative, current_state, world,
-                                         characters_present=characters_present)
+            self._evaluate_npc_reactions(
+                narrative, current_state, world,
+                characters_present=characters_present,
+                action_type=intent.get('action_type', 'direct_action'),
+                outcome_label=outcome_label,
+            )
 
         # --- Step 10a: Update sliding-window session memory ---
         # Filter out party members — only NPCs belong in characters_present
@@ -579,12 +657,17 @@ class EventManager:
     # Internal helpers — NPC reactions  (Section 3.5)
     # ------------------------------------------------------------------
 
-    def _evaluate_npc_reactions(self, narrative, current_state, world, characters_present=None):
+    def _evaluate_npc_reactions(self, narrative, current_state, world,
+                                characters_present=None,
+                                action_type='direct_action', outcome_label='NO_ROLL'):
         """
         Ask the LLM how tracked NPCs react to the narrative event independently.
         Only runs for social scenes or turns that already touched NPC relationships.
         Only evaluates NPCs who are present in the current scene (characters_present).
         Updates each changed NPC's affinity, state, goal, emotion, and action in the DB.
+
+        affinity_delta is computed by calculate_affinity_delta() (rule engine) and
+        applied to every present NPC; the LLM only decides state/goal/emotion/action.
         """
         rels = current_state.relationships or {}
         if not rels:
@@ -603,23 +686,38 @@ class EventManager:
 
         if not npc_states:
             return
+
+        # Rule-engine affinity delta — same base value for all present NPCs
+        rule_delta = calculate_affinity_delta(action_type, outcome_label)
+
         try:
             reactions = self.llm.evaluate_npc_reactions(
                 event_summary=narrative[:500],
                 npc_states=npc_states,
                 language=current_state.language or 'English',
             )
+            # Apply to NPCs the LLM flagged as changed
+            updated = set()
             for npc_name, changes in reactions.items():
                 if not isinstance(changes, dict):
                     continue
                 world.update_relationship(
                     npc_name,
-                    changes.get('affinity_delta', 0),
+                    rule_delta,                    # rule engine, not LLM
                     state=changes.get('state'),
                     goal=changes.get('goal'),
                     emotion=changes.get('emotion'),
                     action=changes.get('action'),
                 )
+                updated.add(npc_name.lower())
+
+            # Apply the affinity delta to present NPCs the LLM didn't mention
+            # (they witnessed the event too — they just didn't change state/goal)
+            if rule_delta != 0:
+                for npc_name in npc_states:
+                    if npc_name.lower() not in updated:
+                        world.update_relationship(npc_name, rule_delta)
+
         except Exception as e:
             print(f"NPC reaction step error: {e}")
 
@@ -799,6 +897,71 @@ class EventManager:
         current_state.party_contributions = contribs
         flag_modified(current_state, 'party_contributions')
         self.session.commit()
+
+    def _calculate_mechanics(self, intent, dice_result, combat_result,
+                             player_action, character, current_state):
+        """
+        Rule engine for damage_taken, hp_healed, mp_used.
+
+        Replaces the LLM's role in deciding these mechanical values so that
+        stat mutations are always deterministic (neuro-symbolic design principle).
+
+        Rules:
+          damage_taken — enemy counter-attack after player's attack (if target alive);
+                         minor fall/trap damage on critical_failure of a physical skill.
+          hp_healed    — healing keywords or medicine skill + successful dice outcome.
+          mp_used      — any magic-type action (regardless of outcome).
+
+        Returns a dict {damage_taken, hp_healed, mp_used}.
+        """
+        action_type = intent.get('action_type', 'direct_action')
+        skill       = intent.get('skill', '').lower()
+        outcome     = dice_result['outcome'] if dice_result else None
+
+        damage_taken = 0
+        hp_healed    = 0
+        mp_used      = 0
+
+        # --- Enemy counter-attack (after player's attack) ---
+        if combat_result:
+            target_name = combat_result.get('target', '').lower()
+            known = current_state.known_entities or {}
+            target_entry = known.get(target_name, {})
+            # enemy HP remaining after player's hit (None if not in known_entities)
+            hp_after = combat_result.get('entity_hp_remaining')
+            is_alive = target_entry.get('alive', True) and (hp_after is None or hp_after > 0)
+            if is_alive:
+                enemy_atk     = target_entry.get('atk', 5)
+                enemy_atk_mod = (enemy_atk - 10) // 2
+                enemy_roll    = self.dice.roll('1d20')[2]
+                if enemy_roll == 20 or enemy_roll + enemy_atk_mod >= character.def_stat:
+                    # raw hit — CharacterLogic.take_damage() applies DEF reduction
+                    raw_hit      = self.dice.roll('1d6')[2] + max(0, enemy_atk_mod)
+                    damage_taken = max(0, raw_hit)
+
+        # --- Physical-skill critical failure → minor fall/hazard damage ---
+        elif dice_result and skill in _PHYSICAL_SKILLS and outcome == 'critical_failure':
+            damage_taken = self.dice.roll('1d4')[2]
+
+        # --- Magic action → MP cost (even on failure) ---
+        if action_type == 'magic':
+            cost    = _MP_COST_TABLE.get(skill, _MP_COST_DEFAULT)
+            mp_used = min(cost, character.mp)
+
+        # --- Healing: medicine skill or healing keywords + successful outcome ---
+        if outcome in ('success', 'critical_success') and character.hp < character.max_hp:
+            is_healing = (
+                skill == 'medicine'
+                or _HEAL_RE.search(player_action or '')
+            )
+            if is_healing:
+                notation  = '2d4' if outcome == 'critical_success' else '1d4'
+                hp_healed = self.dice.roll(notation)[2]
+                # healing magic burns MP even if action_type wasn't flagged 'magic'
+                if mp_used == 0 and character.mp > 0:
+                    mp_used = min(2, character.mp)
+
+        return {'damage_taken': damage_taken, 'hp_healed': hp_healed, 'mp_used': mp_used}
 
     def _build_system_prompt(self, character, current_state, party=None):
         npc_context   = self._format_npc_state(current_state)
@@ -1018,15 +1181,22 @@ class EventManager:
         produce a rule-compliant stat block and store it in:
           - game_rules RAG (for semantic retrieval)
           - known_entities DB column (for live HP tracking during combat)
+
+        Numeric stats (hp/atk/def_stat) come from the rule-engine lookup table;
+        the LLM only writes the text fields (description, skills, special_ability, loot).
         """
         action_type = intent.get('action_type', 'direct_action')
-        entity_type = 'monster' if action_type == 'attack' else 'npc'
+        entity_type = detect_entity_type(entity_name, action_type)
+        hp, atk, def_stat = get_entity_base_stats(
+            entity_type, current_state.difficulty or 'Normal'
+        )
 
         stat_block = self.llm.generate_entity_stat_block(
             entity_name=entity_name,
             entity_type=entity_type,
             world_context=current_state.world_context,
             language=current_state.language or 'English',
+            base_stats=(hp, atk, def_stat),
         )
 
         # Store in RAG for semantic retrieval
