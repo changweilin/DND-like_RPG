@@ -29,7 +29,10 @@
       "Bash(python -c \"for ctx in [4096,8192,16384,32768,65536,131072]: w=max\\(5,min\\(25,ctx//550\\)\\); print\\(f'  context={ctx}  ->  window={w}'\\)\")",
       "Bash(python -c \"import ai.llm_client; import logic.events; import engine.config; print\\(f'OK — SESSION_MEMORY_WINDOW={engine.config.config.SESSION_MEMORY_WINDOW}'\\)\")",
       "Bash(python -c \"import ai.llm_client; print\\('OK'\\)\")",
-      "Bash(python -c \"\nfor mc in [300, 1000]:\n    em = max\\(100, mc // 2\\)\n    rt = max\\(30, em // 3\\)\n    print\\(f'min_chars={mc}  effective_min\\(CJK\\)={em}  regen_threshold={rt}'\\)\n\")"
+      "Bash(python -c \"\nfor mc in [300, 1000]:\n    em = max\\(100, mc // 2\\)\n    rt = max\\(30, em // 3\\)\n    print\\(f'min_chars={mc}  effective_min\\(CJK\\)={em}  regen_threshold={rt}'\\)\n\")",
+      "Bash(python -c \"import streamlit; print\\(streamlit.__version__\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('ui/app.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('ui/app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")"
     ]
   }
 }

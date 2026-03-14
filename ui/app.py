@@ -157,6 +157,13 @@ _UI_STRINGS = {
         "no_saves":        "No saves found.",
         "save_required":   "Save Name and Player 1 Name are required.",
         "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
+        "dup_title":       "⚠️ Save Name Conflict",
+        "dup_warning":     "already exists. Choose an action:",
+        "dup_overwrite":   "🗑️ Overwrite",
+        "dup_overwrite_desc": "Delete the old save and start fresh with your new settings.",
+        "dup_inherit":     "📂 Load Existing",
+        "dup_inherit_desc": "Discard new settings and continue from the existing save.",
+        "dup_cancel":      "✖ Cancel",
     },
     "繁體中文": {
         "model_expander":      "⚙️ 模型與語言",
@@ -188,6 +195,13 @@ _UI_STRINGS = {
         "no_saves":        "找不到存檔。",
         "save_required":   "存檔名稱與玩家 1 名字為必填。",
         "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
+        "dup_title":       "⚠️ 存檔名稱衝突",
+        "dup_warning":     "已存在。請選擇操作：",
+        "dup_overwrite":   "🗑️ 覆蓋",
+        "dup_overwrite_desc": "刪除舊存檔，以目前設定重新開始。",
+        "dup_inherit":     "📂 繼承存檔",
+        "dup_inherit_desc": "放棄新設定，繼續讀取現有存檔。",
+        "dup_cancel":      "✖ 取消",
     },
     "日本語": {
         "model_expander":      "⚙️ モデルと言語",
@@ -219,6 +233,13 @@ _UI_STRINGS = {
         "no_saves":        "セーブデータが見つかりません。",
         "save_required":   "セーブ名とプレイヤー1の名前は必須です。",
         "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
+        "dup_title":       "⚠️ セーブ名の競合",
+        "dup_warning":     "はすでに存在します。操作を選択してください：",
+        "dup_overwrite":   "🗑️ 上書き",
+        "dup_overwrite_desc": "古いセーブを削除し、新しい設定で開始します。",
+        "dup_inherit":     "📂 既存を読込",
+        "dup_inherit_desc": "新しい設定を破棄し、既存のセーブを続けます。",
+        "dup_cancel":      "✖ キャンセル",
     },
     "Español": {
         "model_expander":      "⚙️ Modelo e Idioma",
@@ -250,6 +271,13 @@ _UI_STRINGS = {
         "no_saves":        "No hay partidas guardadas.",
         "save_required":   "El nombre de guardado y el nombre del Jugador 1 son obligatorios.",
         "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
+        "dup_title":       "⚠️ Conflicto de nombre",
+        "dup_warning":     "ya existe. Elige una acción:",
+        "dup_overwrite":   "🗑️ Sobreescribir",
+        "dup_overwrite_desc": "Elimina el guardado antiguo y empieza con la nueva configuración.",
+        "dup_inherit":     "📂 Cargar existente",
+        "dup_inherit_desc": "Descarta la nueva configuración y continúa desde el guardado existente.",
+        "dup_cancel":      "✖ Cancelar",
     },
 }
 
@@ -264,6 +292,80 @@ def _t(key):
 
 # Sentinel model-ID used when the user disables image generation entirely
 _DISABLED_IMG_ID = "__disabled__"
+
+
+@st.dialog("⚠️ Save Conflict / 存檔衝突")
+def _duplicate_save_dialog(pending):
+    """Modal popup shown when a new-game save name already exists.
+
+    Offers three choices:
+      Overwrite  — delete old save, create fresh with current settings
+      Inherit    — load the existing save, ignore new settings
+      Cancel     — dismiss and return to the menu
+    """
+    save_name = pending['save_name']
+    st.markdown(f"**`{save_name}`** {_t('dup_warning')}")
+    st.markdown("---")
+
+    c1, c2, c3 = st.columns(3)
+
+    if c1.button(_t('dup_overwrite'), use_container_width=True, type="primary"):
+        st.session_state.save_manager.delete_game(save_name)
+        lead = pending['lead_fields']
+        party, game_state, session = st.session_state.save_manager.create_new_game(
+            save_name, lead[0], lead[1], lead[2], lead[3], lead[4],
+            pending['difficulty'], pending['language'],
+            world_context=pending['world_context'],
+            world_setting=pending['world_setting'],
+            extra_players=pending['extra_players'] or None,
+            llm=st.session_state.llm,
+            rag=st.session_state.rag,
+        )
+        if party:
+            st.session_state.image_style       = pending['img_style']
+            st.session_state.custom_img_suffix = pending['custom_img_suffix']
+            st.session_state.duplicate_save_pending = None
+            active_idx  = (game_state.active_player_index or 0) % len(party)
+            active_char = party[active_idx]
+            st.session_state.current_session = session
+            st.session_state.game_state      = game_state
+            st.session_state.party           = party
+            st.session_state.player          = active_char
+            st.session_state.history         = []
+            st.session_state.event_manager   = EventManager(
+                st.session_state.llm, st.session_state.rag, session
+            )
+            st.session_state.world_map        = {}
+            st.session_state.player_positions = {}
+            st.session_state.manual_dice      = {}
+            st.session_state.portraits        = {}
+            st.session_state.continent_map    = None
+            st.session_state.book_page_idx   = 0
+            st.rerun()
+        else:
+            st.error("Failed to overwrite.")
+
+    if c2.button(_t('dup_inherit'), use_container_width=True):
+        party, game_state, session = st.session_state.save_manager.load_game(save_name)
+        if party:
+            prior_log  = load_story_log(save_name)
+            prior_hist = restore_history_from_log(prior_log, n=2)
+            st.session_state.current_session = session
+            st.session_state.game_state      = game_state
+            st.session_state.party           = party
+            st.session_state.player          = party[game_state.active_player_index or 0]
+            st.session_state.history         = prior_hist
+            st.session_state.event_manager   = EventManager(
+                st.session_state.llm, st.session_state.rag, session
+            )
+            st.session_state.duplicate_save_pending = None
+            st.rerun()
+        else:
+            st.error("Failed to load existing save.")
+
+    if c3.button(_t('dup_cancel'), use_container_width=True):
+        st.session_state.duplicate_save_pending = None
+        st.rerun()
 
 
 def _img_enabled():
@@ -961,73 +1063,9 @@ def main_menu():
                 else:
                     st.error(f"Failed to delete save '{selected_save}'.")
 
-    # ---- Duplicate Save Dialog ----
+    # ---- Duplicate Save Dialog (popup modal) ----
     if st.session_state.duplicate_save_pending:
-        pending = st.session_state.duplicate_save_pending
-        st.markdown("---")
-        st.warning(f"⚠️ Save name '**{pending['save_name']}**' already exists. What would you like to do?")
-        c1, c2, c3 = st.columns([1, 1, 2])
-        
-        if c1.button("Overwrite"):
-            # Delete and then create
-            st.session_state.save_manager.delete_game(pending['save_name'])
-            lead = pending['lead_fields']
-            party, game_state, session = st.session_state.save_manager.create_new_game(
-                pending['save_name'], lead[0], lead[1], lead[2], lead[3], lead[4],
-                pending['difficulty'], pending['language'],
-                world_context=pending['world_context'],
-                world_setting=pending['world_setting'],
-                extra_players=pending['extra_players'] or None,
-                llm=st.session_state.llm,
-                rag=st.session_state.rag,
-            )
-            if party:
-                st.session_state.image_style       = pending['img_style']
-                st.session_state.custom_img_suffix = pending['custom_img_suffix']
-                st.session_state.duplicate_save_pending = None
-                # Auto-load the overwritten game immediately
-                active_idx  = (game_state.active_player_index or 0) % len(party)
-                active_char = party[active_idx]
-                st.session_state.current_session = session
-                st.session_state.game_state      = game_state
-                st.session_state.party           = party
-                st.session_state.player          = active_char
-                st.session_state.history         = []
-                st.session_state.event_manager   = EventManager(
-                    st.session_state.llm, st.session_state.rag, session
-                )
-                st.session_state.world_map        = {}
-                st.session_state.player_positions = {}
-                st.session_state.manual_dice      = {}
-                st.session_state.portraits        = {}
-                st.session_state.continent_map    = None
-                st.session_state.book_page_idx   = 0
-                st.rerun()
-            else:
-                st.error("Failed to overwrite.")
-        
-        if c2.button("Inherit"):
-            # Just load the existing one
-            party, game_state, session = st.session_state.save_manager.load_game(pending['save_name'])
-            if party:
-                # Same logic as "Load"
-                prior_log  = load_story_log(pending['save_name'])
-                prior_hist = restore_history_from_log(prior_log, n=2)
-                st.session_state.current_session = session
-                st.session_state.game_state      = game_state
-                st.session_state.party           = party
-                st.session_state.player          = party[game_state.active_player_index or 0]
-                st.session_state.history         = prior_hist
-                st.session_state.event_manager   = EventManager(st.session_state.llm, st.session_state.rag, session)
-                st.session_state.duplicate_save_pending = None
-                st.success(f"Inherited save '{pending['save_name']}'!")
-                st.rerun()
-            else:
-                st.error("Failed to inherit.")
-
-        if c3.button("Cancel"):
-            st.session_state.duplicate_save_pending = None
-            st.rerun()
+        _duplicate_save_dialog(st.session_state.duplicate_save_pending)
 
 # ---------------------------------------------------------------------------
 # Board state helpers (world map + player token positions)
