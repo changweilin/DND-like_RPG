@@ -2462,7 +2462,7 @@ def _render_god_mode_tab(party, state):
                 mem_rows.append({
                     "turn":      m.get('turn', ''),
                     "location":  m.get('location', ''),
-                    "出場NPC":   ', '.join(chars) if chars else '—',
+                    "在場NPC":   ', '.join(chars) if chars else '—',
                     "outcome":   m.get('outcome', ''),
                     "已選行動":   (m.get('player_action', '') or '')[:50],
                     "未選選項1":  unchosen[0][:50] if len(unchosen) > 0 else '—',

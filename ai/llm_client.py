@@ -10,16 +10,45 @@ _PLACEHOLDER_RE = re.compile(
     re.IGNORECASE,
 )
 
+def _coerce_choice(c):
+    """Ensure a single choice entry is a plain string, not a dict or other type."""
+    if isinstance(c, str):
+        stripped = c.strip()
+        # Guard against LLM returning a JSON object string like '{"text": "..."}'
+        if stripped.startswith('{') and stripped.endswith('}'):
+            try:
+                obj = json.loads(stripped)
+                if isinstance(obj, dict):
+                    return obj.get('text') or obj.get('action') or obj.get('choice') or stripped
+            except (json.JSONDecodeError, ValueError):
+                pass
+        return c
+    if isinstance(c, dict):
+        return c.get('text') or c.get('action') or c.get('choice') or next(
+            (v for v in c.values() if isinstance(v, str) and len(v) > 2), str(c)
+        )
+    return str(c)
+
+
+_MIN_CHOICE_LEN = 8
+
+def _is_valid_choice(c):
+    """A choice is valid if it's non-empty, non-placeholder, and > 8 characters."""
+    stripped = (c or '').strip()
+    if not stripped:
+        return False
+    if _PLACEHOLDER_RE.match(stripped):
+        return False
+    if len(stripped) <= _MIN_CHOICE_LEN:
+        return False
+    return True
+
+
 def _has_placeholder_choices(choices):
-    """True if any choice looks like a generic placeholder (e.g. 'Choice A', '選項B')."""
+    """True if any choice fails validation (placeholder, too short, or empty)."""
     if not choices:
         return True
-    for c in choices:
-        if not c or not c.strip():
-            return True
-        if _PLACEHOLDER_RE.match(c.strip()):
-            return True
-    return False
+    return any(not _is_valid_choice(c) for c in choices)
 
 
 def _is_correct_language(text, language):
@@ -131,18 +160,22 @@ def _validated_narrative(data):
         # names of NPCs / characters who appear in this scene
         "characters_present": [],
     }
-    # String fields — coerce to str so callers can always call len() safely
+    # String fields — coerce to str so callers can always call len() safely.
+    # Empty / whitespace-only strings are treated as missing so defaults survive.
     _STR_FIELDS = {'narrative', 'scene_type', 'location_change'}
     for k in defaults:
         if k in data:
             v = data[k]
             if k in _STR_FIELDS:
-                defaults[k] = str(v) if v is not None else defaults[k]
+                s = str(v).strip() if v is not None else ''
+                if s:
+                    defaults[k] = s
             else:
                 defaults[k] = v
-    # Ensure at least 3 choices
+    # Ensure at least 3 choices, each a plain string
     if not isinstance(defaults["choices"], list):
         defaults["choices"] = []
+    defaults["choices"] = [_coerce_choice(c) for c in defaults["choices"]]
     if len(defaults["choices"]) < 3:
         defaults["choices"] = (defaults["choices"]
                                + ["Look around", "Wait and observe", "Ask for information"]
@@ -445,12 +478,14 @@ class LLMClient:
         full_prompt = (
             f"{system_prompt}\n\n"
             f"Relevant Memory (RAG):\n{rag_context}\n\n"
-            "NARRATIVE RULES:\n"
-            "  • narrative field MUST be at least 300 characters of vivid, immersive prose\n"
-            f"  • Write EXCLUSIVELY in {language} — do NOT use any other language\n"
-            "  • choices MUST contain at least 3 distinct options\n"
-            "  • characters_present MUST list every named NPC / character who appears or speaks in the narrative\n"
-            "  • choices MUST explore directions NOT already taken — if CHOICES CONSTRAINT is present, do not repeat or paraphrase any listed action\n"
+            "NARRATIVE RULES (in order of priority):\n"
+            "  1. [HIGHEST PRIORITY] narrative MUST be at least 300 characters of vivid,"
+            " immersive prose with sensory details — this is the MOST important field\n"
+            f"  2. Write EXCLUSIVELY in {language} — do NOT use any other language\n"
+            "  3. choices: at least 3 distinct options grounded in session history"
+            " (reference unresolved hooks, NPCs, or unexplored locations)\n"
+            "  4. characters_present MUST list every named NPC / character who appears or speaks in the narrative\n"
+            "  5. choices MUST explore directions NOT already taken — if CHOICES CONSTRAINT is present, do not repeat or paraphrase any listed action\n"
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
         base_messages = [
@@ -509,11 +544,13 @@ class LLMClient:
             narrative = str(narrative) if narrative is not None else ""
             result["narrative"] = narrative
 
-        # Adjust threshold for CJK languages so short-but-dense text isn't
-        # incorrectly flagged as too short and retried into English.
+        # Adjust threshold for CJK languages — CJK characters carry ~2× more
+        # information per code-point than Latin, but // 3 was too aggressive:
+        # 100 CJK chars is only 1–2 sentences, not enough for immersive prose.
+        # Using // 2 (= 150 for min_chars=300) ensures 3+ sentences minimum.
         lang_low = (language or '').lower()
         if '中文' in lang_low or 'chinese' in lang_low or '日本' in lang_low or 'japanese' in lang_low:
-            effective_min = max(60, min_chars // 3)
+            effective_min = max(100, min_chars // 2)
         else:
             effective_min = min_chars
 
@@ -536,8 +573,39 @@ class LLMClient:
             except Exception:
                 pass
 
-        # Pass 2: relay-continuation loop — length is measured on translated text only.
-        # base_messages assistant context never contains the original-language text.
+        # Pass 2a: full regeneration if narrative is too short for relay to work.
+        # "Continue from where you left off" is unreliable when there's barely
+        # any text — the LLM may ignore the stub and reply in English or produce
+        # garbage.  Regenerate fully whenever narrative < effective_min // 3.
+        regen_threshold = max(30, effective_min // 3)
+        if len(narrative) < regen_threshold and len(narrative) < effective_min:
+            regen_msg = (
+                f"Your previous response had no narrative text. "
+                f"Write at least {effective_min} characters of vivid, immersive "
+                f"prose for this scene. Write EXCLUSIVELY in {language}. "
+                "Return plain text only — no JSON, no markdown."
+            )
+            try:
+                regen = self._chat(
+                    messages=base_messages + [
+                        {"role": "user", "content": regen_msg},
+                    ],
+                    json_mode=False,
+                ).strip()
+                # Strip JSON wrapper if the LLM ignores the plain-text instruction
+                if regen and regen.startswith('{'):
+                    try:
+                        obj = json.loads(_repair_json(regen))
+                        regen = obj.get('narrative', regen) if isinstance(obj, dict) else regen
+                    except Exception:
+                        pass
+                if regen and _is_correct_language(regen, language):
+                    narrative = regen
+            except Exception:
+                pass
+
+        # Pass 2b: relay-continuation loop — length is measured on translated text only.
+        # Only used when there is already some meaningful text to build on.
         MAX_RELAY = 3
         for _attempt in range(MAX_RELAY):
             if len(narrative) >= effective_min:
@@ -558,12 +626,44 @@ class LLMClient:
                     ],
                     json_mode=False,
                 ).strip()
+                # Strip JSON wrapper from continuation
+                if continuation and continuation.startswith('{'):
+                    try:
+                        obj = json.loads(_repair_json(continuation))
+                        continuation = obj.get('narrative', continuation) if isinstance(obj, dict) else continuation
+                    except Exception:
+                        pass
                 if continuation and _is_correct_language(continuation, language):
                     narrative = narrative + "\n\n" + continuation
                 elif not continuation:
                     break  # model returned empty — no point retrying
             except Exception:
                 break  # network / model error — stop relay
+
+        # Pass 2c: last-resort regeneration if relay loop didn't help enough.
+        if len(narrative) < effective_min:
+            fallback_msg = (
+                f"Write a vivid, immersive narrative of at least {effective_min} characters "
+                f"for this scene. Write EXCLUSIVELY in {language}. "
+                "Return plain text only — no JSON, no markdown."
+            )
+            try:
+                fallback = self._chat(
+                    messages=base_messages + [
+                        {"role": "user", "content": fallback_msg},
+                    ],
+                    json_mode=False,
+                ).strip()
+                if fallback and fallback.startswith('{'):
+                    try:
+                        obj = json.loads(_repair_json(fallback))
+                        fallback = obj.get('narrative', fallback) if isinstance(obj, dict) else fallback
+                    except Exception:
+                        pass
+                if fallback and len(fallback) > len(narrative):
+                    narrative = fallback
+            except Exception:
+                pass
 
         result["narrative"] = narrative
         return result
@@ -595,6 +695,7 @@ class LLMClient:
         prompt = (
             f"Based on the following story narrative, provide exactly 3 concrete "
             f"actions or decisions the player can take next. "
+            f"Each choice MUST be a complete sentence longer than {_MIN_CHOICE_LEN} characters. "
             f"Write EXCLUSIVELY in {language}. "
             "Return ONLY a JSON array of 3 strings, e.g. [\"action1\", \"action2\", \"action3\"]. "
             "No markdown, no extra keys.\n\n"
@@ -605,31 +706,46 @@ class LLMClient:
                 messages=[{"role": "user", "content": prompt}],
                 json_mode=False,
             ).strip()
-            # extract the JSON array from the response
             m = re.search(r'\[.*\]', raw, re.DOTALL)
             if m:
                 choices = json.loads(m.group(0))
                 if isinstance(choices, list) and len(choices) >= 3:
-                    result["choices"] = [str(c) for c in choices[:3]]
+                    coerced = [_coerce_choice(c) for c in choices[:5]]
+                    valid   = [c for c in coerced if _is_valid_choice(c)]
+                    if len(valid) >= 3:
+                        result["choices"] = valid[:3]
         except Exception:
             pass
         return result
 
-    def generate_diverse_choices(self, narrative, avoid_choices, count=3, language="English"):
+    def generate_diverse_choices(self, narrative, avoid_choices, count=3,
+                                language="English", session_memory_text=""):
         """
         Generate action choices that are distinct from avoid_choices.
         Called by EventManager._filter_similar_choices when generated choices are
         too similar to recently taken or recently offered actions.
+        session_memory_text provides recent story history so choices build on
+        the ongoing narrative arc, not just the current turn.
         Returns a list of strings (may be empty on failure).
         """
         avoid_str = "\n".join(f"- {c}" for c in avoid_choices[:12] if c)
+        memory_block = ""
+        if session_memory_text:
+            memory_block = (
+                f"Recent story history (use this to generate choices that "
+                f"advance the ongoing narrative):\n{session_memory_text}\n\n"
+            )
         prompt = (
             f"Generate exactly {count} action choices for a TRPG player.\n"
             f"These choices are FORBIDDEN (too similar to recent actions — do NOT repeat or paraphrase them):\n"
             f"{avoid_str}\n\n"
-            f"Narrative context:\n{narrative[:400]}\n\n"
+            f"{memory_block}"
+            f"Current scene:\n{narrative[:400]}\n\n"
             f"Requirements:\n"
             f"  • Each choice must be genuinely different in direction from all forbidden options\n"
+            f"  • Each choice MUST be a complete sentence longer than {_MIN_CHOICE_LEN} characters\n"
+            f"  • Choices should build on story threads from the history — reference unresolved"
+            f" plot hooks, NPCs, or locations from past turns when possible\n"
             f"  • Write exclusively in {language}\n"
             f"Return ONLY a JSON array of {count} strings: [\"action1\", \"action2\", ...]"
         )
@@ -642,7 +758,8 @@ class LLMClient:
             if m:
                 result = json.loads(m.group(0))
                 if isinstance(result, list):
-                    return [str(c) for c in result if c]
+                    return [_coerce_choice(c) for c in result
+                            if c and _is_valid_choice(_coerce_choice(c))]
         except Exception as e:
             print(f"generate_diverse_choices error: {e}")
         return []

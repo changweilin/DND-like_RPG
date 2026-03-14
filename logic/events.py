@@ -381,18 +381,44 @@ class EventManager:
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
 
         # Inject recently chosen actions so the LLM generates DIFFERENT choices
+        _session_mem = current_state.session_memory or []
         recent_chosen = [
             m.get('player_action', '')
-            for m in (current_state.session_memory or [])[-8:]
+            for m in _session_mem[-8:]
             if m.get('player_action')
         ]
         if recent_chosen:
-            outcome_parts.append(
+            constraint = (
                 "CHOICES CONSTRAINT — player has recently taken: "
                 + "; ".join(f'"{a}"' for a in recent_chosen[-5:])
                 + ". Generate choices that explore DIFFERENT directions. "
                 "Do NOT repeat or closely paraphrase any of the above."
             )
+            # Add recent location history so choices push toward new ground
+            recent_locations = list(dict.fromkeys(
+                m.get('location', '') for m in _session_mem[-6:]
+                if m.get('location')
+            ))
+            if recent_locations:
+                constraint += (
+                    f" Story has recently revolved around: {', '.join(recent_locations)}."
+                    " Prefer choices that advance the plot or open unexplored threads."
+                )
+            # Detect scene-type monotony and nudge toward variety
+            recent_scene_types = [
+                m.get('scene_type', '') for m in _session_mem[-5:]
+                if m.get('scene_type')
+            ]
+            if recent_scene_types:
+                from collections import Counter
+                dominant_type, dominant_count = Counter(recent_scene_types).most_common(1)[0]
+                if dominant_count >= 3:
+                    constraint += (
+                        f" The last {dominant_count} turns were all '{dominant_type}' scenes."
+                        " Mix in a different scene type (combat/social/exploration/puzzle/rest)"
+                        " to maintain narrative momentum."
+                    )
+            outcome_parts.append(constraint)
 
         outcome_context = "\n".join(outcome_parts)
 
@@ -405,14 +431,20 @@ class EventManager:
         choices            = turn_data.get('choices', ["Look around", "Wait"])
         characters_present = [n for n in (turn_data.get('characters_present') or []) if n and n.strip()]
 
-        # Filter choices by character-set similarity vs. last turn's chosen/unchosen actions
-        _prev_mem    = current_state.session_memory or []
-        _last_mem    = _prev_mem[-1] if _prev_mem else {}
-        prev_offered = _last_mem.get('offered_choices') or _last_mem.get('choices') or []
-        unchosen_last = [c for c in prev_offered if c and c.strip() != player_action.strip()]
+        # Filter choices — compare against all options offered in the last 3 turns
+        # (not just last 1) so the same choices can't cycle back after one turn gap.
+        _prev_mem = current_state.session_memory or []
+        _seen_offered = set()
+        unchosen_multi = []
+        for m in _prev_mem[-3:]:
+            for c in (m.get('offered_choices') or m.get('choices') or []):
+                if c and c.strip() != player_action.strip() and c not in _seen_offered:
+                    unchosen_multi.append(c)
+                    _seen_offered.add(c)
         choices = self._filter_similar_choices(
-            choices, player_action, unchosen_last, narrative,
+            choices, player_action, unchosen_multi, narrative,
             current_state.language or 'English',
+            session_memory_text=session_memory_text,
         )
 
         # Build a mutable set for dedup throughout the three supplement passes below.
@@ -515,6 +547,7 @@ class EventManager:
             choices=choices,
             location=current_state.current_location,
             characters_present=npc_only_present,
+            scene_type=scene_type,
         )
 
         # --- Step 10b: Persist Narrative Event to RAG long-term memory ---
@@ -725,7 +758,8 @@ class EventManager:
     # Internal helpers — choice diversity filtering
     # ------------------------------------------------------------------
 
-    def _filter_similar_choices(self, choices, chosen_action, unchosen_prev, narrative, language):
+    def _filter_similar_choices(self, choices, chosen_action, unchosen_prev, narrative, language,
+                                session_memory_text=""):
         """
         Enforce diversity on newly generated choices using character-set similarity.
 
@@ -735,6 +769,8 @@ class EventManager:
           inter-choice   (any two choices in same turn):   must be < 20% similar
 
         Choices that fail are replaced by requesting alternatives from the LLM.
+        session_memory_text is forwarded to generate_diverse_choices so replacement
+        choices are grounded in ongoing story context.
         Always returns at least 3 choices.
         """
         CHOSEN_THRESH      = 0.20
@@ -769,6 +805,7 @@ class EventManager:
                 avoid_choices=[c for c in avoid if c],
                 count=needed + 1,   # request extra in case some still fail
                 language=language,
+                session_memory_text=session_memory_text,
             )
             for c in replacements:
                 if len(good) >= target:
@@ -1097,7 +1134,7 @@ class EventManager:
         return "\n".join(lines)
 
     def _update_session_memory(self, current_state, player_action, narrative, outcome_label,
-                               choices=None, location=None, characters_present=None):
+                               choices=None, location=None, characters_present=None, scene_type=None):
         """
         Append this turn to session memory and enforce the sliding window.
 
@@ -1135,6 +1172,7 @@ class EventManager:
             "offered_choices":    choices or [],      # new options offered this turn
             "location":           location or "",
             "characters_present": characters_present or [],
+            "scene_type":         scene_type or "",
         })
 
         if len(memory) > config.SESSION_MEMORY_WINDOW:

@@ -30,12 +30,17 @@ class GameConfig:
     IMAGE_GEN_MILESTONE_TURNS = 5
 
     # --- Memory & context window ---
-    # Sliding window: number of past turns kept in session memory (passed to LLM each turn)
-    SESSION_MEMORY_WINDOW = 15
     # Target context window in tokens — should match your deployed model's context limit
     # At 8K context: RAG chunks + session memory + system prompt consume ~4–5K tokens.
     # Raise to 16384 or 32768 if running Qwen3-32B / MS3.2-24B on a 4090.
     CONTEXT_WINDOW_SIZE = 8192
+
+    # Sliding window: number of past turns kept in session memory (passed to LLM each turn).
+    # Auto-calculated from CONTEXT_WINDOW_SIZE so larger context models remember more.
+    # Each formatted turn ≈ 50–80 tokens. System prompt + RAG + response need ~4–5K
+    # tokens, so memory budget is roughly (context - overhead) / tokens_per_turn.
+    #   4K context → 5 turns,  8K → 14,  16K+ → 25 (cap)
+    SESSION_MEMORY_WINDOW = max(5, min(25, CONTEXT_WINDOW_SIZE // 550))
 
     # --- RAG / Embedding ---
     # ChromaDB default embedding: all-MiniLM-L6-v2 (sentence-transformers, ~80 MB).
