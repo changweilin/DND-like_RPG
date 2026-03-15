@@ -540,13 +540,26 @@ class EventManager:
             )
 
         # --- Step 10a: Update sliding-window session memory ---
-        # Filter out party members — only NPCs belong in characters_present
+        # Convert NPC names → "npc:{name.lower()}" entity keys (max 6).
+        # Party members are excluded (they're always implicitly present).
         npc_only_present = [n for n in characters_present if n not in party_names]
+        char_entity_keys = [
+            f"npc:{n.lower()}" for n in npc_only_present[:6]
+        ]
+        # Scan known organizations to find those mentioned in this turn's narrative (max 3).
+        narrative_lower  = narrative.lower()
+        orgs_dict        = current_state.organizations or {}
+        org_entity_keys  = [
+            f"org:{key}"
+            for key, org in orgs_dict.items()
+            if (org.get('name') or key).lower() in narrative_lower
+        ][:3]
         self._update_session_memory(
             current_state, player_action, narrative, outcome_label,
             choices=choices,
             location=current_state.current_location,
-            characters_present=npc_only_present,
+            characters_present=char_entity_keys,
+            organizations_mentioned=org_entity_keys,
             scene_type=scene_type,
         )
 
@@ -1124,18 +1137,40 @@ class EventManager:
         memory = current_state.session_memory or []
         if not memory:
             return "(No prior turns in this session)"
+        # Build lookup tables to resolve entity keys → display names
+        rels_keys  = current_state.relationships or {}
+        orgs_dict  = current_state.organizations  or {}
+
+        def _resolve_key(key):
+            # "npc:village elder" → "Village Elder"
+            # "org:iron vanguard" → org display name or title-cased key
+            # legacy plain name   → return as-is
+            if key.startswith('npc:'):
+                name = key[4:]
+                # prefer the proper_name stored in relationships if available
+                rel = rels_keys.get(name) or rels_keys.get(name.title()) or {}
+                return rel.get('proper_name') or name.title()
+            if key.startswith('org:'):
+                ok = key[4:]
+                org = orgs_dict.get(ok, {})
+                return org.get('name') or ok.title()
+            return key  # backward-compat: old entries stored plain names
+
         lines = []
         for entry in memory[-config.SESSION_MEMORY_WINDOW:]:
-            location  = entry.get('location', '')
-            chars     = entry.get('characters_present') or []
-            offered   = entry.get('offered_choices') or entry.get('choices') or []
-            unchosen  = entry.get('unchosen_choices') or []
+            location = entry.get('location', '')
+            chars    = entry.get('characters_present') or []
+            orgs     = entry.get('organizations_mentioned') or []
+            offered  = entry.get('offered_choices') or entry.get('choices') or []
+            unchosen = entry.get('unchosen_choices') or []
 
             line = f"Turn {entry.get('turn', '?')}: "
             if location:
                 line += f"[{location}] "
             if chars:
-                line += f"Present: {', '.join(chars)}. "
+                line += f"Present: {', '.join(_resolve_key(k) for k in chars)}. "
+            if orgs:
+                line += f"Orgs: {', '.join(_resolve_key(k) for k in orgs)}. "
             line += f"Player: {entry.get('player_action', '')} → {entry.get('outcome', '')}"
             if unchosen:
                 line += f" | 未選: {'; '.join(unchosen)}"
@@ -1143,16 +1178,19 @@ class EventManager:
         return "\n".join(lines)
 
     def _update_session_memory(self, current_state, player_action, narrative, outcome_label,
-                               choices=None, location=None, characters_present=None, scene_type=None):
+                               choices=None, location=None, characters_present=None,
+                               organizations_mentioned=None, scene_type=None):
         """
         Append this turn to session memory and enforce the sliding window.
 
         Fields recorded per turn:
-          player_action      — what the player chose to do (the selected action)
-          unchosen_choices   — options offered last turn that were NOT selected
-          offered_choices    — new options offered this turn (for the player to pick from next)
-          location           — current location at the time of the turn
-          characters_present — NPCs / characters who appeared in this scene
+          player_action          — what the player chose to do (the selected action)
+          unchosen_choices       — options offered last turn that were NOT selected
+          offered_choices        — new options offered this turn
+          location               — current location at the time of the turn
+          characters_present     — entity keys of NPCs in scene:
+                                   "npc:{name.lower()}" — max 6 entries
+          organizations_mentioned— entity keys of orgs mentioned: "org:{key}" — max 3
 
         When turns are trimmed (overflow), summarize them via LLM and store
         the summary as a 'chapter_summary' in world_lore RAG so long-term
@@ -1173,15 +1211,16 @@ class EventManager:
         ]
 
         memory.append({
-            "turn":               turn_number,
-            "player_action":      player_action,
-            "narrative":          narrative[:200],   # trimmed to keep token budget bounded
-            "outcome":            outcome_label,
-            "unchosen_choices":   unchosen_choices,  # options NOT taken from last turn
-            "offered_choices":    choices or [],      # new options offered this turn
-            "location":           location or "",
-            "characters_present": characters_present or [],
-            "scene_type":         scene_type or "",
+            "turn":                    turn_number,
+            "player_action":           player_action,
+            "narrative":               narrative[:200],
+            "outcome":                 outcome_label,
+            "unchosen_choices":        unchosen_choices,
+            "offered_choices":         choices or [],
+            "location":                location or "",
+            "characters_present":      (characters_present or [])[:6],
+            "organizations_mentioned": (organizations_mentioned or [])[:3],
+            "scene_type":              scene_type or "",
         })
 
         if len(memory) > config.SESSION_MEMORY_WINDOW:

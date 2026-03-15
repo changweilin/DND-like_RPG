@@ -270,14 +270,30 @@ turns, persisted in SQLite so memory survives page reloads:
 
 ```json
 [
-  {"turn": 3, "player_action": "I attack the goblin", "narrative": "You swing...", "outcome": "SUCCESS"},
-  {"turn": 4, "player_action": "I search the room",   "narrative": "You find...", "outcome": "NO_ROLL"}
+  {
+    "turn": 3,
+    "player_action": "I attack the goblin",
+    "narrative": "You swing...",
+    "outcome": "SUCCESS",
+    "location": "Dark Forest",
+    "scene_type": "combat",
+    "characters_present":      ["npc:goblin shaman", "npc:village elder"],
+    "organizations_mentioned": ["org:iron vanguard"],
+    "offered_choices":    ["Pursue", "Loot", "Retreat"],
+    "unchosen_choices":   ["Retreat"]
+  }
 ]
 ```
 
-`EventManager._format_session_memory()` converts this to a text block injected
-into the narrative prompt — this is *context engineering*, not just prompt
-engineering.
+**Entity key format** (indexed references, not raw name strings):
+- `characters_present` — `"npc:{name.lower()}"` for NPCs; max **6** entries.
+  Party members are always implicitly present and excluded from this list.
+- `organizations_mentioned` — `"org:{name.lower()}"` for organizations
+  mentioned in the turn's narrative; max **3** entries.
+
+`EventManager._format_session_memory()` resolves these keys back to display
+names via `relationships` and `organizations` dicts before injecting into the
+prompt — this is *context engineering*, not just prompt engineering.
 
 ---
 
