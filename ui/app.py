@@ -155,7 +155,7 @@ _UI_STRINGS = {
         "ai_personality":  "AI Personality",
         "ai_difficulty":   "AI Difficulty",
         "no_saves":        "No saves found.",
-        "save_required":   "Save Name and Player 1 Name are required.",
+        "save_required":   "Player 1 Name is required.",
         "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
         "dup_title":       "⚠️ Save Name Conflict",
         "dup_warning":     "already exists. Choose an action:",
@@ -194,7 +194,7 @@ _UI_STRINGS = {
         "ai_personality":  "AI 個性",
         "ai_difficulty":   "AI 難度",
         "no_saves":        "找不到存檔。",
-        "save_required":   "存檔名稱與玩家 1 名字為必填。",
+        "save_required":   "玩家 1 名字為必填。",
         "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
         "dup_title":       "⚠️ 存檔名稱衝突",
         "dup_warning":     "已存在。請選擇操作：",
@@ -233,7 +233,7 @@ _UI_STRINGS = {
         "ai_personality":  "AIの個性",
         "ai_difficulty":   "AIの難易度",
         "no_saves":        "セーブデータが見つかりません。",
-        "save_required":   "セーブ名とプレイヤー1の名前は必須です。",
+        "save_required":   "プレイヤー1の名前は必須です。",
         "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
         "dup_title":       "⚠️ セーブ名の競合",
         "dup_warning":     "はすでに存在します。操作を選択してください：",
@@ -272,7 +272,7 @@ _UI_STRINGS = {
         "ai_personality":  "Personalidad IA",
         "ai_difficulty":   "Dificultad IA",
         "no_saves":        "No hay partidas guardadas.",
-        "save_required":   "El nombre de guardado y el nombre del Jugador 1 son obligatorios.",
+        "save_required":   "El nombre del Jugador 1 es obligatorio.",
         "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
         "dup_title":       "⚠️ Conflicto de nombre",
         "dup_warning":     "ya existe. Elige una acción:",
@@ -292,6 +292,28 @@ def _t(key):
     lang    = st.session_state.get('pref_language', 'English')
     strings = _UI_STRINGS.get(lang, _UI_STRINGS['English'])
     return strings.get(key, _UI_STRINGS['English'].get(key, key))
+
+def _tr_race(r):
+    """Translate a race name to the current UI language."""
+    lang = st.session_state.get('pref_language', 'English')
+    lk = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}.get(lang, 'en')
+    tr = config.RACE_TRANSLATIONS.get(r, {}).get(lk)
+    return f"{tr}（{r}）" if tr else r
+
+def _tr_class(c):
+    """Translate a class name to the current UI language."""
+    lang = st.session_state.get('pref_language', 'English')
+    lk = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}.get(lang, 'en')
+    tr = config.CLASS_TRANSLATIONS.get(c, {}).get(lk)
+    return f"{tr}（{c}）" if tr else c
+
+def _tr_rc(race, char_class):
+    """Translate race + class as a combined short label."""
+    lang = st.session_state.get('pref_language', 'English')
+    lk = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}.get(lang, 'en')
+    r = config.RACE_TRANSLATIONS.get(race, {}).get(lk) or race
+    c = config.CLASS_TRANSLATIONS.get(char_class, {}).get(lk) or char_class
+    return f"{r} {c}"
 
 # Sentinel model-ID used when the user disables image generation entirely
 _DISABLED_IMG_ID = "__disabled__"
@@ -889,17 +911,35 @@ def _player_config_fields(idx, key_prefix, ws=None):
     if app_manual_key not in st.session_state:
         st.session_state[app_manual_key] = False
 
+    # Translation helpers for race / class / gender display
+    def _race_label(r):
+        tr = config.RACE_TRANSLATIONS.get(r, {}).get(lang_key)
+        return f"{tr}（{r}）" if tr else r
+
+    def _class_label(c):
+        # term_map label (world-specific) takes priority, then generic translation
+        tm_label = _class_display.get(c, c)
+        generic  = config.CLASS_TRANSLATIONS.get(c, {}).get(lang_key)
+        if tm_label != c:
+            # World has a custom name (e.g. Fighter, Street Samurai)
+            return f"{generic or tm_label}（{tm_label}）" if generic and generic != tm_label else tm_label
+        return f"{generic}（{c}）" if generic else c
+
+    def _gender_label(g):
+        tr = config.GENDER_TRANSLATIONS.get(g, {}).get(lang_key)
+        return tr if tr else g
+
     # Row 1: Name / Gender
     row1 = st.columns([3, 1])
     name   = row1[0].text_input(_t("name"), key=name_key)
-    gender = row1[1].selectbox(_t("gender"), _GENDERS, key=gender_key)
+    gender = row1[1].selectbox(_t("gender"), _GENDERS, format_func=_gender_label, key=gender_key)
 
     # Row 2: Race / Class
     row2 = st.columns([1, 1])
-    race       = row2[0].selectbox(_t("race"), ws_races, key=race_key)
+    race       = row2[0].selectbox(_t("race"), ws_races, format_func=_race_label, key=race_key)
     char_class = row2[1].selectbox(
         _t("char_class"), ws_classes,
-        format_func=lambda c: f"{_class_display.get(c, c)} ({c})" if _class_display.get(c, c) != c else c,
+        format_func=_class_label,
         key=class_key,
     )
 
@@ -985,7 +1025,6 @@ def main_menu():
     with col1:
         st.header(_t("new_game"))
         with st.form("new_game_form"):
-            save_name  = st.text_input(_t("save_name"))
             difficulty = st.selectbox(_t("difficulty"), ["Easy", "Normal", "Hard"],
                                       index=["Easy", "Normal", "Hard"].index(st.session_state.pref_difficulty))
             # Language is now set via the model/language expander in the sidebar;
@@ -1054,9 +1093,21 @@ def main_menu():
 
             if st.form_submit_button(_t("start_adventure")):
                 lead = player_fields[0]
-                if not save_name or not lead[0]:
+                if not lead[0]:
                     st.error(_t("save_required"))
                 else:
+                    # Auto-generate save name: sequential ID + world setting id
+                    import time as _time
+                    _existing = st.session_state.save_manager.list_saves()
+                    _next_id  = len(_existing) + 1
+                    _ws_tag   = ws_ids[ws_idx]
+                    save_name = f"{_next_id:03d}_{_ws_tag}"
+                    # Ensure uniqueness by appending timestamp if collision
+                    _existing_names = {s['save_name'] for s in _existing}
+                    while save_name in _existing_names:
+                        _next_id += 1
+                        save_name = f"{_next_id:03d}_{_ws_tag}"
+
                     extra = []
                     for name, race, char_class, app, per, gender, is_ai, ai_pers, ai_diff in player_fields[1:]:
                         extra.append({
@@ -1280,7 +1331,7 @@ def _render_party_sidebar(party, state, active_char):
             st.sidebar.markdown(
                 f"<div class='dead-slot'>"
                 f"<b>{flag}{ai_badge} {char.name}</b> ☠<br/>"
-                f"<i style='font-size:0.85em'>{char.race} {char.char_class}</i>"
+                f"<i style='font-size:0.85em'>{_tr_rc(char.race, char.char_class)}</i>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -1295,13 +1346,13 @@ def _render_party_sidebar(party, state, active_char):
                 f"<div class='active-slot'>"
                 f"<b>{flag}{ai_badge} {char.name}</b>{personality_label}"
                 f" <span style='color:#4caf50'>▶ ACTIVE</span><br/>"
-                f"<i style='font-size:0.85em'>{char.race} {char.char_class}</i>"
+                f"<i style='font-size:0.85em'>{_tr_rc(char.race, char.char_class)}</i>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
         else:
             st.sidebar.markdown(
-                f"**{flag}{ai_badge} {char.name}**  *{char.race} {char.char_class}*"
+                f"**{flag}{ai_badge} {char.name}**  *{_tr_rc(char.race, char.char_class)}*"
             )
 
         if not is_dead:
@@ -1461,7 +1512,7 @@ def _render_score_board(party, state):
 
         st.markdown(
             f"**{flag}{ai_tag} {char.name}**{dead}  "
-            f"<small style='color:#aaa'>({char.char_class})</small>  `{score:.0f}pt`",
+            f"<small style='color:#aaa'>({_tr_class(char.char_class)})</small>  `{score:.0f}pt`",
             unsafe_allow_html=True,
         )
         st.caption(f"⚔ {dmg}dmg  💚 {heal}heal  🎯 {chks}chk  ↩ {turns}t  💰 {char.gold}g")
@@ -1797,7 +1848,7 @@ def _render_characters_tab(party, state, active_char):
 
         cls_icon = class_icons.get(char.char_class.lower(), '👤')
         gender_lbl = f" ({getattr(char, 'gender', '') or ''})" if getattr(char, 'gender', '') else ""
-        header   = f"{flag} {cls_icon} {char.name}{gender_lbl} — {char.race} {char.char_class}{ai_tag}{active_tag}{dead_tag}"
+        header   = f"{flag} {cls_icon} {char.name}{gender_lbl} — {_tr_rc(char.race, char.char_class)}{ai_tag}{active_tag}{dead_tag}"
 
         with st.expander(header, expanded=is_active):
             # ── Portrait ────────────────────────────────────────────────────
@@ -2802,7 +2853,7 @@ def _render_god_mode_tab(party, state):
     st.subheader("👤 characters 資料表")
     schema = _GOD_SCHEMA["characters"]
     for char in party:
-        with st.expander(f"🔴 {char.name} ({char.race} {char.char_class})", expanded=False):
+        with st.expander(f"🔴 {char.name} ({_tr_rc(char.race, char.char_class)})", expanded=False):
             rows = []
             live = {
                 "id": char.id, "name": char.name, "race": char.race,
