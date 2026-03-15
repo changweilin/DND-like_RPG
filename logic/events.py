@@ -480,6 +480,17 @@ class EventManager:
                 _present_lower_set.add(npc_name.lower())
 
         # --- Step 7.5: Auto-register new NPCs from the scene ---
+        # Filter out organization names that the LLM mistakenly placed in
+        # characters_present — they belong in the organizations dict, not
+        # relationships (NPC list).
+        org_names_lower = {
+            (org.get('name') or key).lower()
+            for key, org in (current_state.organizations or {}).items()
+        }
+        characters_present = [
+            n for n in characters_present
+            if n.lower() not in org_names_lower
+        ]
         party_names = {c.name for c in all_chars}
         self._auto_register_npcs(characters_present, current_state, world, party_names)
 
@@ -605,9 +616,19 @@ class EventManager:
         except Exception as e:
             print(f"Prologue RAG store error: {e}")
 
-        # Extract organizations + relationships introduced in the prologue
+        # Auto-register organizations first so we can filter them from characters_present
         world = WorldManager(self.session, current_state)
         self._extract_and_register_organizations(narrative, current_state, world, turn_number=0)
+
+        # Register NPCs — filter out organization names the LLM may have mixed in
+        party_names = {c.name for c in party}
+        characters_present = [n for n in (turn_data.get('characters_present') or []) if n and n.strip()]
+        org_names_lower = {
+            (org.get('name') or key).lower()
+            for key, org in (current_state.organizations or {}).items()
+        }
+        characters_present = [n for n in characters_present if n.lower() not in org_names_lower]
+        self._auto_register_npcs(characters_present, current_state, world, party_names)
         self._extract_and_register_relations(narrative, current_state, world, party, turn_number=0)
 
         return narrative, choices, turn_data
@@ -861,10 +882,17 @@ class EventManager:
         """
         rels = current_state.relationships or {}
 
+        # Build set of known organization names so we never register an org as an NPC
+        _org_names_lower = set()
+        for key, org in (current_state.organizations or {}).items():
+            _org_names_lower.add(key.lower())
+            if org.get('name'):
+                _org_names_lower.add(org['name'].lower())
+
         # Pass 1: generate profiles for NPCs newly appearing in this scene
         for name in (characters_present or []):
             name = name.strip()
-            if not name or name in party_names:
+            if not name or name in party_names or name.lower() in _org_names_lower:
                 continue
             existing_rel = rels.get(name)
             if existing_rel is not None and isinstance(existing_rel, dict) and existing_rel.get('biography'):

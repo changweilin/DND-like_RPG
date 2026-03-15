@@ -205,6 +205,7 @@ def _validated_npc_profile(data, display_name):
     defaults = {
         "proper_name":  display_name,   # set to a real name if display_name is a title
         "aliases":      [],
+        "gender":       "",             # inferred from name and context
         "biography":    "",
         "personality":  "",             # MBTI type + description
         "traits":       "",             # appearance, build, intelligence, physique
@@ -239,6 +240,11 @@ class LLMClient:
     def __init__(self, model_name=None):
         self.model    = model_name or config.LLM_MODEL_NAME
         self.provider = _detect_provider(self.model)
+        # Cross-turn adaptive choice quality tracker.
+        # Tracks recent choice issues (wrong language, too short, placeholder)
+        # so that subsequent prompts can include stronger corrective hints.
+        # Each entry: {"turn": int, "issues": list[str]}
+        self._choice_quality_log = []
 
     def switch_model(self, model_id, provider=None):
         """Hot-swap the active model without rebuilding shared state."""
@@ -475,6 +481,8 @@ class LLMClient:
             '  "npc_relationship_changes": {}\n'
             '}'
         )
+        # Build adaptive hint from recent choice quality failures
+        adaptive_hint = self._build_choice_quality_hint(language)
         full_prompt = (
             f"{system_prompt}\n\n"
             f"Relevant Memory (RAG):\n{rag_context}\n\n"
@@ -486,6 +494,7 @@ class LLMClient:
             " (reference unresolved hooks, NPCs, or unexplored locations)\n"
             "  4. characters_present MUST list every named NPC / character who appears or speaks in the narrative\n"
             "  5. choices MUST explore directions NOT already taken — if CHOICES CONSTRAINT is present, do not repeat or paraphrase any listed action\n"
+            f"{adaptive_hint}"
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
         base_messages = [
@@ -518,6 +527,12 @@ class LLMClient:
         result = self._localize_narrative(result, language)
         if _has_placeholder_choices(result.get('choices', [])):
             result = self._fix_placeholder_choices(result, result['narrative'], language)
+
+        # Step 4: extract embedded choices from narrative text
+        result = self._extract_embedded_choices(result)
+
+        # Step 5: log choice quality for cross-turn adaptation
+        self._log_choice_quality(result.get('choices', []), language)
         return result
 
     # ------------------------------------------------------------------
@@ -717,6 +732,108 @@ class LLMClient:
         except Exception:
             pass
         return result
+
+    # Regex patterns for embedded choices in narrative text:
+    #   "1. ...", "1) ...", "1、...", "- ...", "• ..."
+    _EMBEDDED_CHOICE_RE = re.compile(
+        r'(?:^|\n)\s*'
+        r'(?:\d+[.)、]\s*|[-•]\s+)'
+        r'(.+)',
+    )
+    # A block of 2+ consecutive numbered/bulleted lines
+    _CHOICE_BLOCK_RE = re.compile(
+        r'((?:(?:^|\n)\s*(?:\d+[.)、]\s*|[-•]\s+).+){2,})',
+    )
+
+    def _extract_embedded_choices(self, result):
+        """
+        If the narrative text itself contains a numbered/bulleted list of options,
+        extract those as choices and strip the list from the narrative.
+        Keeps existing valid choices as supplements if embedded ones are < 3.
+        """
+        narrative = result.get('narrative', '')
+        if not narrative:
+            return result
+        block_match = self._CHOICE_BLOCK_RE.search(narrative)
+        if not block_match:
+            return result
+        block = block_match.group(0)
+        extracted = []
+        for m in self._EMBEDDED_CHOICE_RE.finditer(block):
+            text = m.group(1).strip()
+            if text and len(text) > _MIN_CHOICE_LEN:
+                extracted.append(text)
+        if len(extracted) < 2:
+            return result
+        # Strip the choice block from narrative
+        cleaned = narrative[:block_match.start()] + narrative[block_match.end():]
+        cleaned = cleaned.strip()
+        if cleaned:
+            result['narrative'] = cleaned
+        # Use extracted choices, supplement with existing if needed
+        existing = result.get('choices', [])
+        final = extracted[:]
+        for c in existing:
+            if len(final) >= max(3, len(extracted)):
+                break
+            if c not in final and _is_valid_choice(c):
+                final.append(c)
+        # Ensure at least 3
+        if len(final) < 3:
+            for c in existing:
+                if len(final) >= 3:
+                    break
+                if c not in final:
+                    final.append(c)
+        result['choices'] = final
+        return result
+
+    def _log_choice_quality(self, choices, language):
+        """Record any choice quality issues for cross-turn adaptive prompting."""
+        issues = []
+        for c in (choices or []):
+            if not _is_valid_choice(c):
+                issues.append('placeholder')
+            elif not _is_correct_language(c, language):
+                issues.append('wrong_language')
+            elif len(c.strip()) < 15:
+                issues.append('too_short')
+        if issues:
+            self._choice_quality_log.append({'issues': issues})
+        # Keep only the last 5 entries
+        self._choice_quality_log = self._choice_quality_log[-5:]
+
+    def _build_choice_quality_hint(self, language):
+        """Build adaptive prompt hints based on recent choice quality failures."""
+        if not self._choice_quality_log:
+            return ""
+        # Count recent issues across last 3 entries
+        recent = self._choice_quality_log[-3:]
+        all_issues = []
+        for entry in recent:
+            all_issues.extend(entry.get('issues', []))
+        if not all_issues:
+            return ""
+
+        hints = []
+        lang_fails = all_issues.count('wrong_language')
+        short_fails = all_issues.count('too_short') + all_issues.count('placeholder')
+
+        if lang_fails > 0:
+            hints.append(
+                f"  ⚠ LANGUAGE WARNING: Recent choices were in the WRONG language. "
+                f"Every single choice string MUST be written in {language}. "
+                f"Do NOT use English or any other language for choices."
+            )
+        if short_fails > 0:
+            hints.append(
+                f"  ⚠ LENGTH WARNING: Recent choices were too short or generic. "
+                f"Each choice MUST be a specific, concrete action sentence of at least "
+                f"15 characters — NOT placeholders like 'Option A' or '選項1'."
+            )
+        if not hints:
+            return ""
+        return "\n".join(hints) + "\n"
 
     def generate_diverse_choices(self, narrative, avoid_choices, count=3,
                                 language="English", session_memory_text=""):
@@ -971,6 +1088,7 @@ class LLMClient:
         json_schema = (
             '{\n'
             '  "scene_type": "exploration",\n'
+            '  "characters_present": ["<REQUIRED: full name of every NPC who appears or is mentioned in the prologue>"],\n'
             '  "narrative": "Epic opening prologue — MINIMUM 1000 characters of atmospheric prose.",\n'
             f'  "choices": ["<具體開場行動，用{language}寫>", "<第二個選項>", "<第三個選項>"],\n'
             '  "items_found": [], "location_change": "", "npc_relationship_changes": {}\n'
@@ -1021,6 +1139,7 @@ class LLMClient:
         result = self._localize_narrative(result, language)
         if _has_placeholder_choices(result.get('choices', [])):
             result = self._fix_placeholder_choices(result, result['narrative'], language)
+        result = self._extract_embedded_choices(result)
         return result
 
     # ------------------------------------------------------------------
@@ -1116,8 +1235,9 @@ class LLMClient:
             '{\n'
             '  "proper_name": "<full given name — same as input if already a proper name>",\n'
             '  "aliases": ["<title, honorific, or nickname used to refer to this NPC>"],\n'
+            '  "gender": "<Male|Female|Non-binary|Unknown — infer from name and context>",\n'
             '  "biography": "<2-3 sentences of background and life history>",\n'
-            '  "personality": "<MBTI type + one-sentence description, e.g. ENFJ — warm and charismatic>",\n'
+            '  "personality": "<one of the 16 MBTI types (INTJ/INTP/ENTJ/ENTP/INFJ/INFP/ENFJ/ENFP/ISTJ/ISFJ/ESTJ/ESFJ/ISTP/ISFP/ESTP/ESFP) + one-sentence description, e.g. ENFJ — warm and charismatic leader>",\n'
             '  "traits": "<physical appearance, build, intelligence, notable features — 1-2 sentences>",\n'
             '  "health": "<Healthy|Wounded|Exhausted|Ill|Dying — add a brief note if not Healthy>",\n'
             '  "action": "<what this NPC is currently doing in this scene>",\n'
@@ -1137,10 +1257,49 @@ class LLMClient:
                 json_mode=True,
             )
             data = json.loads(_repair_json(raw))
-            return _validated_npc_profile(data, display_name)
+            profile = _validated_npc_profile(data, display_name)
+            return self._localize_npc_profile(profile, language)
         except Exception as e:
             print(f"NPC profile generation error for {display_name!r}: {e}")
             return _validated_npc_profile({}, display_name)
+
+    def _localize_npc_profile(self, profile, language):
+        """
+        Translate NPC profile text fields if they are not in the target language.
+        Checks biography, personality, traits, action, goal — translates any that
+        are in the wrong language in a single batched LLM call.
+        """
+        _PROFILE_TEXT_FIELDS = ['biography', 'personality', 'traits', 'action', 'goal']
+        wrong = [
+            f for f in _PROFILE_TEXT_FIELDS
+            if profile.get(f) and not _is_correct_language(profile[f], language)
+        ]
+        if not wrong:
+            return profile
+        sections = "\n".join(
+            f"##{f.upper()}##\n{profile[f]}" for f in wrong
+        )
+        prompt = (
+            f"Translate the following NPC profile fields to {language}.\n"
+            "Keep each section header (e.g. ##BIOGRAPHY##) exactly as-is.\n"
+            "Return ONLY the translated sections, nothing else.\n\n"
+            + sections
+        )
+        try:
+            raw = self._chat(
+                messages=[{"role": "user", "content": prompt}],
+                json_mode=False,
+            ).strip()
+            for f in wrong:
+                tag = f.upper()
+                m = re.search(rf'##{tag}##\s*(.*?)(?=##[A-Z]+##|$)', raw, re.DOTALL)
+                if m:
+                    translated = m.group(1).strip()
+                    if translated:
+                        profile[f] = translated
+        except Exception as e:
+            print(f"NPC profile localization error: {e}")
+        return profile
 
     # ------------------------------------------------------------------
     # NPC generative agent reactions  (Section 3.5)
@@ -1193,7 +1352,30 @@ class LLMClient:
                 json_mode=True,
             )
             data = json.loads(_repair_json(raw))
-            return data if isinstance(data, dict) else {}
+            if not isinstance(data, dict):
+                return {}
+            # Translate reaction fields if wrong language
+            for npc_name, changes in data.items():
+                if isinstance(changes, dict):
+                    wrong = [
+                        f for f in ('state', 'goal', 'emotion', 'action')
+                        if changes.get(f) and not _is_correct_language(changes[f], language)
+                    ]
+                    if wrong:
+                        sections = "\n".join(f"##{f.upper()}##\n{changes[f]}" for f in wrong)
+                        try:
+                            tr = self._chat(
+                                messages=[{"role": "user", "content":
+                                    f"Translate to {language}. Keep section headers.\n\n{sections}"}],
+                                json_mode=False,
+                            ).strip()
+                            for f in wrong:
+                                m = re.search(rf'##{f.upper()}##\s*(.*?)(?=##[A-Z]+##|$)', tr, re.DOTALL)
+                                if m and m.group(1).strip():
+                                    changes[f] = m.group(1).strip()
+                        except Exception:
+                            pass
+            return data
         except Exception as e:
             print(f"NPC reaction evaluation error: {e}")
             return {}

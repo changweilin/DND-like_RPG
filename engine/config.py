@@ -194,6 +194,78 @@ class GameConfig:
     }
 
     # ---------------------------------------------------------------------------
+    # MBTI personality database
+    # Used for random personality assignment for player characters and NPCs.
+    # Each entry: type code → {en: description, zh: description}
+    # ---------------------------------------------------------------------------
+    MBTI_DATABASE = {
+        "INTJ": {
+            "en": "INTJ — The Architect: strategic, independent, determined. Plans ten steps ahead and trusts logic over emotion.",
+            "zh": "INTJ — 建築師：深謀遠慮、獨立自主、意志堅定。凡事提前十步規劃，信奉邏輯勝於情感。",
+        },
+        "INTP": {
+            "en": "INTP — The Logician: analytical, inventive, detached. Endlessly curious, happiest when solving an impossible puzzle.",
+            "zh": "INTP — 邏輯學家：善於分析、富有創意、超然冷靜。永無止境的好奇心，解開不可能的謎題時最為快樂。",
+        },
+        "ENTJ": {
+            "en": "ENTJ — The Commander: bold, decisive, natural leader. Takes charge in any crisis and expects results, not excuses.",
+            "zh": "ENTJ — 指揮官：果敢決斷、天生領袖。在任何危機中挺身而出，只要結果不要藉口。",
+        },
+        "ENTP": {
+            "en": "ENTP — The Debater: quick-witted, provocative, resourceful. Loves intellectual sparring and dismantling bad arguments.",
+            "zh": "ENTP — 辯論家：機智敏捷、好辯善謀。熱愛思辨交鋒，拆穿站不住腳的論點。",
+        },
+        "INFJ": {
+            "en": "INFJ — The Advocate: idealistic, compassionate, quietly intense. Driven by deep convictions and a desire to help others.",
+            "zh": "INFJ — 提倡者：理想主義、富有同情心、內斂而深沉。被深層信念和助人之心驅動。",
+        },
+        "INFP": {
+            "en": "INFP — The Mediator: empathetic, creative, introspective. Sees beauty in everything and fights for what they believe in.",
+            "zh": "INFP — 調停者：富有共情、充滿創意、內省深思。看見萬物之美，為信念而戰。",
+        },
+        "ENFJ": {
+            "en": "ENFJ — The Protagonist: charismatic, warm, inspiring. Natural mentor who brings out the best in everyone around them.",
+            "zh": "ENFJ — 主人公：魅力四射、溫暖人心、鼓舞士氣。天生的導師，能激發身邊每個人的潛力。",
+        },
+        "ENFP": {
+            "en": "ENFP — The Campaigner: enthusiastic, free-spirited, sociable. Radiates infectious energy and sees possibilities everywhere.",
+            "zh": "ENFP — 競選者：熱情洋溢、自由奔放、善於交際。散發感染力十足的活力，處處看見可能性。",
+        },
+        "ISTJ": {
+            "en": "ISTJ — The Logistician: responsible, thorough, dependable. Keeps their word, follows the rules, and gets the job done.",
+            "zh": "ISTJ — 物流師：負責任、一絲不苟、值得信賴。言出必行、恪守規矩、使命必達。",
+        },
+        "ISFJ": {
+            "en": "ISFJ — The Defender: loyal, protective, warm-hearted. Quietly devoted to those they love, always ready to sacrifice.",
+            "zh": "ISFJ — 守衛者：忠誠護衛、溫暖善良。默默守護所愛之人，隨時準備犧牲奉獻。",
+        },
+        "ESTJ": {
+            "en": "ESTJ — The Executive: organized, assertive, tradition-minded. Born administrator who values order and clear hierarchy.",
+            "zh": "ESTJ — 總經理：條理分明、果斷自信、尊重傳統。天生的管理者，重視秩序和明確的階級。",
+        },
+        "ESFJ": {
+            "en": "ESFJ — The Consul: caring, sociable, community-oriented. The glue that holds any group together, generous to a fault.",
+            "zh": "ESFJ — 執政官：關懷他人、熱衷社交、重視群體。是凝聚團隊的黏合劑，慷慨到了極點。",
+        },
+        "ISTP": {
+            "en": "ISTP — The Virtuoso: practical, observant, hands-on. Cool under pressure, fixes anything, and lives for the next challenge.",
+            "zh": "ISTP — 鑒賞家：務實動手、觀察敏銳。壓力下冷靜自如，什麼都能修好，為下一個挑戰而活。",
+        },
+        "ISFP": {
+            "en": "ISFP — The Adventurer: gentle, sensitive, artistic. Lives in the moment with quiet intensity and an eye for beauty.",
+            "zh": "ISFP — 探險家：溫柔敏感、藝術氣質。以內斂的熱情活在當下，擁有發現美的眼睛。",
+        },
+        "ESTP": {
+            "en": "ESTP — The Entrepreneur: energetic, perceptive, bold. Thrives on action and risk, thinks on their feet, never hesitates.",
+            "zh": "ESTP — 企業家：精力充沛、洞察力強、膽大心細。在行動和冒險中如魚得水，隨機應變絕不猶豫。",
+        },
+        "ESFP": {
+            "en": "ESFP — The Entertainer: spontaneous, playful, generous. The life of any gathering, turning even danger into a spectacle.",
+            "zh": "ESFP — 表演者：即興隨性、活潑慷慨。任何場合的靈魂人物，連危險都能變成一場表演。",
+        },
+    }
+
+    # ---------------------------------------------------------------------------
     # Model preset registry
     # Each entry drives the UI selector and the LLMClient provider routing.
     # Fields:
@@ -517,6 +589,42 @@ class GameConfig:
                 "skill_check":    "ability check",
                 "starting_area":  "frontier town",
             },
+            "races":   ["Human", "Elf", "Dwarf", "Halfling", "Half-Orc", "Tiefling", "Dragonborn", "Gnome"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Aldric", "Bram", "Cedric", "Dorin", "Elric", "Finnian", "Gareth", "Hadric"],
+            "names_f": ["Aria", "Brynn", "Celeste", "Dahlia", "Elara", "Freya", "Gwendolyn", "Helena"],
+            "appearances": {
+                "en": [
+                    "Tall and broad-shouldered with a jagged scar across the left cheek.",
+                    "Slender build, silver-streaked hair pulled back in a warrior's knot.",
+                    "Weathered skin with bright green eyes and a perpetual half-smile.",
+                    "Stocky frame covered in faded tattoos of protective runes.",
+                    "Lean and agile, with sun-bronzed skin and a missing ring finger.",
+                ],
+                "zh": [
+                    "身材高大寬肩，左臉頰有一道鋸齒狀的刀疤。",
+                    "纖細身形，銀絲交雜的頭髮紮成武士髻。",
+                    "風霜滿面，明亮的綠眼中帶著永遠的淡笑。",
+                    "矮壯結實，全身佈滿褪色的符文刺青。",
+                    "精瘦敏捷，古銅色肌膚，無名指缺了一截。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Brave and loyal, always first to draw steel for a friend.",
+                    "Quiet and observant, speaks rarely but every word carries weight.",
+                    "Jovial prankster who hides sharp cunning behind a foolish grin.",
+                    "Fiercely independent, trusts no one until they've proven themselves.",
+                    "Compassionate healer driven by a past tragedy they refuse to discuss.",
+                ],
+                "zh": [
+                    "勇敢忠誠，總是第一個為朋友拔劍的人。",
+                    "沉默寡言卻觀察入微，開口必有份量。",
+                    "嘻皮笑臉的惡作劇者，傻笑背後藏著精明算計。",
+                    "極度獨立，不信任未經考驗之人。",
+                    "富有同情心的治療者，被過去的悲劇驅動卻絕口不提。",
+                ],
+            },
         },
         {
             "id":               "pathfinder",
@@ -538,6 +646,42 @@ class GameConfig:
                 "dm_title":       "Game Master",
                 "skill_check":    "skill check",
                 "starting_area":  "city district",
+            },
+            "races":   ["Human", "Elf", "Dwarf", "Halfling", "Half-Orc", "Gnome", "Goblin", "Leshy"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Valeros", "Ezren", "Harsk", "Merisiel", "Sajan", "Amiri", "Droven", "Korvos"],
+            "names_f": ["Seelah", "Kyra", "Lini", "Feiya", "Shardra", "Imrijka", "Enora", "Adowyn"],
+            "appearances": {
+                "en": [
+                    "Battle-worn face with deep-set eyes and an ornate Pathfinder wayfinder pendant.",
+                    "Tall and imposing, draped in layered travelling cloaks of Absalom fashion.",
+                    "Compact build with elaborate facial piercings and tribal scars.",
+                    "Graceful movement, hair braided with tiny silver bells.",
+                    "Muscular arms marked with brand-scars from gladiatorial pits.",
+                ],
+                "zh": [
+                    "飽經風霜的面容，深邃眼眸，胸前掛著華麗的探索者指南針墜飾。",
+                    "高大威嚴，披著阿布薩隆風格的多層旅行斗篷。",
+                    "身材緊實，面部有精緻的穿環與部落疤痕。",
+                    "動作優雅，髮辮間編著細小的銀鈴。",
+                    "粗壯的臂膀上佈滿角鬥場留下的烙印疤痕。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Relentlessly curious, driven to uncover every secret the ruins hold.",
+                    "Disciplined and methodical, logs every discovery in a leather journal.",
+                    "Hot-tempered but fiercely protective of allies.",
+                    "Sardonic wit masking deep loyalty to the Pathfinder Society.",
+                    "Pious and unyielding, sees every quest as a divine mandate.",
+                ],
+                "zh": [
+                    "永不滿足的好奇心，誓要揭開廢墟中的每個秘密。",
+                    "紀律嚴明、條理分明，每一項發現都記錄在皮革筆記本中。",
+                    "暴躁易怒，但對盟友有著不容置疑的保護欲。",
+                    "尖酸刻薄的幽默掩蓋著對探索者協會的深厚忠誠。",
+                    "虔誠而堅定，視每一個任務為神聖的使命。",
+                ],
             },
         },
         # -------------------------------------------------------------------
@@ -564,6 +708,42 @@ class GameConfig:
                 "skill_check":    "characteristic test",
                 "starting_area":  "river trading town",
             },
+            "races":   ["Human (Empire)", "Human (Bretonnian)", "Dwarf", "Halfling", "Wood Elf", "High Elf"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Karl", "Dieter", "Wolfgang", "Heinrich", "Albrecht", "Friedrich", "Gottfried", "Oswald"],
+            "names_f": ["Elsa", "Greta", "Hilde", "Brunhild", "Ingrid", "Margarete", "Sigrid", "Ulrike"],
+            "appearances": {
+                "en": [
+                    "Gaunt face with a Sigmarite hammer pendant and haunted eyes.",
+                    "Heavy-set with calloused hands, wearing mud-stained travelling gear.",
+                    "Wiry frame with a nervous twitch and faded militia tattoo on the forearm.",
+                    "Ruddy complexion and thick moustache, dressed in practical wool and leather.",
+                    "Pale and thin with ink-stained fingers and spectacles perched on the nose.",
+                ],
+                "zh": [
+                    "面容枯槁，胸前掛著西格瑪之錘墜飾，雙眼佈滿陰霾。",
+                    "體格壯碩，雙手佈滿老繭，一身泥漬斑駁的旅行裝束。",
+                    "身形精瘦，帶著神經質的抽搐，前臂有褪色的民兵刺青。",
+                    "面色紅潤，蓄著濃密八字鬍，穿著實用的羊毛皮革衣物。",
+                    "面色蒼白瘦削，手指沾滿墨漬，鼻樑上架著一副眼鏡。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Paranoid and superstitious, sees Chaos corruption in every shadow.",
+                    "Pragmatic survivor who measures every decision by its cost in lives.",
+                    "Gruff and cynical, but secretly devoted to protecting the common folk.",
+                    "Fatalistic humour — laughs at danger because what else can you do?",
+                    "Zealously loyal to Sigmar, uncompromising against heresy.",
+                ],
+                "zh": [
+                    "疑神疑鬼、迷信多慮，在每一道陰影中都看見混沌的腐化。",
+                    "務實的倖存者，衡量每個決定要付出多少人命代價。",
+                    "粗獷而憤世嫉俗，內心卻暗暗守護著平民百姓。",
+                    "宿命式的黑色幽默——面對危險只能放聲大笑，不然還能怎樣？",
+                    "對西格瑪狂熱忠誠，面對異端絕不妥協。",
+                ],
+            },
         },
         # -------------------------------------------------------------------
         # 科幻 · Sci-Fi
@@ -589,6 +769,42 @@ class GameConfig:
                 "skill_check":    "characteristic test",
                 "starting_area":  "underhive sector",
             },
+            "races":   ["Human", "Ogryn", "Ratling"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Voss", "Harkon", "Draken", "Severus", "Caine", "Lazarus", "Mordecai", "Theron"],
+            "names_f": ["Sororitas", "Iona", "Valeria", "Cassandra", "Nyx", "Selene", "Mordria", "Kael"],
+            "appearances": {
+                "en": [
+                    "Augmetic right eye glowing red, skin pallid from a lifetime in the underhive.",
+                    "Shaven head covered in devotional tattoos, built like a hab-block wall.",
+                    "Gaunt and wiry, wrapped in tattered robes with a concealed laspistol holster.",
+                    "Imposing physique with extensive bionic arm replacement, bearing Aquila scars.",
+                    "Hunched posture, nervous eyes darting beneath a heavy rebreather mask.",
+                ],
+                "zh": [
+                    "右眼義體泛著紅光，膚色因終生居於巢都下層而蒼白如紙。",
+                    "光頭上佈滿虔誠的刺青，體格壯如居住區的牆壁。",
+                    "枯瘦精幹，裹著破爛長袍，暗藏一只雷射手槍皮套。",
+                    "體格雄偉，裝有大面積機械義臂，身上刻著天鷹徽疤痕。",
+                    "駝背佝僂，緊張的雙眼在厚重的再呼吸面罩下不斷游移。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Unquestioning devotion to the Emperor, sees duty as the only virtue.",
+                    "Cynical underhive survivor, trusts only the barrel of their gun.",
+                    "Quietly devout, whispers litanies of protection before every action.",
+                    "Recklessly brave, convinced the Emperor protects the faithful.",
+                    "Paranoid and meticulous, suspects heresy in everyone until proven otherwise.",
+                ],
+                "zh": [
+                    "對帝皇毫無保留的忠誠，視責任為唯一的美德。",
+                    "憤世嫉俗的巢都下層倖存者，只信任手中槍管。",
+                    "沉靜虔誠，每次行動前都低聲誦念護佑禱文。",
+                    "魯莽而勇敢，深信帝皇護佑忠誠之人。",
+                    "多疑且一絲不苟，在證明清白之前視所有人為異端嫌疑。",
+                ],
+            },
         },
         {
             "id":               "shadowrun",
@@ -610,6 +826,42 @@ class GameConfig:
                 "dm_title":       "Game Master",
                 "skill_check":    "dice pool test",
                 "starting_area":  "sprawl barrens",
+            },
+            "races":   ["Human", "Elf", "Dwarf", "Ork", "Troll"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Razz", "Hatchet", "Zero", "Neon", "Brick", "Ghost", "Twitch", "Chrome"],
+            "names_f": ["Jinx", "Pixel", "Switchblade", "Raven", "Glitch", "Ember", "Vex", "Nova"],
+            "appearances": {
+                "en": [
+                    "Chrome datajack behind the left ear, neon-green cybereyes, leather jacket.",
+                    "Heavily cybered ork with titanium jaw replacement and gang tattoos.",
+                    "Elven features softened by street grime, AR monocle permanently active.",
+                    "Compact troll with filed-down horns, wearing an armoured longcoat.",
+                    "Wiry human with subdermal armour visible as a faint metallic sheen.",
+                ],
+                "zh": [
+                    "左耳後嵌著鉻合金數據插孔，霓虹綠的義眼，一身皮夾克。",
+                    "重度改造的獸人，鈦合金下顎替換，身上佈滿幫派刺青。",
+                    "精靈般的面容被街頭塵垢磨去稜角，AR單片鏡始終開啟。",
+                    "身材壯碩的矮個子巨魔，角被銼平，穿著裝甲長大衣。",
+                    "精瘦的人類，皮下裝甲在肌膚表面透出淡淡的金屬光澤。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Street-smart and paranoid — never uses real names, pays in certified cred.",
+                    "Adrenaline junkie who lives for the next run, consequences be damned.",
+                    "Cool professional who treats every job as strictly business.",
+                    "Idealist shadowrunner fighting corporate injustice one run at a time.",
+                    "Quiet loner with a mysterious past and a debt to a powerful fixer.",
+                ],
+                "zh": [
+                    "街頭老手，疑心極重——從不用真名，只用認證信用額付款。",
+                    "腎上腺素成癮者，為下一趟任務而活，後果全拋腦後。",
+                    "冷靜的專業人士，將每件差事視為純粹的交易。",
+                    "理想主義暗影狂奔者，一次任務接一次地對抗企業的不公。",
+                    "沉默的獨行者，背負神秘過往，欠了一位有力掮客的人情。",
+                ],
             },
         },
         # -------------------------------------------------------------------
@@ -636,6 +888,42 @@ class GameConfig:
                 "skill_check":    "dice pool roll",
                 "starting_area":  "Elysium (vampire neutral ground)",
             },
+            "races":   ["Human"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Lucian", "Viktor", "Damien", "Sebastian", "Marcus", "Julian", "Raphael", "Dorian"],
+            "names_f": ["Vivienne", "Isabelle", "Lilith", "Seraphina", "Morgana", "Celeste", "Natasha", "Desiree"],
+            "appearances": {
+                "en": [
+                    "Deathly pale skin, immaculate suit, cold predatory eyes.",
+                    "Androgynous beauty, dressed in vintage Gothic attire with lace cuffs.",
+                    "Gaunt and hollow-cheeked, moving with unnatural stillness.",
+                    "Striking features marred by a faint network of veins beneath the skin.",
+                    "Effortlessly elegant, every gesture precise and deliberately disarming.",
+                ],
+                "zh": [
+                    "膚色蒼白如死，一身無瑕西裝，眼神冰冷如掠食者。",
+                    "雌雄莫辨的美貌，身著復古哥德服飾，袖口綴著蕾絲。",
+                    "面頰凹陷，形容枯槁，移動時帶著不自然的靜止感。",
+                    "五官出眾，皮膚下卻隱約浮現一片細密的青色血管。",
+                    "舉手投足從容優雅，每個姿態都精準而刻意地令人卸下防備。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Calculating and patient, plays the long game in every political manoeuvre.",
+                    "Tormented by the Beast within, clinging to fragments of lost humanity.",
+                    "Charismatic manipulator who treats mortals as pawns and allies as assets.",
+                    "Brooding loner haunted by centuries of regret.",
+                    "Fiercely ambitious, will stop at nothing to claim a position of power.",
+                ],
+                "zh": [
+                    "深謀遠慮且極有耐心，在每一場政治博弈中都布下長線。",
+                    "被內心的野獸折磨，拼命抓住殘存的人性碎片。",
+                    "魅力十足的操縱者，視凡人為棋子、盟友為資產。",
+                    "鬱鬱寡歡的獨行者，被數百年的悔恨糾纏不休。",
+                    "野心勃勃，為攫取權位不擇手段。",
+                ],
+            },
         },
         {
             "id":               "call_of_cthulhu",
@@ -657,6 +945,42 @@ class GameConfig:
                 "dm_title":       "Keeper of Arcane Lore",
                 "skill_check":    "skill roll",
                 "starting_area":  "university town",
+            },
+            "races":   ["Human"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Arthur", "Howard", "Randolph", "Herbert", "Edmund", "Charles", "Reginald", "Theodore"],
+            "names_f": ["Agatha", "Dorothy", "Eleanor", "Frances", "Margaret", "Prudence", "Vivian", "Constance"],
+            "appearances": {
+                "en": [
+                    "Tweed suit, round spectacles, ink-stained fingers from endless note-taking.",
+                    "Tall and angular, dressed in a worn trench coat with a battered fedora.",
+                    "Stocky build, ruddy face, pipe permanently clenched between the teeth.",
+                    "Prim and precise, carrying a leather satchel bulging with reference books.",
+                    "Nervous disposition, thinning hair, eyes that have seen too much.",
+                ],
+                "zh": [
+                    "一身粗花呢西裝，圓框眼鏡，手指因無休止的筆記而沾滿墨漬。",
+                    "身材高瘦有稜角，穿著一件磨舊的風衣，戴著破舊的軟呢帽。",
+                    "體格敦實，面色紅潤，煙斗永遠叼在嘴邊。",
+                    "衣著端莊一絲不苟，手提的皮革書包塞滿了參考書籍。",
+                    "神經質的氣質，頭髮日漸稀疏，雙眼看過太多不該看的東西。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Relentlessly rational, refuses to accept the supernatural until confronted by it.",
+                    "Obsessive researcher, will sacrifice sleep for one more page of forbidden text.",
+                    "Calm under pressure, hides growing dread behind British stoicism.",
+                    "Compassionate doctor who got into investigation to save lives.",
+                    "Thrill-seeking journalist chasing the story of a lifetime.",
+                ],
+                "zh": [
+                    "極度理性，在親眼目睹超自然現象之前拒絕承認其存在。",
+                    "偏執的研究者，為了多讀一頁禁忌文獻可以不眠不休。",
+                    "臨危不亂，以英式沉穩掩蓋內心不斷滋長的恐懼。",
+                    "富有同情心的醫生，投身調查是為了拯救生命。",
+                    "追求刺激的記者，一心追逐畢生最大的獨家報導。",
+                ],
             },
         },
         # -------------------------------------------------------------------
@@ -683,6 +1007,42 @@ class GameConfig:
                 "skill_check":    "skill roll",
                 "starting_area":  "river city",
             },
+            "races":   ["Human (Cygnaran)", "Human (Khadoran)", "Dwarf (Rhulfolk)", "Gobber", "Trollkin", "Iosan Elf"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Gorten", "Koldun", "Magnus", "Ashlynn", "Viktor", "Orin", "Durgen", "Caine"],
+            "names_f": ["Haley", "Deneghra", "Ashlynn", "Alexia", "Kara", "Aiyana", "Rhyas", "Vayl"],
+            "appearances": {
+                "en": [
+                    "Soot-stained face, heavy mechanikal gauntlet on the right arm.",
+                    "Military posture with Cygnaran army insignia and polished storm-glaive.",
+                    "Broad-shouldered Khadoran in fur-lined greatcoat and ushanka.",
+                    "Wiry gobber with oversized goggles and bandoliers of tools.",
+                    "Imposing trollkin with blue-grey skin and steam-driven prosthetic leg.",
+                ],
+                "zh": [
+                    "面容被煤灰染黑，右臂戴著沉重的機械護手。",
+                    "軍人姿態挺拔，佩戴賽格納軍隊徽章與擦亮的風暴長戟。",
+                    "肩膀寬闊的凱多人，身穿毛皮內襯的軍大衣，戴著烏沙帽。",
+                    "精瘦的哥布，戴著超大號護目鏡，身上掛滿工具彈帶。",
+                    "高大威猛的巨魔族，藍灰色皮膚，裝著蒸汽驅動的義肢腿。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Inventive tinkerer who sees every problem as an engineering challenge.",
+                    "Hardened soldier loyal to crown and country above all else.",
+                    "Mercenary pragmatist — loyalty goes to the highest bidder.",
+                    "Idealistic warcaster who believes power should serve the people.",
+                    "Grizzled veteran who has survived too many wars to count.",
+                ],
+                "zh": [
+                    "充滿創意的修補匠，將每個問題都視為工程挑戰。",
+                    "鐵血軍人，對王冠與國家的忠誠高於一切。",
+                    "傭兵式的務實主義——忠誠跟著最高出價者走。",
+                    "理想主義的戰爭施法者，相信力量應當為人民服務。",
+                    "飽經風霜的老兵，經歷過多到數不清的戰爭。",
+                ],
+            },
         },
         {
             "id":               "blades_in_the_dark",
@@ -704,6 +1064,42 @@ class GameConfig:
                 "dm_title":       "Game Master",
                 "skill_check":    "action roll",
                 "starting_area":  "gang territory district",
+            },
+            "races":   ["Human"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Aldo", "Clave", "Edlun", "Fitz", "Oskar", "Rolan", "Setarra", "Volaris"],
+            "names_f": ["Brynna", "Cyrene", "Elynn", "Irimina", "Myra", "Nessa", "Sarial", "Tesslyn"],
+            "appearances": {
+                "en": [
+                    "Sharp features half-hidden by a high collar, ink-black gloves never removed.",
+                    "Stocky dockworker build, crooked nose broken more than once.",
+                    "Lean and quick-eyed, dressed in layered dark clothing with hidden pockets.",
+                    "Gaunt face lit by the faint blue glow of an electroplasmic tattoo.",
+                    "Broad-shouldered with calloused hands and a gang brand on the neck.",
+                ],
+                "zh": [
+                    "尖銳的面容半隱在高領之下，墨黑手套從不摘下。",
+                    "碼頭工人般壯碩的身材，歪斜的鼻子不知被打斷過幾次。",
+                    "精瘦而目光敏銳，穿著層層疊疊的深色衣物，暗袋遍佈。",
+                    "消瘦的面孔被靈電刺青的淡藍微光所映照。",
+                    "寬肩厚背，雙手佈滿老繭，脖頸上烙著幫派印記。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Ruthlessly ambitious, always calculating the next score.",
+                    "Loyal to the crew above all — betrayal is the only unforgivable sin.",
+                    "Haunted by ghosts — literally — and prone to dark moods.",
+                    "Charming con artist who can talk their way out of anything.",
+                    "Cold professional who treats crime as just another trade.",
+                ],
+                "zh": [
+                    "野心勃勃毫不留情，永遠在盤算下一票。",
+                    "對團夥的忠誠高於一切——背叛是唯一不可饒恕的罪。",
+                    "被亡靈纏身——毫不誇張——時常陷入陰鬱的情緒。",
+                    "魅力十足的騙術師，三寸不爛之舌能化解一切。",
+                    "冷酷的專業人士，視犯罪不過是另一門營生。",
+                ],
             },
         },
         # -------------------------------------------------------------------
@@ -730,6 +1126,42 @@ class GameConfig:
                 "skill_check":    "martial test",
                 "starting_area":  "jianghu crossroads town",
             },
+            "races":   ["Human"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Lingfeng", "Tianlei", "Zhenyuan", "Haoran", "Junwei", "Yichen", "Xuanming", "Baiyu"],
+            "names_f": ["Qianxue", "Ruoxi", "Yuehua", "Mingzhu", "Zixuan", "Hanyan", "Feiling", "Wanqing"],
+            "appearances": {
+                "en": [
+                    "Lean and tall with sharp brows and bright eyes, white robes billowing in the wind.",
+                    "Broad-backed and powerful, a blade scar across the face, gaze sharp as a hawk.",
+                    "Delicate beauty with a white magnolia pinned in the hair and a cinnabar mark between the brows.",
+                    "Dark-skinned and solid, dressed in plain cloth and straw sandals, an ancient dao strapped to the back.",
+                    "Refined and scholarly, a folding fan always in hand, a smile that conceals a blade.",
+                ],
+                "zh": [
+                    "清瘦修長，劍眉星目，一襲白衣隨風飄動。",
+                    "虎背熊腰，臉上刀疤橫亙，目光如鷹。",
+                    "容貌秀麗，髮間簪著一朵白玉蘭，眉心有硃砂痣。",
+                    "黝黑結實，布衣草鞋，背負一柄古樸長刀。",
+                    "文質彬彬，一把摺扇不離手，笑裡藏刀。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Chivalry above all — never passes injustice without drawing a blade.",
+                    "Silent and taciturn, lets swordplay speak instead of words.",
+                    "Free-spirited and unrestrained, loves wine above all; swordsmanship grows fiercer when drunk.",
+                    "Meticulous and deliberate, thinks thrice before acting.",
+                    "Deeply loyal, would walk through fire and water for a sworn brother without hesitation.",
+                ],
+                "zh": [
+                    "俠義為先，路見不平必拔刀相助。",
+                    "沉默寡言，只以劍法說話。",
+                    "灑脫不羈，嗜酒如命，醉中劍法更勝清醒。",
+                    "心思縝密，凡事三思而後行。",
+                    "重情重義，為兄弟赴湯蹈火在所不辭。",
+                ],
+            },
         },
         {
             "id":               "l5r",
@@ -751,6 +1183,42 @@ class GameConfig:
                 "dm_title":       "Game Master",
                 "skill_check":    "ring/skill roll",
                 "starting_area":  "Imperial capital district",
+            },
+            "races":   ["Human"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Hida Kisada", "Doji Hoturi", "Mirumoto Hitomi", "Akodo Toturi", "Isawa Tadaka", "Bayushi Shoju", "Shinjo Yokatsu"],
+            "names_f": ["Hida O-Ushi", "Doji Hotaru", "Togashi Mitsu", "Matsu Tsuko", "Isawa Kaede", "Bayushi Kachiko", "Utaku Kamoko"],
+            "appearances": {
+                "en": [
+                    "A resolute face bearing battlefield scars, clad in heavy samurai armour.",
+                    "Fair-skinned and elegant, wearing a crane-patterned kimono, bearing noble poise.",
+                    "Lean and agile, dragon tattoos covering both arms, eyes deep and unfathomable.",
+                    "Tall and commanding, hair tied high like a lion's mane, a famed blade at the hip.",
+                    "Wearing an exquisite mask that reveals only a pair of razor-sharp eyes.",
+                ],
+                "zh": [
+                    "剛毅的面容上橫著戰場的傷痕，身著厚重的武士甲冑。",
+                    "白皙優雅，一襲鶴紋和服，舉止從容高貴。",
+                    "精瘦矯健，龍紋刺青遍布雙臂，眼神深邃。",
+                    "威嚴挺拔，獅鬃般的髮髻高束，配一柄名刀。",
+                    "戴著精緻面具，只露出一雙銳利的眼睛。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Honour above life itself — would sooner die than lose integrity.",
+                    "Composed and restrained, courteous to all yet concealing a hidden edge.",
+                    "Fiercely loyal and courageous, would die for the clan without hesitation.",
+                    "Far-sighted and calculating, adept at navigating court politics with cunning.",
+                    "A person of few words, devoted to the way of the sword as a lifelong pursuit.",
+                ],
+                "zh": [
+                    "榮譽高於生命，寧死不可失節。",
+                    "沉穩內斂，以禮待人卻暗藏鋒芒。",
+                    "忠勇剛烈，為家族赴死義不容辭。",
+                    "深謀遠慮，善用權術在朝堂間周旋。",
+                    "寡言少語，以劍道修行為畢生志業。",
+                ],
             },
         },
         # -------------------------------------------------------------------
@@ -777,6 +1245,42 @@ class GameConfig:
                 "skill_check":    "trait roll",
                 "starting_area":  "frontier boom town",
             },
+            "races":   ["Human"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Wyatt", "Jesse", "Hank", "Colt", "Eli", "Josiah", "Buck", "Silas"],
+            "names_f": ["Abigail", "Bonnie", "Calamity", "Dolly", "Josephine", "Maude", "Sadie", "Willa"],
+            "appearances": {
+                "en": [
+                    "Sun-beaten face under a wide-brimmed Stetson, twin revolvers on the hips.",
+                    "Dusty duster coat, chewing tobacco, a cold stare that never blinks.",
+                    "Weathered Native features, bone charms braided into long dark hair.",
+                    "Compact frame in a waistcoat, pocket watch chain, and derringer up the sleeve.",
+                    "Gaunt and pale — too pale — with an unsettling stillness about them.",
+                ],
+                "zh": [
+                    "飽經風霜的面孔藏在寬簷史泰森帽下，腰間掛著雙管左輪。",
+                    "一身塵土飛揚的長風衣，嚼著菸草，目光冰冷從不眨眼。",
+                    "飽經歲月的原住民面容，長黑髮間編著骨製護符。",
+                    "身材精幹，穿著馬甲，懷錶鏈垂在胸前，袖中藏著一把德林傑手槍。",
+                    "枯瘦蒼白——白得不正常——渾身散發著令人不安的死寂。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Laconic gunslinger with a strict personal code of justice.",
+                    "Fast-talking gambler who bets big and talks bigger.",
+                    "Gentle soul turned hard by the horrors of the Weird West.",
+                    "Vengeful drifter hunting the creature that killed their family.",
+                    "Reckless thrill-seeker who laughs in the face of the supernatural.",
+                ],
+                "zh": [
+                    "沉默寡言的槍手，奉行一套嚴格的個人正義信條。",
+                    "口若懸河的賭徒，賭注下得大，吹噓得更大。",
+                    "溫柔的靈魂被詭西部的恐怖磨礪得堅硬冷酷。",
+                    "復仇心切的流浪者，追獵殺害家人的怪物。",
+                    "魯莽的冒險狂，面對超自然存在只會放聲大笑。",
+                ],
+            },
         },
         {
             "id":               "mutant_year_zero",
@@ -799,6 +1303,42 @@ class GameConfig:
                 "skill_check":    "push roll",
                 "starting_area":  "Ark sanctuary",
             },
+            "races":   ["Mutant", "Human Survivor"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Rustle", "Hammer", "Scrap", "Dusty", "Fink", "Grub", "Torch", "Rebar"],
+            "names_f": ["Ash", "Glint", "Moss", "Siren", "Cinder", "Petal", "Spark", "Rust"],
+            "appearances": {
+                "en": [
+                    "Patchy green skin with bony growths along the forearms, scavenged armour.",
+                    "Extra set of vestigial eyes on the forehead, crude leather goggles.",
+                    "Wiry and fast, covered in old burns, a scavenged gas mask around the neck.",
+                    "Hulking frame with bark-like skin and moss growing in the joints.",
+                    "Gaunt and hollow-eyed, wrapped in layers of salvaged rags and wire.",
+                ],
+                "zh": [
+                    "斑駁的綠色皮膚，前臂長著骨質突起，穿著拼湊的護甲。",
+                    "額頭上多長了一對退化的眼睛，戴著粗製的皮革護目鏡。",
+                    "精瘦敏捷，遍體舊灼傷，脖子上掛著一具撿來的防毒面具。",
+                    "體型龐大，皮膚如樹皮般粗糙，關節處長著青苔。",
+                    "枯瘦如柴，眼窩深陷，裹著層層撿來的破布和鐵絲。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Fiercely protective of the Ark — it's all anyone has left.",
+                    "Restless explorer who craves the freedom of the Zone.",
+                    "Hoarding instinct — never throws anything away, everything has a use.",
+                    "Optimistic dreamer who believes the before-times can be rebuilt.",
+                    "Bitter and suspicious, trusts no one outside the Ark.",
+                ],
+                "zh": [
+                    "拼命守護方舟——那是所有人僅剩的一切。",
+                    "躁動不安的探索者，渴望禁區中的自由。",
+                    "囤積本能——什麼都捨不得丟，萬物皆有用處。",
+                    "樂觀的夢想家，相信舊時代的文明可以重建。",
+                    "憤世嫉俗且疑心重重，不信任方舟以外的任何人。",
+                ],
+            },
         },
         {
             "id":               "gloomhaven",
@@ -820,6 +1360,42 @@ class GameConfig:
                 "dm_title":       "Game Master",
                 "skill_check":    "ability card play",
                 "starting_area":  "dockside tavern",
+            },
+            "races":   ["Human", "Inox", "Valrath", "Quatryl", "Orchid", "Savvas", "Aesther", "Harrower"],
+            "classes": ["Warrior", "Mage", "Rogue", "Cleric"],
+            "names_m": ["Grond", "Kellos", "Brevik", "Tharsis", "Volgur", "Nacht", "Drakon", "Ursk"],
+            "names_f": ["Riella", "Mystra", "Keldra", "Syra", "Vael", "Thyra", "Neska", "Orla"],
+            "appearances": {
+                "en": [
+                    "Scarred mercenary with mismatched armour plates looted from a dozen jobs.",
+                    "Tall Inox with curved horns, fur-lined cloak, and a tribal bone necklace.",
+                    "Slight Quatryl with oversized goggles, mechanical gauntlets, and soot on the nose.",
+                    "Lean Orchid with iridescent skin markings and a quiet, watchful posture.",
+                    "Heavy-set Valrath with red skin, filed tusks, and a massive hammer.",
+                ],
+                "zh": [
+                    "傷疤遍體的傭兵，身上的護甲板是從十幾次任務中拼湊而來。",
+                    "高大的伊諾克斯族，彎曲的角，毛皮斗篷，佩戴部族骨製項鏈。",
+                    "嬌小的夸特瑞爾族，戴著超大護目鏡和機械臂甲，鼻尖沾著煤灰。",
+                    "精瘦的蘭花族，皮膚上有虹彩紋路，姿態沉靜而警覺。",
+                    "壯碩的瓦拉斯族，紅色皮膚，磨平的獠牙，手持一柄巨錘。",
+                ],
+            },
+            "personalities": {
+                "en": [
+                    "Coin-driven mercenary who never works for free — ever.",
+                    "Honour-bound warrior seeking redemption for a past failure.",
+                    "Cheerfully amoral thief who sees treasure as its own justification.",
+                    "Haunted by visions, seeking ancient artefacts to end the nightmares.",
+                    "Stoic professional who measures success by contracts completed.",
+                ],
+                "zh": [
+                    "唯利是圖的傭兵，從不免費替人賣命——絕不。",
+                    "受榮譽約束的戰士，為過去的失敗尋求救贖。",
+                    "開朗而毫無道德感的竊賊，視寶藏本身就是最好的理由。",
+                    "被幻象纏身，四處尋找能終結噩夢的遠古神器。",
+                    "沉穩的專業人士，以完成的契約數量衡量成就。",
+                ],
             },
         },
     ]
