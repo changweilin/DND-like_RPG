@@ -1238,6 +1238,105 @@ class LLMClient:
             return f"Earlier: {turns[-1].get('player_action', '')}..." if turns else ""
 
     # ------------------------------------------------------------------
+    # Organization extraction / generation
+    # ------------------------------------------------------------------
+
+    def extract_organizations(self, narrative_text, world_context, language, turn_number=0):
+        """
+        Scan a narrative passage and return any organizations (governments,
+        armies, guilds, cults, academies, mercenary companies, …) mentioned or
+        implied in the text.  For each organization found, auto-generate any
+        fields that the text does not supply, based on the world context.
+
+        Returns a list of dicts, each matching the schema:
+          {
+            "name":           display name,
+            "type":           category (government / army / guild / cult / academy /
+                              mercenary / religious order / secret society / …),
+            "founder":        founder name,
+            "history":        2-3 sentence founding history and key events,
+            "member_count":   rough size (text),
+            "current_leader": current leader name,
+            "headquarters":   main base or location,
+            "alignment":      moral alignment hint,
+            "description":    1-2 sentence flavour blurb,
+          }
+        Returns [] on failure.
+        """
+        json_schema = (
+            '[\n'
+            '  {\n'
+            '    "name": "Iron Vanguard",\n'
+            '    "type": "army",\n'
+            '    "founder": "General Aldric Thorne",\n'
+            '    "history": "Founded 200 years ago to repel the northern invasion. '
+            'Survived three civil wars and now serves the crown.",\n'
+            '    "member_count": "~8,000 soldiers",\n'
+            '    "current_leader": "Commander Seraphine Voss",\n'
+            '    "headquarters": "Ironhold Fortress",\n'
+            '    "alignment": "Lawful Neutral",\n'
+            '    "description": "An elite standing army renowned for discipline and '
+            'unwavering loyalty to the throne."\n'
+            '  }\n'
+            ']'
+        )
+
+        system_prompt = (
+            "You are a TRPG lore keeper. Analyse the narrative text below and identify "
+            "every organization mentioned or strongly implied (governments, armies, guilds, "
+            "religious orders, secret societies, academies, mercenary groups, noble houses "
+            "acting as factions, etc.).\n"
+            "For each organization:\n"
+            "  • Extract details that appear explicitly in the text.\n"
+            "  • Auto-generate any MISSING fields so they are plausible and consistent "
+            "with the world context provided.\n"
+            "  • Never fabricate an organization that is not present or implied.\n"
+            f"Write ALL generated text exclusively in {language or 'English'}.\n"
+            f"World context: {world_context[:600]}\n\n"
+            f"CRITICAL: Respond ONLY with a valid JSON array matching this schema "
+            f"(empty array [] if none found):\n{json_schema}"
+        )
+
+        try:
+            raw = self._chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": f"Narrative:\n{narrative_text[:2000]}"},
+                ],
+                json_mode=True,
+            )
+            data = json.loads(_repair_json(raw))
+            if not isinstance(data, list):
+                # LLM sometimes wraps in {"organizations": [...]}
+                if isinstance(data, dict):
+                    for v in data.values():
+                        if isinstance(v, list):
+                            data = v
+                            break
+                    else:
+                        data = []
+            result = []
+            for item in data:
+                if not isinstance(item, dict) or not item.get('name'):
+                    continue
+                result.append({
+                    'name':           str(item.get('name', '')).strip(),
+                    'type':           str(item.get('type', '')).strip(),
+                    'founder':        str(item.get('founder', '')).strip(),
+                    'history':        str(item.get('history', '')).strip(),
+                    'member_count':   str(item.get('member_count', '')).strip(),
+                    'current_leader': str(item.get('current_leader', '')).strip(),
+                    'headquarters':   str(item.get('headquarters', '')).strip(),
+                    'alignment':      str(item.get('alignment', '')).strip(),
+                    'description':    str(item.get('description', '')).strip(),
+                    'first_seen_turn': turn_number,
+                })
+            return result
+        except Exception as e:
+            print(f"Organization extraction error: {e}")
+            return []
+
+    # ------------------------------------------------------------------
     # Legacy compatibility
     # ------------------------------------------------------------------
 

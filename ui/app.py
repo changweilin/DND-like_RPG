@@ -1723,6 +1723,82 @@ def _render_characters_tab(party, state, active_char):
                         st.caption(f"性格: {char.personality}")
 
 # ---------------------------------------------------------------------------
+# Organizations tab — faction / org codex discovered during the story
+# ---------------------------------------------------------------------------
+
+# Type labels → display emoji
+_ORG_TYPE_ICONS = {
+    'government':     '🏛️',
+    'army':           '⚔️',
+    'guild':          '🔨',
+    'cult':           '🕯️',
+    'religious order':'⛪',
+    'academy':        '📚',
+    'mercenary':      '💰',
+    'secret society': '🕵️',
+    'noble house':    '👑',
+}
+
+
+def _render_organizations_tab(state):
+    """Tab — 🏛️ 組織: faction / organization codex built from the story so far."""
+    from engine.world import WorldManager
+
+    orgs = []
+    if state is not None:
+        raw = getattr(state, 'organizations', None) or {}
+        orgs = sorted(raw.values(), key=lambda o: o.get('first_seen_turn', 0))
+
+    if not orgs:
+        st.info("尚未發現任何組織。繼續冒險，組織情報將會自動記錄在此。")
+        return
+
+    # Search bar
+    search = st.text_input("🔍 搜尋組織", key="org_search",
+                           placeholder="輸入名稱、類型、領導人…")
+    query = search.strip().lower()
+    if query:
+        orgs = [o for o in orgs
+                if query in (o.get('name') or '').lower()
+                or query in (o.get('type') or '').lower()
+                or query in (o.get('current_leader') or '').lower()
+                or query in (o.get('headquarters') or '').lower()]
+
+    st.caption(f"共記錄 **{len(orgs)}** 個組織")
+
+    for org in orgs:
+        org_type = (org.get('type') or 'unknown').lower()
+        icon     = _ORG_TYPE_ICONS.get(org_type, '🏢')
+        label    = f"{icon} {org.get('name', '（未命名）')}"
+        if org.get('type'):
+            label += f"  ·  *{org['type'].title()}*"
+
+        with st.expander(label, expanded=False):
+            cols = st.columns([1, 1])
+            with cols[0]:
+                if org.get('founder'):
+                    st.markdown(f"**創辦人** {org['founder']}")
+                if org.get('current_leader'):
+                    st.markdown(f"**現任領導人** {org['current_leader']}")
+                if org.get('member_count'):
+                    st.markdown(f"**成員規模** {org['member_count']}")
+            with cols[1]:
+                if org.get('headquarters'):
+                    st.markdown(f"**據點** {org['headquarters']}")
+                if org.get('alignment'):
+                    st.markdown(f"**陣營傾向** {org['alignment']}")
+                turn = org.get('first_seen_turn')
+                if turn is not None:
+                    label_t = "開場白" if turn == 0 else f"第 {turn} 回合"
+                    st.markdown(f"**首次登場** {label_t}")
+            if org.get('description'):
+                st.markdown(f"> {org['description']}")
+            if org.get('history'):
+                st.markdown("**歷史沿革**")
+                st.markdown(org['history'])
+
+
+# ---------------------------------------------------------------------------
 # Rules tab — full world-aware player handbook with chapter navigation + search
 # ---------------------------------------------------------------------------
 
@@ -2261,8 +2337,8 @@ def game_loop():
     )
 
     # ---- Tabs (故事 first = default selected) ----
-    tab_story, tab_board, tab_chars, tab_rules, tab_book, tab_god = st.tabs(
-        ["📖 故事", "🗺️ 遊戲板", "👥 角色", "📜 規則", "📕 書本", "🔮 上帝模式"]
+    tab_story, tab_board, tab_chars, tab_rules, tab_orgs, tab_book, tab_god = st.tabs(
+        ["📖 故事", "🗺️ 遊戲板", "👥 角色", "📜 規則", "🏛️ 組織", "📕 書本", "🔮 上帝模式"]
     )
 
     with tab_story:
@@ -2276,6 +2352,9 @@ def game_loop():
 
     with tab_rules:
         _render_rules_tab(state)
+
+    with tab_orgs:
+        _render_organizations_tab(state)
 
     with tab_book:
         _render_book_tab(getattr(state, 'save_name', None))

@@ -121,3 +121,60 @@ class WorldManager:
         if isinstance(entry, (int, float)):
             return {"affinity": int(entry), "state": "Neutral", "goal": ""}
         return entry
+
+    # ------------------------------------------------------------------
+    # Organization tracking
+    # ------------------------------------------------------------------
+
+    def register_organization(self, profile):
+        """
+        Register a new organization or back-fill missing fields on an existing one.
+
+        profile must contain at minimum 'name'. All other fields default to ''.
+        Keyed by name.lower() to allow case-insensitive deduplication.
+        Never overwrites an already-populated field — safe to call on each turn.
+        """
+        orgs = dict(self.state.organizations or {})
+        key  = profile.get('name', '').lower().strip()
+        if not key:
+            return
+
+        existing = orgs.get(key, {})
+        defaults = {
+            'name':            profile.get('name', ''),
+            'type':            '',
+            'founder':         '',
+            'history':         '',
+            'member_count':    '',
+            'current_leader':  '',
+            'headquarters':    '',
+            'alignment':       '',
+            'description':     '',
+            'first_seen_turn': profile.get('first_seen_turn', 0),
+        }
+        # Merge: fill defaults first, then overlay existing (non-empty) values,
+        # then overlay new profile values into empty slots only.
+        merged = {**defaults, **{k: v for k, v in existing.items() if v}}
+        for field, value in profile.items():
+            if value and not merged.get(field):
+                merged[field] = value
+        # Always preserve the earliest first_seen_turn
+        if existing.get('first_seen_turn') is not None:
+            merged['first_seen_turn'] = min(
+                int(existing['first_seen_turn']),
+                int(profile.get('first_seen_turn', merged['first_seen_turn'])),
+            )
+        orgs[key] = merged
+        self.state.organizations = orgs
+        flag_modified(self.state, 'organizations')
+        self.session.commit()
+
+    def get_organization(self, name):
+        """Return the organization dict for name (case-insensitive), or None."""
+        orgs = self.state.organizations or {}
+        return orgs.get(name.lower().strip())
+
+    def list_organizations(self):
+        """Return a list of all organization dicts, sorted by first_seen_turn."""
+        orgs = self.state.organizations or {}
+        return sorted(orgs.values(), key=lambda o: o.get('first_seen_turn', 0))

@@ -558,6 +558,9 @@ class EventManager:
             event_id=event_id,
         )
 
+        # --- Step 10c: Extract organizations mentioned in this turn's narrative ---
+        self._extract_and_register_organizations(narrative, current_state, world)
+
         return narrative, choices, turn_data, dice_result
 
     def generate_prologue(self, current_state, party):
@@ -587,6 +590,10 @@ class EventManager:
             )
         except Exception as e:
             print(f"Prologue RAG store error: {e}")
+
+        # Extract organizations introduced in the prologue
+        world = WorldManager(self.session, current_state)
+        self._extract_and_register_organizations(narrative, current_state, world, turn_number=0)
 
         return narrative, choices, turn_data
 
@@ -1198,6 +1205,29 @@ class EventManager:
         current_state.turn_count     = turn_number
         flag_modified(current_state, 'session_memory')
         self.session.commit()
+
+    def _extract_and_register_organizations(self, narrative, current_state, world, turn_number=None):
+        """
+        Call LLMClient.extract_organizations on the narrative, then persist any
+        new organizations via WorldManager.register_organization.
+
+        Runs in a try/except so an LLM error never breaks the game loop.
+        """
+        if not narrative:
+            return
+        if turn_number is None:
+            turn_number = current_state.turn_count or 0
+        try:
+            orgs = self.llm.extract_organizations(
+                narrative_text=narrative,
+                world_context=current_state.world_context or '',
+                language=current_state.language or 'English',
+                turn_number=turn_number,
+            )
+            for org in orgs:
+                world.register_organization(org)
+        except Exception as e:
+            print(f"Organization extraction error: {e}")
 
     def _seed_world_lore(self, current_state):
         """

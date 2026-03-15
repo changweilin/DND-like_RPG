@@ -102,6 +102,21 @@ class GameState(Base):
     # Set at character creation; 1 = shown, 0 = hidden.
     allow_custom_action   = Column(Integer, default=1)
 
+    # Organizations encountered in the story.
+    # Format: {org_name_lower: {
+    #   "name":            display name,
+    #   "type":            category (government / army / guild / cult / academy / …),
+    #   "founder":         name of the founder,
+    #   "history":         2-3 sentence founding and key events,
+    #   "member_count":    rough member count (text, e.g. "~500 soldiers"),
+    #   "current_leader":  name of the current leader,
+    #   "headquarters":    main base / location,
+    #   "alignment":       moral alignment hint (e.g. "Lawful Neutral"),
+    #   "description":     1-2 sentence flavour description,
+    #   "first_seen_turn": turn number when first mentioned,
+    # }}
+    organizations = Column(JSON, default=lambda: {})
+
 class DatabaseManager:
     def __init__(self, db_path="savegame.db"):
         self.engine = create_engine(f'sqlite:///{db_path}')
@@ -122,6 +137,7 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN session_memory TEXT DEFAULT '[]'",
             "ALTER TABLE game_state ADD COLUMN known_entities TEXT DEFAULT '{}'",
             "ALTER TABLE game_state ADD COLUMN allow_custom_action INTEGER DEFAULT 1",
+            "ALTER TABLE game_state ADD COLUMN organizations TEXT DEFAULT '{}'",
         ]
         with engine.connect() as conn:
             for sql in migrations:
