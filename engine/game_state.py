@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Text, JSON
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Text, JSON, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 Base = declarative_base()
@@ -116,6 +116,50 @@ class GameState(Base):
     #   "first_seen_turn": turn number when first mentioned,
     # }}
     organizations = Column(JSON, default=lambda: {})
+
+class EntityRelation(Base):
+    """
+    Directed edge in the entity relationship graph.
+
+    Both endpoints are identified by (entity_type, entity_key):
+      entity_type  — 'org' | 'char' | 'npc'
+      entity_key   — org  → name.lower()
+                     char → str(Character.id)
+                     npc  → name.lower()
+
+    The relation is directional (source → target) but most queries will
+    search both directions.  Use relation_type to distinguish semantics;
+    strength encodes the signed intensity (-100 hostile … +100 devoted).
+
+    Relation type vocabulary (not enforced — free text):
+      org→org  : ally / rival / enemy / vassal / trade_partner / neutral
+      org→char : employs / hunts / protects / founded_by
+      char→org : member / leader / enemy / contractor / patron
+      char→char: friend / rival / romantic / family / mentor / enemy
+    """
+    __tablename__ = 'entity_relations'
+    __table_args__ = (
+        # Prevent duplicate edges for the same (save, src, tgt, type) tuple.
+        UniqueConstraint(
+            'game_state_id', 'source_type', 'source_key',
+            'target_type', 'target_key', 'relation_type',
+            name='uq_entity_relation',
+        ),
+    )
+
+    id             = Column(Integer, primary_key=True)
+    game_state_id  = Column(Integer, ForeignKey('game_state.id'), nullable=False)
+
+    source_type    = Column(String, nullable=False)   # 'org' | 'char' | 'npc'
+    source_key     = Column(String, nullable=False)
+    target_type    = Column(String, nullable=False)
+    target_key     = Column(String, nullable=False)
+
+    relation_type  = Column(String, nullable=False)   # e.g. 'ally', 'member'
+    strength       = Column(Integer, default=0)        # -100 … +100
+    description    = Column(Text, default='')          # one-sentence flavour note
+    since_turn     = Column(Integer, default=0)        # turn when established
+
 
 class DatabaseManager:
     def __init__(self, db_path="savegame.db"):

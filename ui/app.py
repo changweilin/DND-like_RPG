@@ -1622,6 +1622,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
 def _render_characters_tab(party, state, active_char):
     """Tab 3 — 角色: expanded stat cards for every party member."""
+    from engine.world import WorldManager
     ws_id   = getattr(state, 'world_setting', None) or 'dnd5e'
     ws      = config.get_world_setting(ws_id)
     tm      = ws.get('term_map', {})
@@ -1722,6 +1723,29 @@ def _render_characters_tab(party, state, active_char):
                     if char.personality:
                         st.caption(f"性格: {char.personality}")
 
+            # ── Relations for this character ─────────────────────────────
+            try:
+                _db      = st.session_state.save_manager.db
+                _sess    = _db.get_session()
+                _world   = WorldManager(_sess, state)
+                char_key = str(char.name).lower()
+                char_rels = _world.get_relations('char', char_key)
+                if not char_rels:
+                    # also try by id string in case edges were stored that way
+                    char_rels = _world.get_relations('char', str(char.id))
+                if char_rels:
+                    # Build a lookup from org + NPC names
+                    _lk = {o['name'].lower(): o['name']
+                           for o in _world.list_organizations()}
+                    for npc in (state.relationships or {}):
+                        _lk[npc.lower()] = npc
+                    for c in party:
+                        _lk[c.name.lower()] = c.name
+                    with st.expander("🔗 關係", expanded=False):
+                        _render_relation_rows(char_rels, char_key, _lk)
+            except Exception:
+                pass
+
 # ---------------------------------------------------------------------------
 # Organizations tab — faction / org codex discovered during the story
 # ---------------------------------------------------------------------------
@@ -1740,62 +1764,166 @@ _ORG_TYPE_ICONS = {
 }
 
 
+_RELATION_STRENGTH_COLOUR = {
+    range(-100, -60): '#f44336',   # hostile     — red
+    range(-60,  -20): '#ff9800',   # unfriendly  — orange
+    range(-20,   20): '#9e9e9e',   # neutral     — grey
+    range( 20,   60): '#8bc34a',   # friendly    — light green
+    range( 60,  101): '#4caf50',   # allied      — green
+}
+
+def _strength_colour(strength):
+    for rng, colour in _RELATION_STRENGTH_COLOUR.items():
+        if strength in rng:
+            return colour
+    return '#9e9e9e'
+
+
+def _render_relation_rows(relations, self_key, label_lookup):
+    """
+    Render a compact table of EntityRelation rows for one entity.
+
+    self_key    — entity key for the focal entity (so we can show the other side)
+    label_lookup — dict mapping entity_key → display label
+    """
+    if not relations:
+        st.caption("無已知關係")
+        return
+    for rel in sorted(relations, key=lambda r: -abs(r.strength)):
+        is_outgoing = rel.source_key == self_key.lower()
+        other_key   = rel.target_key   if is_outgoing else rel.source_key
+        other_label = label_lookup.get(other_key, other_key.title())
+        arrow       = "→" if is_outgoing else "←"
+        colour      = _strength_colour(rel.strength)
+        turn_label  = "開場白" if rel.since_turn == 0 else f"第 {rel.since_turn} 回合"
+        st.markdown(
+            f"<div style='display:flex;align-items:baseline;gap:8px;"
+            f"padding:4px 0;border-bottom:1px solid #1e1e2e'>"
+            f"<span style='color:{colour};font-weight:bold;min-width:24px'>{arrow}</span>"
+            f"<span style='flex:1'><b>{other_label}</b>"
+            f" &nbsp;<span style='color:#aaa;font-size:0.85em'>{rel.relation_type}</span></span>"
+            f"<span style='color:{colour};font-size:0.85em'>{rel.strength:+d}</span>"
+            f"<span style='color:#555;font-size:0.8em;min-width:60px;text-align:right'>{turn_label}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+        if rel.description:
+            st.caption(f"  {rel.description}")
+
+
 def _render_organizations_tab(state):
     """Tab — 🏛️ 組織: faction / organization codex built from the story so far."""
     from engine.world import WorldManager
 
     orgs = []
+    world_manager = None
+    all_relations = []
+    label_lookup  = {}    # entity_key → display label
+
     if state is not None:
         raw = getattr(state, 'organizations', None) or {}
         orgs = sorted(raw.values(), key=lambda o: o.get('first_seen_turn', 0))
+        # Build label lookup from orgs + NPC relationships
+        for o in orgs:
+            label_lookup[o['name'].lower()] = o['name']
+        for npc_name in (state.relationships or {}):
+            label_lookup[npc_name.lower()] = npc_name
+        # Load relations via a temporary WorldManager
+        try:
+            db = st.session_state.save_manager.db
+            session = db.get_session()
+            world_manager = WorldManager(session, state)
+            all_relations = world_manager.list_all_relations()
+        except Exception:
+            pass
 
     if not orgs:
         st.info("尚未發現任何組織。繼續冒險，組織情報將會自動記錄在此。")
         return
 
-    # Search bar
-    search = st.text_input("🔍 搜尋組織", key="org_search",
-                           placeholder="輸入名稱、類型、領導人…")
-    query = search.strip().lower()
-    if query:
-        orgs = [o for o in orgs
-                if query in (o.get('name') or '').lower()
-                or query in (o.get('type') or '').lower()
-                or query in (o.get('current_leader') or '').lower()
-                or query in (o.get('headquarters') or '').lower()]
+    # ── Tabs: Codex | Relationship Graph ─────────────────────────────────────
+    sub_codex, sub_graph = st.tabs(["📋 組織檔案", "🔗 關係一覽"])
 
-    st.caption(f"共記錄 **{len(orgs)}** 個組織")
+    with sub_codex:
+        # Search bar
+        search = st.text_input("🔍 搜尋組織", key="org_search",
+                               placeholder="輸入名稱、類型、領導人…")
+        query = search.strip().lower()
+        filtered = orgs
+        if query:
+            filtered = [o for o in orgs
+                        if query in (o.get('name') or '').lower()
+                        or query in (o.get('type') or '').lower()
+                        or query in (o.get('current_leader') or '').lower()
+                        or query in (o.get('headquarters') or '').lower()]
 
-    for org in orgs:
-        org_type = (org.get('type') or 'unknown').lower()
-        icon     = _ORG_TYPE_ICONS.get(org_type, '🏢')
-        label    = f"{icon} {org.get('name', '（未命名）')}"
-        if org.get('type'):
-            label += f"  ·  *{org['type'].title()}*"
+        st.caption(f"共記錄 **{len(filtered)}** 個組織")
 
-        with st.expander(label, expanded=False):
-            cols = st.columns([1, 1])
-            with cols[0]:
-                if org.get('founder'):
-                    st.markdown(f"**創辦人** {org['founder']}")
-                if org.get('current_leader'):
-                    st.markdown(f"**現任領導人** {org['current_leader']}")
-                if org.get('member_count'):
-                    st.markdown(f"**成員規模** {org['member_count']}")
-            with cols[1]:
-                if org.get('headquarters'):
-                    st.markdown(f"**據點** {org['headquarters']}")
-                if org.get('alignment'):
-                    st.markdown(f"**陣營傾向** {org['alignment']}")
-                turn = org.get('first_seen_turn')
-                if turn is not None:
-                    label_t = "開場白" if turn == 0 else f"第 {turn} 回合"
-                    st.markdown(f"**首次登場** {label_t}")
-            if org.get('description'):
-                st.markdown(f"> {org['description']}")
-            if org.get('history'):
-                st.markdown("**歷史沿革**")
-                st.markdown(org['history'])
+        for org in filtered:
+            org_type = (org.get('type') or 'unknown').lower()
+            icon     = _ORG_TYPE_ICONS.get(org_type, '🏢')
+            label    = f"{icon} {org.get('name', '（未命名）')}"
+            if org.get('type'):
+                label += f"  ·  *{org['type'].title()}*"
+
+            with st.expander(label, expanded=False):
+                cols = st.columns([1, 1])
+                with cols[0]:
+                    if org.get('founder'):
+                        st.markdown(f"**創辦人** {org['founder']}")
+                    if org.get('current_leader'):
+                        st.markdown(f"**現任領導人** {org['current_leader']}")
+                    if org.get('member_count'):
+                        st.markdown(f"**成員規模** {org['member_count']}")
+                with cols[1]:
+                    if org.get('headquarters'):
+                        st.markdown(f"**據點** {org['headquarters']}")
+                    if org.get('alignment'):
+                        st.markdown(f"**陣營傾向** {org['alignment']}")
+                    turn = org.get('first_seen_turn')
+                    if turn is not None:
+                        label_t = "開場白" if turn == 0 else f"第 {turn} 回合"
+                        st.markdown(f"**首次登場** {label_t}")
+                if org.get('description'):
+                    st.markdown(f"> {org['description']}")
+                if org.get('history'):
+                    st.markdown("**歷史沿革**")
+                    st.markdown(org['history'])
+
+                # Relations for this org
+                org_key  = org['name'].lower()
+                org_rels = [r for r in all_relations
+                            if r.source_key == org_key or r.target_key == org_key]
+                if org_rels:
+                    st.markdown("**關係**")
+                    _render_relation_rows(org_rels, org_key, label_lookup)
+
+    with sub_graph:
+        if not all_relations:
+            st.info("尚無關係資料。隨著故事發展，角色與組織之間的關係將記錄於此。")
+        else:
+            st.caption(f"共 **{len(all_relations)}** 條關係記錄")
+            # Group by relation_type for quick filtering
+            rel_types = sorted({r.relation_type for r in all_relations})
+            sel_types = st.multiselect("篩選關係類型", rel_types, default=rel_types,
+                                       key="org_rel_type_filter")
+            shown = [r for r in all_relations if r.relation_type in sel_types]
+            for rel in sorted(shown, key=lambda r: r.since_turn):
+                src_label = label_lookup.get(rel.source_key, rel.source_key.title())
+                tgt_label = label_lookup.get(rel.target_key, rel.target_key.title())
+                colour    = _strength_colour(rel.strength)
+                turn_lbl  = "開場白" if rel.since_turn == 0 else f"第 {rel.since_turn} 回合"
+                st.markdown(
+                    f"<div style='padding:5px 0;border-bottom:1px solid #1e1e2e'>"
+                    f"<b>{src_label}</b>"
+                    f" <span style='color:{colour}'> — {rel.relation_type} → </span>"
+                    f"<b>{tgt_label}</b>"
+                    f"&nbsp;&nbsp;<span style='color:#555;font-size:0.8em'>{turn_lbl}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                if rel.description:
+                    st.caption(f"  {rel.description}")
 
 
 # ---------------------------------------------------------------------------

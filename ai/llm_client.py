@@ -1336,6 +1336,120 @@ class LLMClient:
             print(f"Organization extraction error: {e}")
             return []
 
+    def extract_relations(self, narrative_text, known_orgs, known_chars,
+                          language, turn_number=0):
+        """
+        Scan a narrative passage for relationships between entities (org↔org,
+        org↔char/npc, char↔char).  Only entities already known to the game
+        (listed in known_orgs / known_chars) are eligible as endpoints — this
+        prevents the LLM from hallucinating new names.
+
+        known_orgs  — list of org name strings (display names)
+        known_chars — list of character/NPC name strings
+
+        Returns a list of dicts:
+          {
+            "source_type":   'org' | 'char' | 'npc',
+            "source_key":    identifier (name.lower() for org/npc, str(id) or name for char),
+            "source_label":  display name,
+            "target_type":   'org' | 'char' | 'npc',
+            "target_key":    identifier,
+            "target_label":  display name,
+            "relation_type": short verb/noun (ally / rival / member / …),
+            "strength":      int -100…+100,
+            "description":   one-sentence flavour note,
+          }
+        Returns [] on failure or if nothing found.
+        """
+        if not known_orgs and not known_chars:
+            return []
+
+        org_list  = '\n'.join(f"  org:{n}"  for n in known_orgs)  or '  (none)'
+        char_list = '\n'.join(f"  char:{n}" for n in known_chars) or '  (none)'
+
+        json_schema = (
+            '[\n'
+            '  {\n'
+            '    "source_type": "char",\n'
+            '    "source_key": "ser aldric",\n'
+            '    "source_label": "Ser Aldric",\n'
+            '    "target_type": "org",\n'
+            '    "target_key": "iron vanguard",\n'
+            '    "target_label": "Iron Vanguard",\n'
+            '    "relation_type": "member",\n'
+            '    "strength": 60,\n'
+            '    "description": "Ser Aldric is a sworn knight of the Iron Vanguard."\n'
+            '  }\n'
+            ']'
+        )
+
+        system_prompt = (
+            "You are a TRPG lore keeper. Analyse the narrative text below and identify "
+            "relationships between the KNOWN ENTITIES listed.\n\n"
+            "KNOWN ORGANISATIONS:\n" + org_list + "\n\n"
+            "KNOWN CHARACTERS / NPCs:\n" + char_list + "\n\n"
+            "Rules:\n"
+            "  • Only create edges between entities in the lists above. "
+            "Do NOT invent new entity names.\n"
+            "  • source_key / target_key must be the entity's name in lowercase.\n"
+            "  • relation_type: use short English words "
+            "(ally / rival / enemy / member / leader / founder / employs / "
+            "patron / contractor / friend / family / mentor / romantic).\n"
+            "  • strength: positive = positive bond, negative = hostile bond "
+            "(-100 = mortal enemies, 0 = neutral, +100 = inseparable allies).\n"
+            "  • Only include relationships that are explicitly stated or "
+            "clearly implied in the text.\n"
+            f"Write description exclusively in {language or 'English'}.\n\n"
+            f"CRITICAL: Respond ONLY with a valid JSON array matching this schema "
+            f"(empty array [] if none found):\n{json_schema}"
+        )
+
+        try:
+            raw = self._chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": f"Narrative:\n{narrative_text[:2000]}"},
+                ],
+                json_mode=True,
+            )
+            data = json.loads(_repair_json(raw))
+            if not isinstance(data, list):
+                if isinstance(data, dict):
+                    for v in data.values():
+                        if isinstance(v, list):
+                            data = v
+                            break
+                    else:
+                        data = []
+            result = []
+            valid_types = {'org', 'char', 'npc'}
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                st = item.get('source_type', '').lower()
+                tt = item.get('target_type', '').lower()
+                sk = str(item.get('source_key', '')).lower().strip()
+                tk = str(item.get('target_key', '')).lower().strip()
+                rt = str(item.get('relation_type', '')).lower().strip()
+                if not (st in valid_types and tt in valid_types and sk and tk and rt):
+                    continue
+                result.append({
+                    'source_type':  st,
+                    'source_key':   sk,
+                    'source_label': str(item.get('source_label', sk)).strip(),
+                    'target_type':  tt,
+                    'target_key':   tk,
+                    'target_label': str(item.get('target_label', tk)).strip(),
+                    'relation_type': rt,
+                    'strength':     max(-100, min(100, int(item.get('strength', 0)))),
+                    'description':  str(item.get('description', '')).strip(),
+                    'since_turn':   turn_number,
+                })
+            return result
+        except Exception as e:
+            print(f"Relation extraction error: {e}")
+            return []
+
     # ------------------------------------------------------------------
     # Legacy compatibility
     # ------------------------------------------------------------------

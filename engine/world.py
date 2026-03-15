@@ -1,5 +1,6 @@
 from sqlalchemy.orm.attributes import flag_modified
-from engine.game_state import GameState
+from sqlalchemy import and_, or_
+from engine.game_state import GameState, EntityRelation
 
 class WorldManager:
     def __init__(self, db_session, state_model: GameState):
@@ -178,3 +179,81 @@ class WorldManager:
         """Return a list of all organization dicts, sorted by first_seen_turn."""
         orgs = self.state.organizations or {}
         return sorted(orgs.values(), key=lambda o: o.get('first_seen_turn', 0))
+
+    # ------------------------------------------------------------------
+    # Entity relationship graph
+    # ------------------------------------------------------------------
+
+    def upsert_relation(self, source_type, source_key, target_type, target_key,
+                        relation_type, strength=0, description='', since_turn=0):
+        """
+        Insert or update a directed relationship edge.
+
+        If an edge with the same (game_state_id, source, target, relation_type)
+        already exists, update strength, description and since_turn only when
+        the new values are non-empty / stronger in magnitude.
+        Returns the EntityRelation instance.
+        """
+        sk = source_key.lower().strip()
+        tk = target_key.lower().strip()
+        existing = (
+            self.session.query(EntityRelation)
+            .filter_by(
+                game_state_id=self.state.id,
+                source_type=source_type, source_key=sk,
+                target_type=target_type, target_key=tk,
+                relation_type=relation_type,
+            )
+            .first()
+        )
+        if existing:
+            # Update only when new value carries more information
+            if abs(strength) > abs(existing.strength):
+                existing.strength = max(-100, min(100, strength))
+            if description and not existing.description:
+                existing.description = description
+        else:
+            existing = EntityRelation(
+                game_state_id=self.state.id,
+                source_type=source_type, source_key=sk,
+                target_type=target_type, target_key=tk,
+                relation_type=relation_type,
+                strength=max(-100, min(100, strength)),
+                description=description,
+                since_turn=since_turn,
+            )
+            self.session.add(existing)
+        self.session.commit()
+        return existing
+
+    def get_relations(self, entity_type, entity_key, direction='both'):
+        """
+        Return all EntityRelation rows involving the given entity.
+
+        direction: 'outgoing' | 'incoming' | 'both'
+        """
+        ek = entity_key.lower().strip()
+        src_filter = and_(
+            EntityRelation.game_state_id == self.state.id,
+            EntityRelation.source_type   == entity_type,
+            EntityRelation.source_key    == ek,
+        )
+        tgt_filter = and_(
+            EntityRelation.game_state_id == self.state.id,
+            EntityRelation.target_type   == entity_type,
+            EntityRelation.target_key    == ek,
+        )
+        if direction == 'outgoing':
+            return self.session.query(EntityRelation).filter(src_filter).all()
+        if direction == 'incoming':
+            return self.session.query(EntityRelation).filter(tgt_filter).all()
+        return self.session.query(EntityRelation).filter(or_(src_filter, tgt_filter)).all()
+
+    def list_all_relations(self):
+        """Return every EntityRelation row for this save, ordered by since_turn."""
+        return (
+            self.session.query(EntityRelation)
+            .filter_by(game_state_id=self.state.id)
+            .order_by(EntityRelation.since_turn)
+            .all()
+        )

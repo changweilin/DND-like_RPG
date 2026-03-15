@@ -558,8 +558,9 @@ class EventManager:
             event_id=event_id,
         )
 
-        # --- Step 10c: Extract organizations mentioned in this turn's narrative ---
+        # --- Step 10c: Extract organizations + relationships from this turn's narrative ---
         self._extract_and_register_organizations(narrative, current_state, world)
+        self._extract_and_register_relations(narrative, current_state, world, party or [])
 
         return narrative, choices, turn_data, dice_result
 
@@ -591,9 +592,10 @@ class EventManager:
         except Exception as e:
             print(f"Prologue RAG store error: {e}")
 
-        # Extract organizations introduced in the prologue
+        # Extract organizations + relationships introduced in the prologue
         world = WorldManager(self.session, current_state)
         self._extract_and_register_organizations(narrative, current_state, world, turn_number=0)
+        self._extract_and_register_relations(narrative, current_state, world, party, turn_number=0)
 
         return narrative, choices, turn_data
 
@@ -1205,6 +1207,49 @@ class EventManager:
         current_state.turn_count     = turn_number
         flag_modified(current_state, 'session_memory')
         self.session.commit()
+
+    def _extract_and_register_relations(self, narrative, current_state, world,
+                                         party, turn_number=None):
+        """
+        Call LLMClient.extract_relations on the narrative, then persist any new
+        edges via WorldManager.upsert_relation.
+
+        Builds the known-entity lists from organizations already in the DB and
+        characters in the current party + NPCs tracked in relationships.
+        Wrapped in try/except — never breaks the game loop.
+        """
+        if not narrative:
+            return
+        if turn_number is None:
+            turn_number = current_state.turn_count or 0
+        try:
+            known_orgs  = [o['name'] for o in world.list_organizations()]
+            # Party characters
+            char_names  = [c.name for c in (party or [])]
+            # Known NPCs from relationships dict
+            npc_names   = list((current_state.relationships or {}).keys())
+            known_chars = char_names + [n for n in npc_names if n not in char_names]
+
+            edges = self.llm.extract_relations(
+                narrative_text=narrative,
+                known_orgs=known_orgs,
+                known_chars=known_chars,
+                language=current_state.language or 'English',
+                turn_number=turn_number,
+            )
+            for edge in edges:
+                world.upsert_relation(
+                    source_type=edge['source_type'],
+                    source_key=edge['source_key'],
+                    target_type=edge['target_type'],
+                    target_key=edge['target_key'],
+                    relation_type=edge['relation_type'],
+                    strength=edge.get('strength', 0),
+                    description=edge.get('description', ''),
+                    since_turn=edge.get('since_turn', turn_number),
+                )
+        except Exception as e:
+            print(f"Relation extraction error: {e}")
 
     def _extract_and_register_organizations(self, narrative, current_state, world, turn_number=None):
         """
