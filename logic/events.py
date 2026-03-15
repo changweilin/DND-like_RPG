@@ -1036,8 +1036,10 @@ class EventManager:
         return {'damage_taken': damage_taken, 'hp_healed': hp_healed, 'mp_used': mp_used}
 
     def _build_system_prompt(self, character, current_state, party=None):
-        npc_context   = self._format_npc_state(current_state)
-        world_context = self._format_world_setting(current_state)
+        npc_context      = self._format_npc_state(current_state)
+        world_context    = self._format_world_setting(current_state)
+        org_context      = self._format_org_context(current_state)
+        relation_context = self._format_relation_context(current_state, party)
         ws_id  = getattr(current_state, 'world_setting', None) or 'dnd5e'
         tm     = config.get_world_setting(ws_id)['term_map']
         hp_lbl = tm['hp_name']
@@ -1069,6 +1071,8 @@ class EventManager:
             f"World lore: {current_state.world_context}\n"
             f"Difficulty: {current_state.difficulty}\n"
             f"{npc_context}"
+            f"{org_context}"
+            f"{relation_context}"
             f"CRITICAL: Write ALL narrative and choices EXCLUSIVELY in "
             f"{current_state.language or 'English'}.\n"
             "Do NOT invent dice rolls or mechanical outcomes — "
@@ -1130,6 +1134,105 @@ class EventManager:
             if personality:
                 line += f", personality: {personality}"
             lines.append(line)
+        return "\n".join(lines) + "\n"
+
+    def _format_org_context(self, current_state):
+        """
+        Build a compact organisation summary block for the system prompt.
+
+        Emits one line per known organisation:
+          Name (type, alignment) — leader: X, HQ: Y
+        Capped at 10 organisations to bound token cost (~200 tokens worst-case).
+        Returns empty string when no organisations are known.
+        """
+        orgs = current_state.organizations or {}
+        if not orgs:
+            return ""
+        lines = ["Known organisations:"]
+        for org in sorted(orgs.values(), key=lambda o: o.get('first_seen_turn', 0))[:10]:
+            name   = org.get('name', '')
+            if not name:
+                continue
+            parts  = []
+            otype  = org.get('type', '')
+            align  = org.get('alignment', '')
+            if otype or align:
+                parts.append(f"{otype}{', ' + align if otype and align else align}")
+            leader = org.get('current_leader', '')
+            hq     = org.get('headquarters', '')
+            meta   = []
+            if leader:
+                meta.append(f"leader: {leader}")
+            if hq:
+                meta.append(f"HQ: {hq}")
+            line = f"  - {name}"
+            if parts:
+                line += f" ({', '.join(parts)})"
+            if meta:
+                line += f" — {', '.join(meta)}"
+            lines.append(line)
+        return "\n".join(lines) + "\n"
+
+    def _format_relation_context(self, current_state, party=None):
+        """
+        Build a compact entity-relation block for the system prompt.
+
+        Strategy: include only edges where at least one endpoint is a party
+        member or an NPC currently in the relationship dict (i.e. relevant to
+        the current scene).  Edges purely between organisations with no party
+        involvement are included only when both organisations are already known
+        (max 5 org-org edges).  Total cap: 15 edges (~150 tokens worst-case).
+        Returns empty string when no relations exist.
+        """
+        try:
+            from engine.world import WorldManager
+            wm   = WorldManager(self.session, current_state)
+            rows = wm.list_all_relations()
+        except Exception:
+            return ""
+        if not rows:
+            return ""
+
+        party_keys = {c.name.lower() for c in (party or [])}
+        npc_keys   = {k.lower() for k in (current_state.relationships or {})}
+        relevant   = set(party_keys) | npc_keys
+
+        # Build label lookup
+        orgs_dict  = current_state.organizations or {}
+        label = {}
+        for o in orgs_dict.values():
+            label[o['name'].lower()] = o['name']
+        for k in (current_state.relationships or {}):
+            label[k.lower()] = k
+        for c in (party or []):
+            label[c.name.lower()] = c.name
+
+        def _lbl(key):
+            return label.get(key, key.title())
+
+        selected  = []
+        org_org   = []
+        for r in sorted(rows, key=lambda x: -abs(x.strength)):
+            sk, tk = r.source_key, r.target_key
+            is_relevant = sk in relevant or tk in relevant
+            is_org_org  = r.source_type == 'org' and r.target_type == 'org'
+            if is_relevant:
+                selected.append(r)
+            elif is_org_org and len(org_org) < 5:
+                org_org.append(r)
+            if len(selected) >= 10:
+                break
+
+        combined = (selected + org_org)[:15]
+        if not combined:
+            return ""
+
+        lines = ["Entity relations:"]
+        for r in combined:
+            colour = '+' if r.strength >= 0 else ''
+            lines.append(
+                f"  - {_lbl(r.source_key)} —[{r.relation_type} {colour}{r.strength}]→ {_lbl(r.target_key)}"
+            )
         return "\n".join(lines) + "\n"
 
     def _format_session_memory(self, current_state):
