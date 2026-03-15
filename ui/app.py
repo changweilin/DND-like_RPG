@@ -38,7 +38,7 @@ from engine.image_prompts import (
     classify_cinematic_event, build_cinematic_prompt,
 )
 from ai.llm_client import LLMClient
-from ai.image_gen import ImageGenerator
+from ai.image_gen import ImageGenerator, _PROVIDER_DIFFUSERS, _PROVIDER_OPENAI, _PROVIDER_STABILITY
 from ai.rag_system import RAGSystem
 from logic.events import EventManager
 
@@ -457,7 +457,7 @@ def _render_image_model_selector():
     # Prepend the disabled sentinel so index 0 always means "off"
     all_ids    = [_DISABLED_IMG_ID] + [p['id'] for p in presets]
     all_labels = ["🚫 不啟用 (Disabled)"] + [
-        f"[{'LOCAL' if p['provider']=='diffusers' else 'CLOUD'}] {p['name']}"
+        f"[{'LOCAL' if p['provider']==_PROVIDER_DIFFUSERS else 'CLOUD'}] {p['name']}"
         for p in presets
     ]
 
@@ -511,7 +511,7 @@ def _render_image_model_selector():
                 st.caption(f"💾 VRAM: ~{vram} GB")
 
             # ---- Local diffusers --------------------------------------------
-            if provider == 'diffusers':
+            if provider == _PROVIDER_DIFFUSERS:
                 dl      = _img_dl
                 dl_this = (dl.get('model_id') == model_id)
                 cached  = _is_img_model_cached(model_id)
