@@ -1,4 +1,3 @@
-import re
 import time
 import random
 from sqlalchemy.orm.attributes import flag_modified
@@ -6,34 +5,6 @@ from engine.dice import DiceRoller
 from engine.character import CharacterLogic
 from engine.world import WorldManager
 from engine.config import config
-from engine.intent_parser import (
-    try_parse as _rule_parse_intent,
-    detect_entity_type,
-    get_entity_base_stats,
-    calculate_affinity_delta,
-)
-
-# Rule engine constants for _calculate_mechanics()
-_MP_COST_TABLE = {
-    'arcana':    4,
-    'medicine':  2,
-}
-_MP_COST_DEFAULT = 3  # fallback for unrecognised magic skills
-
-# Physical skills where a critical failure deals minor fall/trap damage
-_PHYSICAL_SKILLS = {'athletics', 'acrobatics'}
-
-# Regex for healing intent in raw player text
-_HEAL_RE = re.compile(
-    r'(heal|cure|mend|restore|potion|治療|恢復|回復|藥水|復原)',
-    re.I,
-)
-
-def _char_similarity(a, b):
-    """Character-set overlap: |chars(a) ∩ chars(b)| / min(len(a), len(b))"""
-    if not a or not b:
-        return 0.0
-    return len(set(a) & set(b)) / min(len(a), len(b))
 
 # Human-readable labels for the rule engine's outcome codes
 _OUTCOME_LABELS = {
@@ -272,23 +243,14 @@ class EventManager:
         if (current_state.turn_count or 0) == 0 and not self.rag.world_lore_seeded():
             self._seed_world_lore(current_state)
 
-        # --- Step 3: Parse intent — rule engine first, LLM fallback ---
-        # Rule engine handles clear keyword patterns (attack, magic, stealth, social …)
-        # without an LLM call.  Ambiguous or complex inputs fall back to the LLM's
-        # Guided Thinking parser (One Trillion and One Nights approach).
-        intent = _rule_parse_intent(
-            player_action,
-            known_entities=current_state.known_entities or {},
-            difficulty=current_state.difficulty or 'Normal',
+        # --- Step 3: Parse intent with Guided Thinking (One Trillion approach) ---
+        game_context_summary = (
+            f"Character: {character.name}, {character.race} {character.char_class}. "
+            f"HP: {character.hp}/{character.max_hp}, MP: {character.mp}/{character.max_mp}. "
+            f"Location: {current_state.current_location}. "
+            f"Difficulty: {current_state.difficulty}."
         )
-        if intent is None:
-            game_context_summary = (
-                f"Character: {character.name}, {character.race} {character.char_class}. "
-                f"HP: {character.hp}/{character.max_hp}, MP: {character.mp}/{character.max_mp}. "
-                f"Location: {current_state.current_location}. "
-                f"Difficulty: {current_state.difficulty}."
-            )
-            intent = self.llm.parse_intent(player_action, game_context_summary)
+        intent = self.llm.parse_intent(player_action, game_context_summary)
 
         # --- Step 4: Dynamic entity stat block (Infinite Monster Engine) ---
         target = intent.get('target', '').strip()
@@ -313,12 +275,6 @@ class EventManager:
             modifier = char_logic.get_skill_modifier(skill) if skill else 0
             dice_result   = self.dice.roll_skill_check(dc=intent['dc'], modifier=modifier)
             outcome_label = _OUTCOME_LABELS[dice_result['outcome']]
-
-        # --- Step 6.5: Rule engine mechanics ---
-        # damage_taken / hp_healed / mp_used are computed here, never by the LLM.
-        mechanics = self._calculate_mechanics(
-            intent, dice_result, combat_result, player_action, character, current_state,
-        )
 
         # --- Step 7: Render Narrative Event (LLM Phase 2) ---
         session_memory_text = self._format_session_memory(current_state)
@@ -365,61 +321,7 @@ class EventManager:
                 f"= {dice_result['total']} — {_OUTCOME_LABELS[dice_result['outcome']]}"
             )
 
-        # Inject rule-engine mechanics as hard facts for the narrator
-        mech_parts = []
-        if mechanics['damage_taken'] > 0:
-            mech_parts.append(f"player takes {mechanics['damage_taken']} raw damage")
-        if mechanics['hp_healed'] > 0:
-            mech_parts.append(f"player recovers {mechanics['hp_healed']} HP")
-        if mechanics['mp_used'] > 0:
-            mech_parts.append(f"player expends {mechanics['mp_used']} MP")
-        if mech_parts:
-            outcome_parts.append(
-                "Mechanical outcomes (hard facts — narrate these): " + "; ".join(mech_parts) + "."
-            )
-
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
-
-        # Inject recently chosen actions so the LLM generates DIFFERENT choices
-        _session_mem = current_state.session_memory or []
-        recent_chosen = [
-            m.get('player_action', '')
-            for m in _session_mem[-8:]
-            if m.get('player_action')
-        ]
-        if recent_chosen:
-            constraint = (
-                "CHOICES CONSTRAINT — player has recently taken: "
-                + "; ".join(f'"{a}"' for a in recent_chosen[-5:])
-                + ". Generate choices that explore DIFFERENT directions. "
-                "Do NOT repeat or closely paraphrase any of the above."
-            )
-            # Add recent location history so choices push toward new ground
-            recent_locations = list(dict.fromkeys(
-                m.get('location', '') for m in _session_mem[-6:]
-                if m.get('location')
-            ))
-            if recent_locations:
-                constraint += (
-                    f" Story has recently revolved around: {', '.join(recent_locations)}."
-                    " Prefer choices that advance the plot or open unexplored threads."
-                )
-            # Detect scene-type monotony and nudge toward variety
-            recent_scene_types = [
-                m.get('scene_type', '') for m in _session_mem[-5:]
-                if m.get('scene_type')
-            ]
-            if recent_scene_types:
-                from collections import Counter
-                dominant_type, dominant_count = Counter(recent_scene_types).most_common(1)[0]
-                if dominant_count >= 3:
-                    constraint += (
-                        f" The last {dominant_count} turns were all '{dominant_type}' scenes."
-                        " Mix in a different scene type (combat/social/exploration/puzzle/rest)"
-                        " to maintain narrative momentum."
-                    )
-            outcome_parts.append(constraint)
-
         outcome_context = "\n".join(outcome_parts)
 
         turn_data = self.llm.render_narrative(
@@ -431,63 +333,21 @@ class EventManager:
         choices            = turn_data.get('choices', ["Look around", "Wait"])
         characters_present = [n for n in (turn_data.get('characters_present') or []) if n and n.strip()]
 
-        # Filter choices — compare against all options offered in the last 3 turns
-        # (not just last 1) so the same choices can't cycle back after one turn gap.
-        _prev_mem = current_state.session_memory or []
-        _seen_offered = set()
-        unchosen_multi = []
-        for m in _prev_mem[-3:]:
-            for c in (m.get('offered_choices') or m.get('choices') or []):
-                if c and c.strip() != player_action.strip() and c not in _seen_offered:
-                    unchosen_multi.append(c)
-                    _seen_offered.add(c)
-        choices = self._filter_similar_choices(
-            choices, player_action, unchosen_multi, narrative,
-            current_state.language or 'English',
-            session_memory_text=session_memory_text,
-        )
-
-        # Build a mutable set for dedup throughout the three supplement passes below.
-        _present_lower_set = {n.lower() for n in characters_present}
-
-        # Supplement pass 1 — npc_relationship_changes keys.
-        # If the LLM generated a relationship change for an NPC this turn, they
-        # were in the scene even if characters_present was left empty or incomplete.
-        for npc_name in (turn_data.get('npc_relationship_changes') or {}):
-            if npc_name and npc_name.strip() and npc_name.lower() not in _present_lower_set:
-                characters_present.append(npc_name)
-                _present_lower_set.add(npc_name.lower())
-
-        # Supplement pass 2 — narrative text scan for already-tracked NPCs.
-        # The LLM sometimes forgets to populate characters_present even when a known
-        # NPC clearly appears in the narrative it just wrote.  Scan the narrative for
-        # every NPC name (and their proper_name / aliases) that is already tracked in
-        # relationships.  This is deterministic and cannot hallucinate new NPCs.
-        narrative_lower = narrative.lower()
-        for npc_name, npc_data in (current_state.relationships or {}).items():
-            if npc_name.lower() in _present_lower_set:
-                continue
-            # Collect all name variants for this NPC
-            search_names = [npc_name]
-            if isinstance(npc_data, dict):
-                if npc_data.get('proper_name'):
-                    search_names.append(npc_data['proper_name'])
-                for alias in (npc_data.get('aliases') or []):
-                    if alias:
-                        search_names.append(alias)
-            if any(n.lower() in narrative_lower for n in search_names if n and len(n) > 1):
-                characters_present.append(npc_name)
-                _present_lower_set.add(npc_name.lower())
+        # Fallback: if LLM forgot characters_present, seed it from npc_relationship_changes
+        # so NPCs who received affinity changes are still registered and tracked
+        if not characters_present:
+            for npc_name in (turn_data.get('npc_relationship_changes') or {}):
+                if npc_name and npc_name.strip():
+                    characters_present.append(npc_name)
 
         # --- Step 7.5: Auto-register new NPCs from the scene ---
         party_names = {c.name for c in all_chars}
         self._auto_register_npcs(characters_present, current_state, world, party_names)
 
         # --- Step 8: Apply deterministic mechanics ---
-        # Values come from the rule engine (Step 6.5), NOT from the LLM narrative output.
-        damage_taken = mechanics['damage_taken']
-        hp_healed    = mechanics['hp_healed']
-        mp_used      = mechanics['mp_used']
+        damage_taken = turn_data.get('damage_taken', 0)
+        hp_healed    = turn_data.get('hp_healed', 0)
+        mp_used      = turn_data.get('mp_used', 0)
 
         if damage_taken:
             char_logic.take_damage(damage_taken)
@@ -532,35 +392,15 @@ class EventManager:
         scene_type = turn_data.get('scene_type', 'exploration')
         npc_changes = turn_data.get('npc_relationship_changes') or {}
         if scene_type == 'social' or npc_changes or characters_present:
-            self._evaluate_npc_reactions(
-                narrative, current_state, world,
-                characters_present=characters_present,
-                action_type=intent.get('action_type', 'direct_action'),
-                outcome_label=outcome_label,
-            )
+            self._evaluate_npc_reactions(narrative, current_state, world,
+                                         characters_present=characters_present)
 
         # --- Step 10a: Update sliding-window session memory ---
-        # Convert NPC names → "npc:{name.lower()}" entity keys (max 6).
-        # Party members are excluded (they're always implicitly present).
-        npc_only_present = [n for n in characters_present if n not in party_names]
-        char_entity_keys = [
-            f"npc:{n.lower()}" for n in npc_only_present[:6]
-        ]
-        # Scan known organizations to find those mentioned in this turn's narrative (max 3).
-        narrative_lower  = narrative.lower()
-        orgs_dict        = current_state.organizations or {}
-        org_entity_keys  = [
-            f"org:{key}"
-            for key, org in orgs_dict.items()
-            if (org.get('name') or key).lower() in narrative_lower
-        ][:3]
         self._update_session_memory(
             current_state, player_action, narrative, outcome_label,
             choices=choices,
             location=current_state.current_location,
-            characters_present=char_entity_keys,
-            organizations_mentioned=org_entity_keys,
-            scene_type=scene_type,
+            characters_present=characters_present,
         )
 
         # --- Step 10b: Persist Narrative Event to RAG long-term memory ---
@@ -570,10 +410,6 @@ class EventManager:
             f"[{scene_tag}] Player: {player_action}\nDM: {narrative}",
             event_id=event_id,
         )
-
-        # --- Step 10c: Extract organizations + relationships from this turn's narrative ---
-        self._extract_and_register_organizations(narrative, current_state, world)
-        self._extract_and_register_relations(narrative, current_state, world, party or [])
 
         return narrative, choices, turn_data, dice_result
 
@@ -604,11 +440,6 @@ class EventManager:
             )
         except Exception as e:
             print(f"Prologue RAG store error: {e}")
-
-        # Extract organizations + relationships introduced in the prologue
-        world = WorldManager(self.session, current_state)
-        self._extract_and_register_organizations(narrative, current_state, world, turn_number=0)
-        self._extract_and_register_relations(narrative, current_state, world, party, turn_number=0)
 
         return narrative, choices, turn_data
 
@@ -712,17 +543,12 @@ class EventManager:
     # Internal helpers — NPC reactions  (Section 3.5)
     # ------------------------------------------------------------------
 
-    def _evaluate_npc_reactions(self, narrative, current_state, world,
-                                characters_present=None,
-                                action_type='direct_action', outcome_label='NO_ROLL'):
+    def _evaluate_npc_reactions(self, narrative, current_state, world, characters_present=None):
         """
         Ask the LLM how tracked NPCs react to the narrative event independently.
         Only runs for social scenes or turns that already touched NPC relationships.
         Only evaluates NPCs who are present in the current scene (characters_present).
         Updates each changed NPC's affinity, state, goal, emotion, and action in the DB.
-
-        affinity_delta is computed by calculate_affinity_delta() (rule engine) and
-        applied to every present NPC; the LLM only decides state/goal/emotion/action.
         """
         rels = current_state.relationships or {}
         if not rels:
@@ -741,110 +567,25 @@ class EventManager:
 
         if not npc_states:
             return
-
-        # Rule-engine affinity delta — same base value for all present NPCs
-        rule_delta = calculate_affinity_delta(action_type, outcome_label)
-
         try:
             reactions = self.llm.evaluate_npc_reactions(
                 event_summary=narrative[:500],
                 npc_states=npc_states,
                 language=current_state.language or 'English',
             )
-            # Apply to NPCs the LLM flagged as changed
-            updated = set()
             for npc_name, changes in reactions.items():
                 if not isinstance(changes, dict):
                     continue
                 world.update_relationship(
                     npc_name,
-                    rule_delta,                    # rule engine, not LLM
+                    changes.get('affinity_delta', 0),
                     state=changes.get('state'),
                     goal=changes.get('goal'),
                     emotion=changes.get('emotion'),
                     action=changes.get('action'),
                 )
-                updated.add(npc_name.lower())
-
-            # Apply the affinity delta to present NPCs the LLM didn't mention
-            # (they witnessed the event too — they just didn't change state/goal)
-            if rule_delta != 0:
-                for npc_name in npc_states:
-                    if npc_name.lower() not in updated:
-                        world.update_relationship(npc_name, rule_delta)
-
         except Exception as e:
             print(f"NPC reaction step error: {e}")
-
-    # ------------------------------------------------------------------
-    # Internal helpers — choice diversity filtering
-    # ------------------------------------------------------------------
-
-    def _filter_similar_choices(self, choices, chosen_action, unchosen_prev, narrative, language,
-                                session_memory_text=""):
-        """
-        Enforce diversity on newly generated choices using character-set similarity.
-
-        Thresholds:
-          chosen_action  (what player just did):           must be < 20% similar
-          unchosen_prev  (last turn's non-selected opts):  must be < 50% similar
-          inter-choice   (any two choices in same turn):   must be < 20% similar
-
-        Choices that fail are replaced by requesting alternatives from the LLM.
-        session_memory_text is forwarded to generate_diverse_choices so replacement
-        choices are grounded in ongoing story context.
-        Always returns at least 3 choices.
-        """
-        CHOSEN_THRESH      = 0.20
-        UNCHOSEN_THRESH    = 0.50
-        INTER_CHOICE_THRESH = 0.20
-
-        # accepted_good is threaded in so each candidate is also checked against
-        # already-accepted choices (inter-choice diversity within the same turn).
-        def passes(c, accepted_good):
-            if chosen_action and _char_similarity(c, chosen_action) >= CHOSEN_THRESH:
-                return False
-            if any(_char_similarity(c, u) >= UNCHOSEN_THRESH for u in (unchosen_prev or [])):
-                return False
-            return not any(_char_similarity(c, g) >= INTER_CHOICE_THRESH for g in accepted_good)
-
-        # Build good list greedily so inter-choice check accumulates correctly.
-        good = []
-        for c in choices:
-            if passes(c, good):
-                good.append(c)
-
-        target = max(3, len(choices))
-        if len(good) == target:
-            return good  # all pass — skip LLM call
-
-        needed = target - len(good)
-        # avoid list = everything already seen or accepted, so LLM gets full context
-        avoid = [chosen_action] + list(unchosen_prev or []) + choices
-        try:
-            replacements = self.llm.generate_diverse_choices(
-                narrative=narrative,
-                avoid_choices=[c for c in avoid if c],
-                count=needed + 1,   # request extra in case some still fail
-                language=language,
-                session_memory_text=session_memory_text,
-            )
-            for c in replacements:
-                if len(good) >= target:
-                    break
-                if passes(c, good):
-                    good.append(c)
-        except Exception as e:
-            print(f"Choice diversity retry error: {e}")
-
-        # Ensure minimum 3 — fall back to originals only if still short
-        for c in choices:
-            if len(good) >= target:
-                break
-            if c not in good:
-                good.append(c)
-
-        return good[:target]
 
     # ------------------------------------------------------------------
     # Internal helpers — NPC auto-registration and scene lifecycle
@@ -970,76 +711,9 @@ class EventManager:
         flag_modified(current_state, 'party_contributions')
         self.session.commit()
 
-    def _calculate_mechanics(self, intent, dice_result, combat_result,
-                             player_action, character, current_state):
-        """
-        Rule engine for damage_taken, hp_healed, mp_used.
-
-        Replaces the LLM's role in deciding these mechanical values so that
-        stat mutations are always deterministic (neuro-symbolic design principle).
-
-        Rules:
-          damage_taken — enemy counter-attack after player's attack (if target alive);
-                         minor fall/trap damage on critical_failure of a physical skill.
-          hp_healed    — healing keywords or medicine skill + successful dice outcome.
-          mp_used      — any magic-type action (regardless of outcome).
-
-        Returns a dict {damage_taken, hp_healed, mp_used}.
-        """
-        action_type = intent.get('action_type', 'direct_action')
-        skill       = intent.get('skill', '').lower()
-        outcome     = dice_result['outcome'] if dice_result else None
-
-        damage_taken = 0
-        hp_healed    = 0
-        mp_used      = 0
-
-        # --- Enemy counter-attack (after player's attack) ---
-        if combat_result:
-            target_name = combat_result.get('target', '').lower()
-            known = current_state.known_entities or {}
-            target_entry = known.get(target_name, {})
-            # enemy HP remaining after player's hit (None if not in known_entities)
-            hp_after = combat_result.get('entity_hp_remaining')
-            is_alive = target_entry.get('alive', True) and (hp_after is None or hp_after > 0)
-            if is_alive:
-                enemy_atk     = target_entry.get('atk', 5)
-                enemy_atk_mod = (enemy_atk - 10) // 2
-                enemy_roll    = self.dice.roll('1d20')[2]
-                if enemy_roll == 20 or enemy_roll + enemy_atk_mod >= character.def_stat:
-                    # raw hit — CharacterLogic.take_damage() applies DEF reduction
-                    raw_hit      = self.dice.roll('1d6')[2] + max(0, enemy_atk_mod)
-                    damage_taken = max(0, raw_hit)
-
-        # --- Physical-skill critical failure → minor fall/hazard damage ---
-        elif dice_result and skill in _PHYSICAL_SKILLS and outcome == 'critical_failure':
-            damage_taken = self.dice.roll('1d4')[2]
-
-        # --- Magic action → MP cost (even on failure) ---
-        if action_type == 'magic':
-            cost    = _MP_COST_TABLE.get(skill, _MP_COST_DEFAULT)
-            mp_used = min(cost, character.mp)
-
-        # --- Healing: medicine skill or healing keywords + successful outcome ---
-        if outcome in ('success', 'critical_success') and character.hp < character.max_hp:
-            is_healing = (
-                skill == 'medicine'
-                or _HEAL_RE.search(player_action or '')
-            )
-            if is_healing:
-                notation  = '2d4' if outcome == 'critical_success' else '1d4'
-                hp_healed = self.dice.roll(notation)[2]
-                # healing magic burns MP even if action_type wasn't flagged 'magic'
-                if mp_used == 0 and character.mp > 0:
-                    mp_used = min(2, character.mp)
-
-        return {'damage_taken': damage_taken, 'hp_healed': hp_healed, 'mp_used': mp_used}
-
     def _build_system_prompt(self, character, current_state, party=None):
-        npc_context      = self._format_npc_state(current_state)
-        world_context    = self._format_world_setting(current_state)
-        org_context      = self._format_org_context(current_state)
-        relation_context = self._format_relation_context(current_state, party)
+        npc_context   = self._format_npc_state(current_state)
+        world_context = self._format_world_setting(current_state)
         ws_id  = getattr(current_state, 'world_setting', None) or 'dnd5e'
         tm     = config.get_world_setting(ws_id)['term_map']
         hp_lbl = tm['hp_name']
@@ -1071,8 +745,6 @@ class EventManager:
             f"World lore: {current_state.world_context}\n"
             f"Difficulty: {current_state.difficulty}\n"
             f"{npc_context}"
-            f"{org_context}"
-            f"{relation_context}"
             f"CRITICAL: Write ALL narrative and choices EXCLUSIVELY in "
             f"{current_state.language or 'English'}.\n"
             "Do NOT invent dice rolls or mechanical outcomes — "
@@ -1136,164 +808,40 @@ class EventManager:
             lines.append(line)
         return "\n".join(lines) + "\n"
 
-    def _format_org_context(self, current_state):
-        """
-        Build a compact organisation summary block for the system prompt.
-
-        Emits one line per known organisation:
-          Name (type, alignment) — leader: X, HQ: Y
-        Capped at 10 organisations to bound token cost (~200 tokens worst-case).
-        Returns empty string when no organisations are known.
-        """
-        orgs = current_state.organizations or {}
-        if not orgs:
-            return ""
-        lines = ["Known organisations:"]
-        for org in sorted(orgs.values(), key=lambda o: o.get('first_seen_turn', 0))[:10]:
-            name   = org.get('name', '')
-            if not name:
-                continue
-            parts  = []
-            otype  = org.get('type', '')
-            align  = org.get('alignment', '')
-            if otype or align:
-                parts.append(f"{otype}{', ' + align if otype and align else align}")
-            leader = org.get('current_leader', '')
-            hq     = org.get('headquarters', '')
-            meta   = []
-            if leader:
-                meta.append(f"leader: {leader}")
-            if hq:
-                meta.append(f"HQ: {hq}")
-            line = f"  - {name}"
-            if parts:
-                line += f" ({', '.join(parts)})"
-            if meta:
-                line += f" — {', '.join(meta)}"
-            lines.append(line)
-        return "\n".join(lines) + "\n"
-
-    def _format_relation_context(self, current_state, party=None):
-        """
-        Build a compact entity-relation block for the system prompt.
-
-        Strategy: include only edges where at least one endpoint is a party
-        member or an NPC currently in the relationship dict (i.e. relevant to
-        the current scene).  Edges purely between organisations with no party
-        involvement are included only when both organisations are already known
-        (max 5 org-org edges).  Total cap: 15 edges (~150 tokens worst-case).
-        Returns empty string when no relations exist.
-        """
-        try:
-            from engine.world import WorldManager
-            wm   = WorldManager(self.session, current_state)
-            rows = wm.list_all_relations()
-        except Exception:
-            return ""
-        if not rows:
-            return ""
-
-        party_keys = {c.name.lower() for c in (party or [])}
-        npc_keys   = {k.lower() for k in (current_state.relationships or {})}
-        relevant   = set(party_keys) | npc_keys
-
-        # Build label lookup
-        orgs_dict  = current_state.organizations or {}
-        label = {}
-        for o in orgs_dict.values():
-            label[o['name'].lower()] = o['name']
-        for k in (current_state.relationships or {}):
-            label[k.lower()] = k
-        for c in (party or []):
-            label[c.name.lower()] = c.name
-
-        def _lbl(key):
-            return label.get(key, key.title())
-
-        selected  = []
-        org_org   = []
-        for r in sorted(rows, key=lambda x: -abs(x.strength)):
-            sk, tk = r.source_key, r.target_key
-            is_relevant = sk in relevant or tk in relevant
-            is_org_org  = r.source_type == 'org' and r.target_type == 'org'
-            if is_relevant:
-                selected.append(r)
-            elif is_org_org and len(org_org) < 5:
-                org_org.append(r)
-            if len(selected) >= 10:
-                break
-
-        combined = (selected + org_org)[:15]
-        if not combined:
-            return ""
-
-        lines = ["Entity relations:"]
-        for r in combined:
-            colour = '+' if r.strength >= 0 else ''
-            lines.append(
-                f"  - {_lbl(r.source_key)} —[{r.relation_type} {colour}{r.strength}]→ {_lbl(r.target_key)}"
-            )
-        return "\n".join(lines) + "\n"
-
     def _format_session_memory(self, current_state):
         """Format the last N turns from the sliding window as readable text."""
         memory = current_state.session_memory or []
         if not memory:
             return "(No prior turns in this session)"
-        # Build lookup tables to resolve entity keys → display names
-        rels_keys  = current_state.relationships or {}
-        orgs_dict  = current_state.organizations  or {}
-
-        def _resolve_key(key):
-            # "npc:village elder" → "Village Elder"
-            # "org:iron vanguard" → org display name or title-cased key
-            # legacy plain name   → return as-is
-            if key.startswith('npc:'):
-                name = key[4:]
-                # prefer the proper_name stored in relationships if available
-                rel = rels_keys.get(name) or rels_keys.get(name.title()) or {}
-                return rel.get('proper_name') or name.title()
-            if key.startswith('org:'):
-                ok = key[4:]
-                org = orgs_dict.get(ok, {})
-                return org.get('name') or ok.title()
-            return key  # backward-compat: old entries stored plain names
-
         lines = []
         for entry in memory[-config.SESSION_MEMORY_WINDOW:]:
             location = entry.get('location', '')
             chars    = entry.get('characters_present') or []
-            orgs     = entry.get('organizations_mentioned') or []
-            offered  = entry.get('offered_choices') or entry.get('choices') or []
-            unchosen = entry.get('unchosen_choices') or []
+            choices  = entry.get('choices') or []
 
             line = f"Turn {entry.get('turn', '?')}: "
             if location:
                 line += f"[{location}] "
             if chars:
-                line += f"Present: {', '.join(_resolve_key(k) for k in chars)}. "
-            if orgs:
-                line += f"Orgs: {', '.join(_resolve_key(k) for k in orgs)}. "
-            line += f"Player: {entry.get('player_action', '')} → {entry.get('outcome', '')}"
-            if unchosen:
-                line += f" | 未選: {'; '.join(unchosen)}"
+                line += f"Present: {', '.join(chars)}. "
+            line += (
+                f"Player: {entry.get('player_action', '')} "
+                f"→ {entry.get('outcome', '')}"
+            )
+            if choices:
+                line += f" | Offered: {'; '.join(choices)}"
             lines.append(line)
         return "\n".join(lines)
 
     def _update_session_memory(self, current_state, player_action, narrative, outcome_label,
-                               choices=None, location=None, characters_present=None,
-                               organizations_mentioned=None, scene_type=None):
+                               choices=None, location=None, characters_present=None):
         """
         Append this turn to session memory and enforce the sliding window.
 
-        Fields recorded per turn:
-          player_action          — what the player chose to do (the selected action)
-          unchosen_choices       — options offered last turn that were NOT selected
-          offered_choices        — new options offered this turn
-          location               — current location at the time of the turn
-          characters_present     — entity keys of NPCs in scene:
-                                   "npc:{name.lower()}" — max 6 entries
-          organizations_mentioned— entity keys of orgs mentioned: "org:{key}" — max 3
+        Extra fields recorded per turn:
+          choices            — the options offered to the player (including unchosen ones)
+          location           — current location at the time of the turn
+          characters_present — NPCs / characters who appeared in this scene
 
         When turns are trimmed (overflow), summarize them via LLM and store
         the summary as a 'chapter_summary' in world_lore RAG so long-term
@@ -1302,28 +850,14 @@ class EventManager:
         memory      = list(current_state.session_memory or [])
         turn_number = (current_state.turn_count or 0) + 1
 
-        # Unchosen choices = what was offered last turn minus what the player just picked
-        prev_offered = []
-        if memory:
-            last = memory[-1]
-            prev_offered = last.get('offered_choices') or last.get('choices') or []
-        action_stripped = (player_action or '').strip()
-        unchosen_choices = [
-            c for c in prev_offered
-            if c and c.strip() != action_stripped
-        ]
-
         memory.append({
-            "turn":                    turn_number,
-            "player_action":           player_action,
-            "narrative":               narrative[:200],
-            "outcome":                 outcome_label,
-            "unchosen_choices":        unchosen_choices,
-            "offered_choices":         choices or [],
-            "location":                location or "",
-            "characters_present":      (characters_present or [])[:6],
-            "organizations_mentioned": (organizations_mentioned or [])[:3],
-            "scene_type":              scene_type or "",
+            "turn":               turn_number,
+            "player_action":      player_action,
+            "narrative":          narrative[:200],   # trimmed to keep token budget bounded
+            "outcome":            outcome_label,
+            "choices":            choices or [],
+            "location":           location or "",
+            "characters_present": characters_present or [],
         })
 
         if len(memory) > config.SESSION_MEMORY_WINDOW:
@@ -1349,72 +883,6 @@ class EventManager:
         current_state.turn_count     = turn_number
         flag_modified(current_state, 'session_memory')
         self.session.commit()
-
-    def _extract_and_register_relations(self, narrative, current_state, world,
-                                         party, turn_number=None):
-        """
-        Call LLMClient.extract_relations on the narrative, then persist any new
-        edges via WorldManager.upsert_relation.
-
-        Builds the known-entity lists from organizations already in the DB and
-        characters in the current party + NPCs tracked in relationships.
-        Wrapped in try/except — never breaks the game loop.
-        """
-        if not narrative:
-            return
-        if turn_number is None:
-            turn_number = current_state.turn_count or 0
-        try:
-            known_orgs  = [o['name'] for o in world.list_organizations()]
-            # Party characters
-            char_names  = [c.name for c in (party or [])]
-            # Known NPCs from relationships dict
-            npc_names   = list((current_state.relationships or {}).keys())
-            known_chars = char_names + [n for n in npc_names if n not in char_names]
-
-            edges = self.llm.extract_relations(
-                narrative_text=narrative,
-                known_orgs=known_orgs,
-                known_chars=known_chars,
-                language=current_state.language or 'English',
-                turn_number=turn_number,
-            )
-            for edge in edges:
-                world.upsert_relation(
-                    source_type=edge['source_type'],
-                    source_key=edge['source_key'],
-                    target_type=edge['target_type'],
-                    target_key=edge['target_key'],
-                    relation_type=edge['relation_type'],
-                    strength=edge.get('strength', 0),
-                    description=edge.get('description', ''),
-                    since_turn=edge.get('since_turn', turn_number),
-                )
-        except Exception as e:
-            print(f"Relation extraction error: {e}")
-
-    def _extract_and_register_organizations(self, narrative, current_state, world, turn_number=None):
-        """
-        Call LLMClient.extract_organizations on the narrative, then persist any
-        new organizations via WorldManager.register_organization.
-
-        Runs in a try/except so an LLM error never breaks the game loop.
-        """
-        if not narrative:
-            return
-        if turn_number is None:
-            turn_number = current_state.turn_count or 0
-        try:
-            orgs = self.llm.extract_organizations(
-                narrative_text=narrative,
-                world_context=current_state.world_context or '',
-                language=current_state.language or 'English',
-                turn_number=turn_number,
-            )
-            for org in orgs:
-                world.register_organization(org)
-        except Exception as e:
-            print(f"Organization extraction error: {e}")
 
     def _seed_world_lore(self, current_state):
         """
@@ -1449,22 +917,15 @@ class EventManager:
         produce a rule-compliant stat block and store it in:
           - game_rules RAG (for semantic retrieval)
           - known_entities DB column (for live HP tracking during combat)
-
-        Numeric stats (hp/atk/def_stat) come from the rule-engine lookup table;
-        the LLM only writes the text fields (description, skills, special_ability, loot).
         """
         action_type = intent.get('action_type', 'direct_action')
-        entity_type = detect_entity_type(entity_name, action_type)
-        hp, atk, def_stat = get_entity_base_stats(
-            entity_type, current_state.difficulty or 'Normal'
-        )
+        entity_type = 'monster' if action_type == 'attack' else 'npc'
 
         stat_block = self.llm.generate_entity_stat_block(
             entity_name=entity_name,
             entity_type=entity_type,
             world_context=current_state.world_context,
             language=current_state.language or 'English',
-            base_stats=(hp, atk, def_stat),
         )
 
         # Store in RAG for semantic retrieval

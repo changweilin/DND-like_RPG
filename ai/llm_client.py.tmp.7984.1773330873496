@@ -10,45 +10,16 @@ _PLACEHOLDER_RE = re.compile(
     re.IGNORECASE,
 )
 
-def _coerce_choice(c):
-    """Ensure a single choice entry is a plain string, not a dict or other type."""
-    if isinstance(c, str):
-        stripped = c.strip()
-        # Guard against LLM returning a JSON object string like '{"text": "..."}'
-        if stripped.startswith('{') and stripped.endswith('}'):
-            try:
-                obj = json.loads(stripped)
-                if isinstance(obj, dict):
-                    return obj.get('text') or obj.get('action') or obj.get('choice') or stripped
-            except (json.JSONDecodeError, ValueError):
-                pass
-        return c
-    if isinstance(c, dict):
-        return c.get('text') or c.get('action') or c.get('choice') or next(
-            (v for v in c.values() if isinstance(v, str) and len(v) > 2), str(c)
-        )
-    return str(c)
-
-
-_MIN_CHOICE_LEN = 8
-
-def _is_valid_choice(c):
-    """A choice is valid if it's non-empty, non-placeholder, and > 8 characters."""
-    stripped = (c or '').strip()
-    if not stripped:
-        return False
-    if _PLACEHOLDER_RE.match(stripped):
-        return False
-    if len(stripped) <= _MIN_CHOICE_LEN:
-        return False
-    return True
-
-
 def _has_placeholder_choices(choices):
-    """True if any choice fails validation (placeholder, too short, or empty)."""
+    """True if any choice looks like a generic placeholder (e.g. 'Choice A', '選項B')."""
     if not choices:
         return True
-    return any(not _is_valid_choice(c) for c in choices)
+    for c in choices:
+        if not c or not c.strip():
+            return True
+        if _PLACEHOLDER_RE.match(c.strip()):
+            return True
+    return False
 
 
 def _is_correct_language(text, language):
@@ -86,11 +57,11 @@ def _is_correct_language(text, language):
     cjk_kana_ratio = (cjk + kana) / total
 
     if '中文' in lang_low or 'chinese' in lang_low:
-        return cjk_ratio >= 0.80
+        return cjk_ratio >= 0.08
     if '日本' in lang_low or 'japanese' in lang_low:
-        return cjk_kana_ratio >= 0.80
+        return cjk_kana_ratio >= 0.08
     if '한국' in lang_low or 'korean' in lang_low:
-        return hangul / total >= 0.80
+        return hangul / total >= 0.08
 
     # For non-CJK languages: text must not be CJK-dominant
     if cjk_kana_ratio >= 0.05:
@@ -160,22 +131,18 @@ def _validated_narrative(data):
         # names of NPCs / characters who appear in this scene
         "characters_present": [],
     }
-    # String fields — coerce to str so callers can always call len() safely.
-    # Empty / whitespace-only strings are treated as missing so defaults survive.
+    # String fields — coerce to str so callers can always call len() safely
     _STR_FIELDS = {'narrative', 'scene_type', 'location_change'}
     for k in defaults:
         if k in data:
             v = data[k]
             if k in _STR_FIELDS:
-                s = str(v).strip() if v is not None else ''
-                if s:
-                    defaults[k] = s
+                defaults[k] = str(v) if v is not None else defaults[k]
             else:
                 defaults[k] = v
-    # Ensure at least 3 choices, each a plain string
+    # Ensure at least 3 choices
     if not isinstance(defaults["choices"], list):
         defaults["choices"] = []
-    defaults["choices"] = [_coerce_choice(c) for c in defaults["choices"]]
     if len(defaults["choices"]) < 3:
         defaults["choices"] = (defaults["choices"]
                                + ["Look around", "Wait and observe", "Ask for information"]
@@ -478,14 +445,11 @@ class LLMClient:
         full_prompt = (
             f"{system_prompt}\n\n"
             f"Relevant Memory (RAG):\n{rag_context}\n\n"
-            "NARRATIVE RULES (in order of priority):\n"
-            "  1. [HIGHEST PRIORITY] narrative MUST be at least 300 characters of vivid,"
-            " immersive prose with sensory details — this is the MOST important field\n"
-            f"  2. Write EXCLUSIVELY in {language} — do NOT use any other language\n"
-            "  3. choices: at least 3 distinct options grounded in session history"
-            " (reference unresolved hooks, NPCs, or unexplored locations)\n"
-            "  4. characters_present MUST list every named NPC / character who appears or speaks in the narrative\n"
-            "  5. choices MUST explore directions NOT already taken — if CHOICES CONSTRAINT is present, do not repeat or paraphrase any listed action\n"
+            "NARRATIVE RULES:\n"
+            "  • narrative field MUST be at least 300 characters of vivid, immersive prose\n"
+            f"  • Write EXCLUSIVELY in {language} — do NOT use any other language\n"
+            "  • choices MUST contain at least 3 distinct options\n"
+            "  • characters_present MUST list every named NPC / character who appears or speaks in the narrative\n"
             f"CRITICAL: Respond ONLY with valid JSON matching this schema exactly:\n{json_schema}"
         )
         base_messages = [
@@ -544,68 +508,16 @@ class LLMClient:
             narrative = str(narrative) if narrative is not None else ""
             result["narrative"] = narrative
 
-        # Adjust threshold for CJK languages — CJK characters carry ~2× more
-        # information per code-point than Latin, but // 3 was too aggressive:
-        # 100 CJK chars is only 1–2 sentences, not enough for immersive prose.
-        # Using // 2 (= 150 for min_chars=300) ensures 3+ sentences minimum.
+        # Adjust threshold for CJK languages so short-but-dense text isn't
+        # incorrectly flagged as too short and retried into English.
         lang_low = (language or '').lower()
         if '中文' in lang_low or 'chinese' in lang_low or '日本' in lang_low or 'japanese' in lang_low:
-            effective_min = max(100, min_chars // 2)
+            effective_min = max(60, min_chars // 3)
         else:
             effective_min = min_chars
 
-        # Pass 1: wrong language → translate first so relay only sees target language.
-        # Original text is not stored or used as context after this point.
-        if not _is_correct_language(narrative, language):
-            translate_msg = (
-                f"The text below is not written in {language}. "
-                f"Translate it into {language}, preserving every detail and atmosphere. "
-                "Return the translated text only — no JSON, no commentary.\n\n"
-                f"{narrative}"
-            )
-            try:
-                translated = self._chat(
-                    messages=[{"role": "user", "content": translate_msg}],
-                    json_mode=False,
-                ).strip()
-                if translated:
-                    narrative = translated
-            except Exception:
-                pass
-
-        # Pass 2a: full regeneration if narrative is too short for relay to work.
-        # "Continue from where you left off" is unreliable when there's barely
-        # any text — the LLM may ignore the stub and reply in English or produce
-        # garbage.  Regenerate fully whenever narrative < effective_min // 3.
-        regen_threshold = max(30, effective_min // 3)
-        if len(narrative) < regen_threshold and len(narrative) < effective_min:
-            regen_msg = (
-                f"Your previous response had no narrative text. "
-                f"Write at least {effective_min} characters of vivid, immersive "
-                f"prose for this scene. Write EXCLUSIVELY in {language}. "
-                "Return plain text only — no JSON, no markdown."
-            )
-            try:
-                regen = self._chat(
-                    messages=base_messages + [
-                        {"role": "user", "content": regen_msg},
-                    ],
-                    json_mode=False,
-                ).strip()
-                # Strip JSON wrapper if the LLM ignores the plain-text instruction
-                if regen and regen.startswith('{'):
-                    try:
-                        obj = json.loads(_repair_json(regen))
-                        regen = obj.get('narrative', regen) if isinstance(obj, dict) else regen
-                    except Exception:
-                        pass
-                if regen and _is_correct_language(regen, language):
-                    narrative = regen
-            except Exception:
-                pass
-
-        # Pass 2b: relay-continuation loop — length is measured on translated text only.
-        # Only used when there is already some meaningful text to build on.
+        # Pass 1: relay-continuation loop — verify with len() after each call,
+        # keep relaying until the threshold is met or MAX_RELAY attempts used up.
         MAX_RELAY = 3
         for _attempt in range(MAX_RELAY):
             if len(narrative) >= effective_min:
@@ -626,42 +538,28 @@ class LLMClient:
                     ],
                     json_mode=False,
                 ).strip()
-                # Strip JSON wrapper from continuation
-                if continuation and continuation.startswith('{'):
-                    try:
-                        obj = json.loads(_repair_json(continuation))
-                        continuation = obj.get('narrative', continuation) if isinstance(obj, dict) else continuation
-                    except Exception:
-                        pass
-                if continuation and _is_correct_language(continuation, language):
+                if continuation:
                     narrative = narrative + "\n\n" + continuation
-                elif not continuation:
+                else:
                     break  # model returned empty — no point retrying
             except Exception:
                 break  # network / model error — stop relay
 
-        # Pass 2c: last-resort regeneration if relay loop didn't help enough.
-        if len(narrative) < effective_min:
-            fallback_msg = (
-                f"Write a vivid, immersive narrative of at least {effective_min} characters "
-                f"for this scene. Write EXCLUSIVELY in {language}. "
-                "Return plain text only — no JSON, no markdown."
+        # Pass 2: wrong language → ask to translate, not rewrite
+        if not _is_correct_language(narrative, language):
+            translate_msg = (
+                f"The text below is not written in {language}. "
+                f"Translate it into {language}, preserving every detail and atmosphere. "
+                "Return the translated text only — no JSON, no commentary.\n\n"
+                f"{narrative}"
             )
             try:
-                fallback = self._chat(
-                    messages=base_messages + [
-                        {"role": "user", "content": fallback_msg},
-                    ],
+                translated = self._chat(
+                    messages=[{"role": "user", "content": translate_msg}],
                     json_mode=False,
                 ).strip()
-                if fallback and fallback.startswith('{'):
-                    try:
-                        obj = json.loads(_repair_json(fallback))
-                        fallback = obj.get('narrative', fallback) if isinstance(obj, dict) else fallback
-                    except Exception:
-                        pass
-                if fallback and len(fallback) > len(narrative):
-                    narrative = fallback
+                if translated:
+                    narrative = translated
             except Exception:
                 pass
 
@@ -695,7 +593,6 @@ class LLMClient:
         prompt = (
             f"Based on the following story narrative, provide exactly 3 concrete "
             f"actions or decisions the player can take next. "
-            f"Each choice MUST be a complete sentence longer than {_MIN_CHOICE_LEN} characters. "
             f"Write EXCLUSIVELY in {language}. "
             "Return ONLY a JSON array of 3 strings, e.g. [\"action1\", \"action2\", \"action3\"]. "
             "No markdown, no extra keys.\n\n"
@@ -706,63 +603,15 @@ class LLMClient:
                 messages=[{"role": "user", "content": prompt}],
                 json_mode=False,
             ).strip()
+            # extract the JSON array from the response
             m = re.search(r'\[.*\]', raw, re.DOTALL)
             if m:
                 choices = json.loads(m.group(0))
                 if isinstance(choices, list) and len(choices) >= 3:
-                    coerced = [_coerce_choice(c) for c in choices[:5]]
-                    valid   = [c for c in coerced if _is_valid_choice(c)]
-                    if len(valid) >= 3:
-                        result["choices"] = valid[:3]
+                    result["choices"] = [str(c) for c in choices[:3]]
         except Exception:
             pass
         return result
-
-    def generate_diverse_choices(self, narrative, avoid_choices, count=3,
-                                language="English", session_memory_text=""):
-        """
-        Generate action choices that are distinct from avoid_choices.
-        Called by EventManager._filter_similar_choices when generated choices are
-        too similar to recently taken or recently offered actions.
-        session_memory_text provides recent story history so choices build on
-        the ongoing narrative arc, not just the current turn.
-        Returns a list of strings (may be empty on failure).
-        """
-        avoid_str = "\n".join(f"- {c}" for c in avoid_choices[:12] if c)
-        memory_block = ""
-        if session_memory_text:
-            memory_block = (
-                f"Recent story history (use this to generate choices that "
-                f"advance the ongoing narrative):\n{session_memory_text}\n\n"
-            )
-        prompt = (
-            f"Generate exactly {count} action choices for a TRPG player.\n"
-            f"These choices are FORBIDDEN (too similar to recent actions — do NOT repeat or paraphrase them):\n"
-            f"{avoid_str}\n\n"
-            f"{memory_block}"
-            f"Current scene:\n{narrative[:400]}\n\n"
-            f"Requirements:\n"
-            f"  • Each choice must be genuinely different in direction from all forbidden options\n"
-            f"  • Each choice MUST be a complete sentence longer than {_MIN_CHOICE_LEN} characters\n"
-            f"  • Choices should build on story threads from the history — reference unresolved"
-            f" plot hooks, NPCs, or locations from past turns when possible\n"
-            f"  • Write exclusively in {language}\n"
-            f"Return ONLY a JSON array of {count} strings: [\"action1\", \"action2\", ...]"
-        )
-        try:
-            raw = self._chat(
-                messages=[{"role": "user", "content": prompt}],
-                json_mode=False,
-            ).strip()
-            m = re.search(r'\[.*\]', raw, re.DOTALL)
-            if m:
-                result = json.loads(m.group(0))
-                if isinstance(result, list):
-                    return [_coerce_choice(c) for c in result
-                            if c and _is_valid_choice(_coerce_choice(c))]
-        except Exception as e:
-            print(f"generate_diverse_choices error: {e}")
-        return []
 
     def _localize_narrative(self, result, language):
         """
@@ -973,6 +822,7 @@ class LLMClient:
             '  "scene_type": "exploration",\n'
             '  "narrative": "Epic opening prologue — MINIMUM 1000 characters of atmospheric prose.",\n'
             f'  "choices": ["<具體開場行動，用{language}寫>", "<第二個選項>", "<第三個選項>"],\n'
+            '  "damage_taken": 0, "hp_healed": 0, "mp_used": 0,\n'
             '  "items_found": [], "location_change": "", "npc_relationship_changes": {}\n'
             '}'
         )
@@ -1029,27 +879,27 @@ class LLMClient:
     # ------------------------------------------------------------------
 
     def generate_entity_stat_block(self, entity_name, entity_type="npc",
-                                    world_context="", language="English",
-                                    base_stats=None):
+                                    world_context="", language="English"):
         """
-        Generate the TEXT fields of a stat block for a newly encountered entity.
+        Dynamically generate a stat block for an NPC or monster on first encounter.
 
-        Numeric stats (hp, atk, def_stat) are supplied by the caller via
-        base_stats=(hp, atk, def_stat) — computed from the rule-engine lookup
-        table in engine/intent_parser.get_entity_base_stats().  The LLM only
-        writes description, special_ability, skills, and loot.
+        Called once per new entity; the result is stored in the game_rules RAG
+        collection so subsequent turns retrieve consistent stats.
+        This mirrors the Infinite Monster Engine's approach: define constraints
+        (entity type, world context) and let the LLM produce rule-compliant stats.
 
         Returns a validated stat block dict with all text fields in language.
         """
-        hp, atk, def_stat = base_stats if base_stats else (20, 5, 5)
-
         system_prompt = (
-            "You are a TRPG game master writing flavour text for an entity.\n"
+            "You are a TRPG game master generating a concise stat block.\n"
             "Respond ONLY with valid JSON, no markdown.\n\n"
-            "Schema — write ONLY the text fields shown; do NOT invent numeric stats:\n"
+            "Schema:\n"
             '{\n'
             '  "name": "<entity name>",\n'
             '  "type": "<npc|monster|boss|merchant|guard>",\n'
+            '  "hp": <integer 1-200>,\n'
+            '  "atk": <integer 1-30>,\n'
+            '  "def_stat": <integer 1-30>,\n'
             '  "skills": ["<skill1>", "<skill2>"],\n'
             '  "special_ability": "<one-line special ability or empty string>",\n'
             '  "description": "<one atmospheric sentence>",\n'
@@ -1063,23 +913,16 @@ class LLMClient:
             raw = self._chat(
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user",   "content": f"Generate flavour text for: {entity_name} (type: {entity_type})"},
+                    {"role": "user",   "content": f"Generate a stat block for: {entity_name} (type: {entity_type})"},
                 ],
                 json_mode=True,
             )
             stat_block = _validated_stat_block(json.loads(_repair_json(raw)), entity_name)
+            stat_block = self._localize_stat_block(stat_block, language)
+            return stat_block
         except Exception as e:
             print(f"Stat block generation error for {entity_name!r}: {e}")
-            stat_block = _validated_stat_block({}, entity_name)
-
-        # Inject rule-engine numeric stats — LLM output for these fields is discarded
-        stat_block['hp']       = hp
-        stat_block['atk']      = atk
-        stat_block['def_stat'] = def_stat
-        stat_block['type']     = entity_type
-
-        stat_block = self._localize_stat_block(stat_block, language)
-        return stat_block
+            return _validated_stat_block({}, entity_name)
 
     # ------------------------------------------------------------------
     # NPC profile generation — rich profile for newly encountered NPCs
@@ -1156,8 +999,7 @@ class LLMClient:
         as a tiny autonomous agent with a persistent goal and emotional state,
         not a static affinity integer.
 
-        Returns a dict: {npc_name: {state, goal, emotion, action}}
-        affinity_delta is intentionally omitted — the rule engine injects it.
+        Returns a dict: {npc_name: {affinity_delta, state, goal}}
         Only NPCs whose state changes meaningfully are included.
         """
         npc_list = "\n".join(
@@ -1169,12 +1011,13 @@ class LLMClient:
 
         system_prompt = (
             "You are simulating autonomous NPC reactions in a TRPG.\n"
-            "Based on the event, describe how each NPC's emotional state and goal changes.\n"
+            "Based on the event, decide how each NPC's emotional state and goal changes.\n"
             "Return ONLY NPCs whose state changes meaningfully — omit unchanged NPCs.\n"
             "Respond ONLY with valid JSON, no markdown.\n\n"
-            "Schema — write ONLY the text fields shown; do NOT include numeric deltas:\n"
+            "Schema:\n"
             '{\n'
             '  "NPC Name": {\n'
+            '    "affinity_delta": <integer -30 to +30>,\n'
             '    "state": "<Friendly|Suspicious|Fearful|Hostile|Neutral|Grateful|Angry|...>",\n'
             '    "goal": "<updated short-term goal for this NPC>",\n'
             '    "emotion": "<in-scene emotional state: frightened|excited|angry|sad|calm|curious|...>",\n'
@@ -1236,219 +1079,6 @@ class LLMClient:
         except Exception as e:
             print(f"Memory summarization error: {e}")
             return f"Earlier: {turns[-1].get('player_action', '')}..." if turns else ""
-
-    # ------------------------------------------------------------------
-    # Organization extraction / generation
-    # ------------------------------------------------------------------
-
-    def extract_organizations(self, narrative_text, world_context, language, turn_number=0):
-        """
-        Scan a narrative passage and return any organizations (governments,
-        armies, guilds, cults, academies, mercenary companies, …) mentioned or
-        implied in the text.  For each organization found, auto-generate any
-        fields that the text does not supply, based on the world context.
-
-        Returns a list of dicts, each matching the schema:
-          {
-            "name":           display name,
-            "type":           category (government / army / guild / cult / academy /
-                              mercenary / religious order / secret society / …),
-            "founder":        founder name,
-            "history":        2-3 sentence founding history and key events,
-            "member_count":   rough size (text),
-            "current_leader": current leader name,
-            "headquarters":   main base or location,
-            "alignment":      moral alignment hint,
-            "description":    1-2 sentence flavour blurb,
-          }
-        Returns [] on failure.
-        """
-        json_schema = (
-            '[\n'
-            '  {\n'
-            '    "name": "Iron Vanguard",\n'
-            '    "type": "army",\n'
-            '    "founder": "General Aldric Thorne",\n'
-            '    "history": "Founded 200 years ago to repel the northern invasion. '
-            'Survived three civil wars and now serves the crown.",\n'
-            '    "member_count": "~8,000 soldiers",\n'
-            '    "current_leader": "Commander Seraphine Voss",\n'
-            '    "headquarters": "Ironhold Fortress",\n'
-            '    "alignment": "Lawful Neutral",\n'
-            '    "description": "An elite standing army renowned for discipline and '
-            'unwavering loyalty to the throne."\n'
-            '  }\n'
-            ']'
-        )
-
-        system_prompt = (
-            "You are a TRPG lore keeper. Analyse the narrative text below and identify "
-            "every organization mentioned or strongly implied (governments, armies, guilds, "
-            "religious orders, secret societies, academies, mercenary groups, noble houses "
-            "acting as factions, etc.).\n"
-            "For each organization:\n"
-            "  • Extract details that appear explicitly in the text.\n"
-            "  • Auto-generate any MISSING fields so they are plausible and consistent "
-            "with the world context provided.\n"
-            "  • Never fabricate an organization that is not present or implied.\n"
-            f"Write ALL generated text exclusively in {language or 'English'}.\n"
-            f"World context: {world_context[:600]}\n\n"
-            f"CRITICAL: Respond ONLY with a valid JSON array matching this schema "
-            f"(empty array [] if none found):\n{json_schema}"
-        )
-
-        try:
-            raw = self._chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user",   "content": f"Narrative:\n{narrative_text[:2000]}"},
-                ],
-                json_mode=True,
-            )
-            data = json.loads(_repair_json(raw))
-            if not isinstance(data, list):
-                # LLM sometimes wraps in {"organizations": [...]}
-                if isinstance(data, dict):
-                    for v in data.values():
-                        if isinstance(v, list):
-                            data = v
-                            break
-                    else:
-                        data = []
-            result = []
-            for item in data:
-                if not isinstance(item, dict) or not item.get('name'):
-                    continue
-                result.append({
-                    'name':           str(item.get('name', '')).strip(),
-                    'type':           str(item.get('type', '')).strip(),
-                    'founder':        str(item.get('founder', '')).strip(),
-                    'history':        str(item.get('history', '')).strip(),
-                    'member_count':   str(item.get('member_count', '')).strip(),
-                    'current_leader': str(item.get('current_leader', '')).strip(),
-                    'headquarters':   str(item.get('headquarters', '')).strip(),
-                    'alignment':      str(item.get('alignment', '')).strip(),
-                    'description':    str(item.get('description', '')).strip(),
-                    'first_seen_turn': turn_number,
-                })
-            return result
-        except Exception as e:
-            print(f"Organization extraction error: {e}")
-            return []
-
-    def extract_relations(self, narrative_text, known_orgs, known_chars,
-                          language, turn_number=0):
-        """
-        Scan a narrative passage for relationships between entities (org↔org,
-        org↔char/npc, char↔char).  Only entities already known to the game
-        (listed in known_orgs / known_chars) are eligible as endpoints — this
-        prevents the LLM from hallucinating new names.
-
-        known_orgs  — list of org name strings (display names)
-        known_chars — list of character/NPC name strings
-
-        Returns a list of dicts:
-          {
-            "source_type":   'org' | 'char' | 'npc',
-            "source_key":    identifier (name.lower() for org/npc, str(id) or name for char),
-            "source_label":  display name,
-            "target_type":   'org' | 'char' | 'npc',
-            "target_key":    identifier,
-            "target_label":  display name,
-            "relation_type": short verb/noun (ally / rival / member / …),
-            "strength":      int -100…+100,
-            "description":   one-sentence flavour note,
-          }
-        Returns [] on failure or if nothing found.
-        """
-        if not known_orgs and not known_chars:
-            return []
-
-        org_list  = '\n'.join(f"  org:{n}"  for n in known_orgs)  or '  (none)'
-        char_list = '\n'.join(f"  char:{n}" for n in known_chars) or '  (none)'
-
-        json_schema = (
-            '[\n'
-            '  {\n'
-            '    "source_type": "char",\n'
-            '    "source_key": "ser aldric",\n'
-            '    "source_label": "Ser Aldric",\n'
-            '    "target_type": "org",\n'
-            '    "target_key": "iron vanguard",\n'
-            '    "target_label": "Iron Vanguard",\n'
-            '    "relation_type": "member",\n'
-            '    "strength": 60,\n'
-            '    "description": "Ser Aldric is a sworn knight of the Iron Vanguard."\n'
-            '  }\n'
-            ']'
-        )
-
-        system_prompt = (
-            "You are a TRPG lore keeper. Analyse the narrative text below and identify "
-            "relationships between the KNOWN ENTITIES listed.\n\n"
-            "KNOWN ORGANISATIONS:\n" + org_list + "\n\n"
-            "KNOWN CHARACTERS / NPCs:\n" + char_list + "\n\n"
-            "Rules:\n"
-            "  • Only create edges between entities in the lists above. "
-            "Do NOT invent new entity names.\n"
-            "  • source_key / target_key must be the entity's name in lowercase.\n"
-            "  • relation_type: use short English words "
-            "(ally / rival / enemy / member / leader / founder / employs / "
-            "patron / contractor / friend / family / mentor / romantic).\n"
-            "  • strength: positive = positive bond, negative = hostile bond "
-            "(-100 = mortal enemies, 0 = neutral, +100 = inseparable allies).\n"
-            "  • Only include relationships that are explicitly stated or "
-            "clearly implied in the text.\n"
-            f"Write description exclusively in {language or 'English'}.\n\n"
-            f"CRITICAL: Respond ONLY with a valid JSON array matching this schema "
-            f"(empty array [] if none found):\n{json_schema}"
-        )
-
-        try:
-            raw = self._chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user",   "content": f"Narrative:\n{narrative_text[:2000]}"},
-                ],
-                json_mode=True,
-            )
-            data = json.loads(_repair_json(raw))
-            if not isinstance(data, list):
-                if isinstance(data, dict):
-                    for v in data.values():
-                        if isinstance(v, list):
-                            data = v
-                            break
-                    else:
-                        data = []
-            result = []
-            valid_types = {'org', 'char', 'npc'}
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                st = item.get('source_type', '').lower()
-                tt = item.get('target_type', '').lower()
-                sk = str(item.get('source_key', '')).lower().strip()
-                tk = str(item.get('target_key', '')).lower().strip()
-                rt = str(item.get('relation_type', '')).lower().strip()
-                if not (st in valid_types and tt in valid_types and sk and tk and rt):
-                    continue
-                result.append({
-                    'source_type':  st,
-                    'source_key':   sk,
-                    'source_label': str(item.get('source_label', sk)).strip(),
-                    'target_type':  tt,
-                    'target_key':   tk,
-                    'target_label': str(item.get('target_label', tk)).strip(),
-                    'relation_type': rt,
-                    'strength':     max(-100, min(100, int(item.get('strength', 0)))),
-                    'description':  str(item.get('description', '')).strip(),
-                    'since_turn':   turn_number,
-                })
-            return result
-        except Exception as e:
-            print(f"Relation extraction error: {e}")
-            return []
 
     # ------------------------------------------------------------------
     # Legacy compatibility
