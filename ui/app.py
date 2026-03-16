@@ -242,6 +242,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ Image generation ready",
         "img_gen_vram_warn":         "⚡ VRAM may be insufficient, some scene images may be skipped",
         "img_gen_disabled_notice":   "🚫 Image generation disabled, all generate buttons are frozen.",
+        "img_gen_map_fail":          "⚠️ Map generation failed (VRAM shortage or GPU not ready).",
+        "img_gen_portrait_fail":     "⚠️ {name} portrait generation failed.",
+        "img_style_cur":             "Current",
         # Sidebar
         "save_game":         "💾 Save",
         "quit_game":         "🚪 Quit",
@@ -374,6 +377,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ 影像生成就緒",
         "img_gen_vram_warn":         "⚡ VRAM 可能不足，部分場景圖可能跳過生成",
         "img_gen_disabled_notice":   "🚫 影像生成已停用，所有生成按鈕均已凍結。",
+        "img_gen_map_fail":          "⚠️ 地圖生成失敗（VRAM 不足或 GPU 尚未就緒）。",
+        "img_gen_portrait_fail":     "⚠️ {name} 肖像生成失敗。",
+        "img_style_cur":             "目前",
         # Sidebar
         "save_game":         "💾 儲存",
         "quit_game":         "🚪 離開",
@@ -506,6 +512,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ 画像生成準備完了",
         "img_gen_vram_warn":         "⚡ VRAM が不足している可能性があります。一部のシーン画像はスキップされる場合があります",
         "img_gen_disabled_notice":   "🚫 画像生成が無効になっています。すべての生成ボタンが凍結されています。",
+        "img_gen_map_fail":          "⚠️ マップ生成に失敗しました（VRAM 不足または GPU 未準備）。",
+        "img_gen_portrait_fail":     "⚠️ {name} のポートレート生成に失敗しました。",
+        "img_style_cur":             "現在",
         # Sidebar
         "save_game":         "💾 保存",
         "quit_game":         "🚪 終了",
@@ -638,6 +647,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ Generación de imágenes lista",
         "img_gen_vram_warn":         "⚡ La VRAM puede ser insuficiente, algunas imágenes de escena pueden omitirse",
         "img_gen_disabled_notice":   "🚫 Generación de imágenes desactivada, todos los botones de generación están bloqueados.",
+        "img_gen_map_fail":          "⚠️ Error al generar el mapa (VRAM insuficiente o GPU no lista).",
+        "img_gen_portrait_fail":     "⚠️ Error al generar el retrato de {name}.",
+        "img_style_cur":             "Actual",
         # Sidebar
         "save_game":         "💾 Guardar",
         "quit_game":         "🚪 Salir",
@@ -770,6 +782,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ 图像生成就绪",
         "img_gen_vram_warn":         "⚡ VRAM 可能不足，部分场景图可能跳过生成",
         "img_gen_disabled_notice":   "🚫 图像生成已停用，所有生成按钮均已冻结。",
+        "img_gen_map_fail":          "⚠️ 地图生成失败（VRAM 不足或 GPU 尚未就绪）。",
+        "img_gen_portrait_fail":     "⚠️ {name} 肖像生成失败。",
+        "img_style_cur":             "当前",
         # Sidebar
         "save_game":         "💾 保存",
         "quit_game":         "🚪 离开",
@@ -902,6 +917,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ 이미지 생성 준비 완료",
         "img_gen_vram_warn":         "⚡ VRAM이 부족할 수 있습니다. 일부 장면 이미지가 건너뛰어질 수 있습니다",
         "img_gen_disabled_notice":   "🚫 이미지 생성이 비활성화되어 있습니다. 모든 생성 버튼이 잠겨 있습니다.",
+        "img_gen_map_fail":          "⚠️ 지도 생성 실패 (VRAM 부족 또는 GPU 준비 안 됨).",
+        "img_gen_portrait_fail":     "⚠️ {name} 초상화 생성 실패.",
+        "img_style_cur":             "현재",
         # Sidebar
         "save_game":         "💾 저장",
         "quit_game":         "🚪 종료",
@@ -1034,6 +1052,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ Génération d'images prête",
         "img_gen_vram_warn":         "⚡ La VRAM peut être insuffisante, certaines images de scènes peuvent être ignorées",
         "img_gen_disabled_notice":   "🚫 Génération d'images désactivée, tous les boutons de génération sont gelés.",
+        "img_gen_map_fail":          "⚠️ Échec de la génération de la carte (VRAM insuffisante ou GPU non prêt).",
+        "img_gen_portrait_fail":     "⚠️ Échec de la génération du portrait de {name}.",
+        "img_style_cur":             "Actuel",
         # Sidebar
         "save_game":         "💾 Sauvegarder",
         "quit_game":         "🚪 Quitter",
@@ -1166,6 +1187,9 @@ _UI_STRINGS = {
         "img_gen_ready":             "✅ Bildgenerierung bereit",
         "img_gen_vram_warn":         "⚡ VRAM könnte unzureichend sein, einige Szenenbilder werden möglicherweise übersprungen",
         "img_gen_disabled_notice":   "🚫 Bildgenerierung deaktiviert, alle Generierungsschaltflächen sind gesperrt.",
+        "img_gen_map_fail":          "⚠️ Kartengenerierung fehlgeschlagen (VRAM unzureichend oder GPU nicht bereit).",
+        "img_gen_portrait_fail":     "⚠️ Porträtgenerierung für {name} fehlgeschlagen.",
+        "img_style_cur":             "Aktuell",
         # Sidebar
         "save_game":         "💾 Speichern",
         "quit_game":         "🚪 Beenden",
@@ -1186,6 +1210,25 @@ _UI_STRINGS = {
 }
 
 _LANGUAGES = ["English", "繁體中文", "简体中文", "日本語", "한국어", "Français", "Deutsch", "Español"]
+
+# Substrings that indicate a "look/examine" player action across all 8 supported languages.
+# Used to trigger a non-cinematic scene image when the player explicitly looks around.
+_LOOK_KEYWORDS = {
+    # English
+    "look", "examine", "observe", "inspect", "survey", "scout", "search",
+    # Traditional / Simplified Chinese
+    "看", "觀察", "观察", "審視", "审视", "環顧", "环顾", "查看", "搜索", "探索",
+    # Japanese
+    "見る", "みる", "観察", "調べる", "しらべる", "見回す", "みまわす", "探す", "さがす",
+    # Korean
+    "보다", "관찰", "살펴", "둘러", "수색",
+    # French
+    "regarder", "examiner", "observer", "inspecter",
+    # German
+    "schauen", "untersuchen", "beobachten", "erkunden",
+    # Spanish
+    "mirar", "examinar", "observar", "inspeccionar", "explorar",
+}
 
 
 def _t(key):
@@ -2254,7 +2297,7 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     style_name    = IMAGE_STYLES.get(img_style, {}).get('name', img_style)
 
     if continent_img is not None:
-        st.image(continent_img, caption=f"🌍 {ws['name']}  ·  風格: {style_name}",
+        st.image(continent_img, caption=f"🌍 {ws['name']}  ·  {_t('img_style_cur')}: {style_name}",
                  use_container_width=True)
         if st.button(_t('regen_map'), key="regen_map_btn",
                      disabled=not _img_enabled()):
@@ -2474,8 +2517,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                     except Exception as _e:
                         print(f"[Cinematic] {_e}")
 
-                elif not cinematic and "look" in action_taken.lower():
-                    # Non-cinematic: only generate on explicit look actions
+                elif not cinematic and any(kw in action_taken for kw in _LOOK_KEYWORDS):
+                    # Non-cinematic: only generate on explicit look/examine actions (all languages)
                     if img_gen.can_generate_safely():
                         try:
                             _suf = IMAGE_STYLES.get(img_style, {}).get('suffix', '')
@@ -2497,10 +2540,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
                 # Notify once when generation just got auto-disabled
                 if img_gen.is_disabled():
-                    st.warning(
-                        "⚠️ 影像生成已自動停用（VRAM 不足）。"
-                        "可在側欄「🎨 影像風格」重新啟用。"
-                    )
+                    st.warning(_t('img_gen_disabled_auto'))
 
         st.session_state.history.append({
             "role":            "dm",
@@ -3184,7 +3224,7 @@ def _render_image_style_switcher():
             st.rerun()
 
         cur_style = IMAGE_STYLES.get(st.session_state.get('image_style', 'fantasy_art'), {})
-        st.caption(f"當前: **{cur_style.get('name','')}** — {cur_style.get('name_en','')}")
+        st.caption(f"{_t('img_style_cur')}: **{cur_style.get('name','')}** — {cur_style.get('name_en','')}")
 
         # VRAM status
         img_gen = st.session_state.get('img_gen')
@@ -3207,13 +3247,11 @@ def _render_image_style_switcher():
 
 def _generate_continent_map(ws):
     """Generate and cache the continent map for the current world setting."""
-    prompt = build_map_prompt(
-        ws,
-        st.session_state.get('image_style', 'fantasy_art'),
-        st.session_state.get('custom_img_suffix', ''),
-    )
+    img_style = st.session_state.get('image_style', 'fantasy_art')
+    prompt = build_map_prompt(ws, img_style, st.session_state.get('custom_img_suffix', ''))
+    neg    = get_map_negative_prompt(img_style)
     with st.spinner(f"🎨 {ws['name']}…"):
-        img = st.session_state.img_gen.generate_image(prompt)
+        img = st.session_state.img_gen.generate_image(prompt, negative_prompt=neg)
     if img:
         st.session_state.continent_map = img
         state     = st.session_state.get('game_state')
@@ -3222,18 +3260,16 @@ def _generate_continent_map(ws):
             save_image_with_text(save_name, img, ws.get('name', ''), 0, 'map')
         st.rerun()
     else:
-        st.warning("Image generation failed (Strategy A or GPU not ready)")
+        st.warning(_t('img_gen_map_fail'))
 
 
 def _generate_portrait(char, ws):
     """Generate and cache a portrait for a single character."""
-    prompt = build_portrait_prompt(
-        char, ws,
-        st.session_state.get('image_style', 'fantasy_art'),
-        st.session_state.get('custom_img_suffix', ''),
-    )
+    img_style = st.session_state.get('image_style', 'fantasy_art')
+    prompt = build_portrait_prompt(char, ws, img_style, st.session_state.get('custom_img_suffix', ''))
+    neg    = get_portrait_negative_prompt(img_style)
     with st.spinner(f"🎨 {char.name}…"):
-        img = st.session_state.img_gen.generate_image(prompt)
+        img = st.session_state.img_gen.generate_image(prompt, negative_prompt=neg)
     if img:
         st.session_state.portraits[char.id] = img
         state     = st.session_state.get('game_state')
@@ -3246,7 +3282,7 @@ def _generate_portrait(char, ws):
             )
         st.rerun()
     else:
-        st.warning(f"{char.name} 肖像生成失敗")
+        st.warning(_t('img_gen_portrait_fail').format(name=char.name))
 
 
 # ---------------------------------------------------------------------------
