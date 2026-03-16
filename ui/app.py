@@ -151,6 +151,13 @@ if 'save_manager' not in st.session_state:
     st.session_state["new_game_lore"]       = prefs.get('custom_lore', '')
     st.session_state["new_game_custom_img"] = prefs.get('custom_img_suffix', '')
 
+    # Form-field keys — initialised here so values survive reruns caused by
+    # the world-setting selectbox (which lives outside the form).
+    st.session_state["ng_save_name"]   = ''
+    st.session_state["ng_difficulty"]  = prefs.get('difficulty', 'Normal')
+    st.session_state["ng_img_style"]   = prefs.get('img_style', 0)
+    st.session_state["ng_num_players"] = prefs.get('num_players', 1)
+
     # State for duplicate save name handling
     st.session_state.duplicate_save_pending = None # {save_name, lead_fields, difficulty, language, lore, world_idx, style_idx, custom_img, extra_players}
 
@@ -842,7 +849,8 @@ def _player_config_fields(idx, key_prefix, ws=None):
     ws_classes = (ws.get('classes') if ws else None) or _CLASSES_FALLBACK
     tm = (ws.get('term_map', {}) if ws else {})
 
-    # Build class display labels from term_map
+    # Build class display labels from term_map (English world-specific aliases).
+    # Language-aware display is handled by _fmt_class() below.
     _class_display = {
         'Warrior': tm.get('warrior_class', 'Warrior'),
         'Mage':    tm.get('mage_class',    'Mage'),
@@ -948,14 +956,18 @@ def _player_config_fields(idx, key_prefix, ws=None):
     )
 
     def _fmt_class(c):
-        loc   = _class_loc.get(c)
-        world = _class_display.get(c, c)
-        if loc and world != c:
-            return f"{loc} ({world})"
-        if loc:
-            return loc
-        if world != c:
-            return f"{world} ({c})"
+        c_key     = {'Warrior': 'warrior', 'Mage': 'mage', 'Rogue': 'rogue', 'Cleric': 'cleric'}.get(c, c.lower())
+        loc_world = tm.get(f'{c_key}_class_{lang_key}')   # world-specific localized, e.g. "鬥士"
+        en_world  = tm.get(f'{c_key}_class')               # world-specific English, e.g. "Fighter"
+        loc_gen   = _class_loc.get(c)                      # generic locale, e.g. "戰士"
+        if loc_world:
+            return f"{loc_world} ({c})"
+        if loc_gen and en_world and en_world != c:
+            return f"{loc_gen} ({en_world})"
+        if loc_gen:
+            return f"{loc_gen} ({c})"
+        if en_world and en_world != c:
+            return f"{en_world} ({c})"
         return c
 
     char_class = row2[1].selectbox(
@@ -1075,9 +1087,11 @@ def main_menu():
         st.session_state[_ws_prev_key] = ws_idx
 
         with st.form("new_game_form"):
-            save_name  = st.text_input(_t("save_name"))
-            difficulty = st.selectbox(_t("difficulty"), ["Easy", "Normal", "Hard"],
-                                      index=["Easy", "Normal", "Hard"].index(st.session_state.pref_difficulty))
+            save_name  = st.text_input(_t("save_name"), key="ng_save_name")
+            difficulty = st.selectbox(
+                _t("difficulty"), ["Easy", "Normal", "Hard"],
+                key="ng_difficulty",
+            )
             # Language is now set via the model/language expander in the sidebar;
             # read it from session state so the game uses the selected language.
             language = st.session_state.pref_language
@@ -1099,8 +1113,7 @@ def main_menu():
                 _t("img_style_lbl"),
                 range(len(_style_keys)),
                 format_func=lambda i: _style_labels[i],
-                index=st.session_state.pref_img_style,
-                key="new_game_img_style",
+                key="ng_img_style",
             )
             custom_img_suffix = st.text_input(
                 _t("custom_suffix"),
@@ -1116,8 +1129,7 @@ def main_menu():
             st.markdown(f"**{_t('party_hdr')}**")
             num_players = st.selectbox(
                 _t("num_players"), list(range(1, config.MAX_PARTY_SIZE + 1)),
-                index=min(st.session_state.pref_num_players - 1, config.MAX_PARTY_SIZE - 1),
-                key="new_game_num_players"
+                key="ng_num_players",
             )
 
             player_fields = []
