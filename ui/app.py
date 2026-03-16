@@ -16,8 +16,9 @@ _img_dl = {
     'error':    None,    # error message string or None
 }
 
-_RACES   = ["Human", "Elf", "Dwarf", "Orc", "Halfling"]
-_CLASSES = ["Warrior", "Mage", "Rogue", "Cleric"]
+_RACES_FALLBACK   = ["Human", "Elf", "Dwarf", "Orc", "Halfling"]
+_CLASSES_FALLBACK = ["Warrior", "Mage", "Rogue", "Cleric"]
+_GENDERS          = ["Male", "Female", "Non-binary", "Other"]
 
 from engine.save_load import SaveLoadManager
 from engine.config import config
@@ -96,11 +97,9 @@ if 'save_manager' not in st.session_state:
     # (name is deliberately excluded — user must re-enter each session)
     for _slot in range(6):
         _r = prefs.get(f'race_{_slot}', 'Human')
-        if _r in _RACES:
-            st.session_state[f"ng_race_{_slot}"] = _r
+        st.session_state[f"ng_race_{_slot}"] = _r
         _c = prefs.get(f'class_{_slot}', 'Warrior')
-        if _c in _CLASSES:
-            st.session_state[f"ng_class_{_slot}"] = _c
+        st.session_state[f"ng_class_{_slot}"] = _c
         st.session_state[f"ng_app_{_slot}"] = prefs.get(f'app_{_slot}', '')
         st.session_state[f"ng_per_{_slot}"] = prefs.get(f'per_{_slot}', '')
         if _slot > 0:
@@ -151,11 +150,12 @@ _UI_STRINGS = {
         "char_class":      "Class",
         "appearance":      "Appearance",
         "personality":     "Personality",
+        "gender":          "Gender",
         "ai_controlled":   "🤖 AI-controlled",
         "ai_personality":  "AI Personality",
         "ai_difficulty":   "AI Difficulty",
         "no_saves":        "No saves found.",
-        "save_required":   "Save Name and Player 1 Name are required.",
+        "save_required":   "Player 1 Name is required.",
         "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
         "dup_title":       "⚠️ Save Name Conflict",
         "dup_warning":     "already exists. Choose an action:",
@@ -189,11 +189,12 @@ _UI_STRINGS = {
         "char_class":      "職業",
         "appearance":      "外貌描述",
         "personality":     "個性描述",
+        "gender":          "性別",
         "ai_controlled":   "🤖 AI 操控",
         "ai_personality":  "AI 個性",
         "ai_difficulty":   "AI 難度",
         "no_saves":        "找不到存檔。",
-        "save_required":   "存檔名稱與玩家 1 名字為必填。",
+        "save_required":   "玩家 1 名字為必填。",
         "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
         "dup_title":       "⚠️ 存檔名稱衝突",
         "dup_warning":     "已存在。請選擇操作：",
@@ -227,11 +228,12 @@ _UI_STRINGS = {
         "char_class":      "職業",
         "appearance":      "外見描写",
         "personality":     "性格",
+        "gender":          "性別",
         "ai_controlled":   "🤖 AI操作",
         "ai_personality":  "AIの個性",
         "ai_difficulty":   "AIの難易度",
         "no_saves":        "セーブデータが見つかりません。",
-        "save_required":   "セーブ名とプレイヤー1の名前は必須です。",
+        "save_required":   "プレイヤー1の名前は必須です。",
         "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
         "dup_title":       "⚠️ セーブ名の競合",
         "dup_warning":     "はすでに存在します。操作を選択してください：",
@@ -265,11 +267,12 @@ _UI_STRINGS = {
         "char_class":      "Clase",
         "appearance":      "Apariencia",
         "personality":     "Personalidad",
+        "gender":          "Género",
         "ai_controlled":   "🤖 IA controlada",
         "ai_personality":  "Personalidad IA",
         "ai_difficulty":   "Dificultad IA",
         "no_saves":        "No hay partidas guardadas.",
-        "save_required":   "El nombre de guardado y el nombre del Jugador 1 son obligatorios.",
+        "save_required":   "El nombre del Jugador 1 es obligatorio.",
         "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
         "dup_title":       "⚠️ Conflicto de nombre",
         "dup_warning":     "ya existe. Elige una acción:",
@@ -289,6 +292,28 @@ def _t(key):
     lang    = st.session_state.get('pref_language', 'English')
     strings = _UI_STRINGS.get(lang, _UI_STRINGS['English'])
     return strings.get(key, _UI_STRINGS['English'].get(key, key))
+
+def _tr_race(r):
+    """Translate a race name to the current UI language."""
+    lang = st.session_state.get('pref_language', 'English')
+    lk = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}.get(lang, 'en')
+    tr = config.RACE_TRANSLATIONS.get(r, {}).get(lk)
+    return f"{tr}（{r}）" if tr else r
+
+def _tr_class(c):
+    """Translate a class name to the current UI language."""
+    lang = st.session_state.get('pref_language', 'English')
+    lk = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}.get(lang, 'en')
+    tr = config.CLASS_TRANSLATIONS.get(c, {}).get(lk)
+    return f"{tr}（{c}）" if tr else c
+
+def _tr_rc(race, char_class):
+    """Translate race + class as a combined short label."""
+    lang = st.session_state.get('pref_language', 'English')
+    lk = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}.get(lang, 'en')
+    r = config.RACE_TRANSLATIONS.get(race, {}).get(lk) or race
+    c = config.CLASS_TRANSLATIONS.get(char_class, {}).get(lk) or char_class
+    return f"{r} {c}"
 
 # Sentinel model-ID used when the user disables image generation entirely
 _DISABLED_IMG_ID = "__disabled__"
@@ -318,6 +343,7 @@ def _duplicate_save_dialog(pending):
             world_context=pending['world_context'],
             world_setting=pending['world_setting'],
             extra_players=pending['extra_players'] or None,
+            gender=lead[5] if len(lead) > 5 else '',
             llm=st.session_state.llm,
             rag=st.session_state.rag,
         )
@@ -767,14 +793,18 @@ def _render_model_switcher():
 # Main Menu helpers
 # ---------------------------------------------------------------------------
 
-def _player_config_fields(idx, key_prefix):
+def _player_config_fields(idx, key_prefix, ws=None):
     """
     Render config fields for one party member (inside a form).
 
     Slot 0 is always human (party leader). Slots 1-5 may be AI-controlled.
-    Returns (name, race, char_class, appearance, personality,
+    ws — the world setting dict; when provided, races/classes/names/descriptions
+         are drawn from the setting to match the world's flavour.
+    Returns (name, race, char_class, appearance, personality, gender,
              is_ai, ai_personality, ai_difficulty).
     """
+    import random
+
     flag  = config.PLAYER_FLAGS[idx] if idx < len(config.PLAYER_FLAGS) else '👤'
     label = (f"{flag} Player 1 (Party Leader)" if idx == 0
              else f"{flag} Player {idx + 1}")
@@ -786,12 +816,146 @@ def _player_config_fields(idx, key_prefix):
     if idx > 0:
         is_ai = st.checkbox(_t("ai_controlled"), key=f"{key_prefix}_is_ai_{idx}", value=False)
 
-    cols = st.columns([2, 1, 1])
-    name       = cols[0].text_input(_t("name"),  key=f"{key_prefix}_name_{idx}")
-    race       = cols[1].selectbox(_t("race"), _RACES,
-                                   key=f"{key_prefix}_race_{idx}")
-    char_class = cols[2].selectbox(_t("char_class"), _CLASSES,
-                                   key=f"{key_prefix}_class_{idx}")
+    # World-specific race / class lists
+    ws_races   = (ws.get('races')   if ws else None) or _RACES_FALLBACK
+    ws_classes = (ws.get('classes') if ws else None) or _CLASSES_FALLBACK
+    tm = (ws.get('term_map', {}) if ws else {})
+
+    # Build class display labels from term_map
+    _class_display = {
+        'Warrior': tm.get('warrior_class', 'Warrior'),
+        'Mage':    tm.get('mage_class',    'Mage'),
+        'Rogue':   tm.get('rogue_class',   'Rogue'),
+        'Cleric':  tm.get('cleric_class',  'Cleric'),
+    }
+
+    # Random default name (world-fitting) — generate once and store in session
+    rand_key = f"_rand_name_{key_prefix}_{idx}"
+    if rand_key not in st.session_state:
+        names_m = (ws.get('names_m') if ws else None) or ["Adventurer"]
+        names_f = (ws.get('names_f') if ws else None) or ["Adventurer"]
+        pool = names_m + names_f
+        st.session_state[rand_key] = random.choice(pool)
+
+    # Random default gender — infer from name pool
+    gender_rand_key = f"_rand_gender_{key_prefix}_{idx}"
+    if gender_rand_key not in st.session_state:
+        names_m = (ws.get('names_m') if ws else None) or []
+        default_name = st.session_state[rand_key]
+        st.session_state[gender_rand_key] = "Male" if default_name in names_m else "Female"
+
+    # Resolve localized pools
+    lang = st.session_state.get('pref_language', 'English')
+    _lang_key_map = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}
+    lang_key = _lang_key_map.get(lang, 'en')
+
+    def _pick_localized(field):
+        raw = ws.get(field) if ws else None
+        if isinstance(raw, dict):
+            return raw.get(lang_key) or raw.get('en') or []
+        return raw or []
+
+    # MBTI personality — pick a random type as default
+    mbti_types = list(config.MBTI_DATABASE.keys())
+    mbti_rand_key = f"_rand_mbti_{key_prefix}_{idx}"
+    if mbti_rand_key not in st.session_state:
+        st.session_state[mbti_rand_key] = random.choice(mbti_types)
+
+    def _mbti_label(t):
+        entry = config.MBTI_DATABASE.get(t, {})
+        return entry.get(lang_key) or entry.get('en') or t
+
+    # Generate appearance text based on race + gender + world pool
+    def _generate_appearance(r, g):
+        pool = _pick_localized('appearances')
+        if not pool:
+            return ""
+        # Use a deterministic-ish seed from race+gender so the same combo
+        # always picks from the same subset, but still has variety
+        rng = random.Random(f"{key_prefix}_{idx}_{r}_{g}")
+        return rng.choice(pool)
+
+    # Random default appearance — initial
+    app_rand_key = f"_rand_app_{key_prefix}_{idx}"
+    if app_rand_key not in st.session_state:
+        init_race   = st.session_state.get(f"{key_prefix}_race_{idx}", ws_races[0])
+        init_gender = st.session_state.get(gender_rand_key, 'Male')
+        st.session_state[app_rand_key] = _generate_appearance(init_race, init_gender)
+
+    # Pre-populate session state with random defaults (only if not already set)
+    name_key   = f"{key_prefix}_name_{idx}"
+    race_key   = f"{key_prefix}_race_{idx}"
+    class_key  = f"{key_prefix}_class_{idx}"
+    gender_key = f"{key_prefix}_gender_{idx}"
+    mbti_key   = f"{key_prefix}_mbti_{idx}"
+    # Track whether the user has manually edited appearance
+    app_manual_key = f"_app_manual_{key_prefix}_{idx}"
+    # Track previous race + gender to detect changes
+    prev_race_key   = f"_prev_race_{key_prefix}_{idx}"
+    prev_gender_key = f"_prev_gender_{key_prefix}_{idx}"
+
+    if name_key not in st.session_state:
+        st.session_state[name_key] = st.session_state[rand_key]
+    if race_key not in st.session_state:
+        st.session_state[race_key] = ws_races[0]
+    elif st.session_state[race_key] not in ws_races:
+        st.session_state[race_key] = ws_races[0]
+    if class_key not in st.session_state:
+        st.session_state[class_key] = ws_classes[0]
+    elif st.session_state[class_key] not in ws_classes:
+        st.session_state[class_key] = ws_classes[0]
+    if gender_key not in st.session_state:
+        st.session_state[gender_key] = st.session_state[gender_rand_key]
+    if mbti_key not in st.session_state:
+        st.session_state[mbti_key] = st.session_state[mbti_rand_key]
+    if app_manual_key not in st.session_state:
+        st.session_state[app_manual_key] = False
+
+    # Translation helpers for race / class / gender display
+    def _race_label(r):
+        tr = config.RACE_TRANSLATIONS.get(r, {}).get(lang_key)
+        return f"{tr}（{r}）" if tr else r
+
+    def _class_label(c):
+        # term_map label (world-specific) takes priority, then generic translation
+        tm_label = _class_display.get(c, c)
+        generic  = config.CLASS_TRANSLATIONS.get(c, {}).get(lang_key)
+        if tm_label != c:
+            # World has a custom name (e.g. Fighter, Street Samurai)
+            return f"{generic or tm_label}（{tm_label}）" if generic and generic != tm_label else tm_label
+        return f"{generic}（{c}）" if generic else c
+
+    def _gender_label(g):
+        tr = config.GENDER_TRANSLATIONS.get(g, {}).get(lang_key)
+        return tr if tr else g
+
+    # Row 1: Name / Gender
+    row1 = st.columns([3, 1])
+    name   = row1[0].text_input(_t("name"), key=name_key)
+    gender = row1[1].selectbox(_t("gender"), _GENDERS, format_func=_gender_label, key=gender_key)
+
+    # Row 2: Race / Class
+    row2 = st.columns([1, 1])
+    race       = row2[0].selectbox(_t("race"), ws_races, format_func=_race_label, key=race_key)
+    char_class = row2[1].selectbox(
+        _t("char_class"), ws_classes,
+        format_func=_class_label,
+        key=class_key,
+    )
+
+    # Detect race/gender change → auto-refresh appearance (unless manually edited)
+    cur_race   = st.session_state[race_key]
+    cur_gender = st.session_state[gender_key]
+    old_race   = st.session_state.get(prev_race_key)
+    old_gender = st.session_state.get(prev_gender_key)
+    if old_race is not None or old_gender is not None:
+        if (cur_race != old_race or cur_gender != old_gender):
+            if not st.session_state[app_manual_key]:
+                new_app = _generate_appearance(cur_race, cur_gender)
+                st.session_state[f"{key_prefix}_app_{idx}"] = new_app
+                st.session_state[app_rand_key] = new_app
+    st.session_state[prev_race_key]   = cur_race
+    st.session_state[prev_gender_key] = cur_gender
 
     base = config.CLASS_BASE_STATS.get(char_class.lower(), {})
     st.caption(
@@ -827,12 +991,25 @@ def _player_config_fields(idx, key_prefix):
         appearance       = ""
         personality_text = ""
     else:
-        appearance       = st.text_input(_t("appearance"),  key=f"{key_prefix}_app_{idx}",
-                                         placeholder="A brave adventurer.")
-        personality_text = st.text_input(_t("personality"), key=f"{key_prefix}_per_{idx}",
-                                         placeholder="Courageous and kind.")
+        app_key = f"{key_prefix}_app_{idx}"
+        if app_key not in st.session_state or not st.session_state[app_key]:
+            st.session_state[app_key] = st.session_state[app_rand_key]
 
-    return name, race, char_class, appearance, personality_text, is_ai, ai_personality, ai_difficulty
+        appearance = st.text_input(_t("appearance"), key=app_key)
+
+        # Detect manual appearance edit — compare current value against last auto-generated
+        if st.session_state.get(app_key, '') != st.session_state.get(app_rand_key, ''):
+            st.session_state[app_manual_key] = True
+
+        # MBTI personality selector
+        mbti_sel = st.selectbox(
+            _t("personality"), mbti_types,
+            format_func=_mbti_label,
+            key=mbti_key,
+        )
+        personality_text = _mbti_label(mbti_sel)
+
+    return name, race, char_class, appearance, personality_text, gender, is_ai, ai_personality, ai_difficulty
 
 
 def main_menu():
@@ -848,7 +1025,6 @@ def main_menu():
     with col1:
         st.header(_t("new_game"))
         with st.form("new_game_form"):
-            save_name  = st.text_input(_t("save_name"))
             difficulty = st.selectbox(_t("difficulty"), ["Easy", "Normal", "Hard"],
                                       index=["Easy", "Normal", "Hard"].index(st.session_state.pref_difficulty))
             # Language is now set via the model/language expander in the sidebar;
@@ -911,21 +1087,34 @@ def main_menu():
 
             player_fields = []
             for i in range(num_players):
-                player_fields.append(_player_config_fields(i, key_prefix="ng"))
+                player_fields.append(_player_config_fields(i, key_prefix="ng", ws=ws))
                 if i < num_players - 1:
                     st.markdown("---")
 
             if st.form_submit_button(_t("start_adventure")):
                 lead = player_fields[0]
-                if not save_name or not lead[0]:
+                if not lead[0]:
                     st.error(_t("save_required"))
                 else:
+                    # Auto-generate save name: sequential ID + world setting id
+                    import time as _time
+                    _existing = st.session_state.save_manager.list_saves()
+                    _next_id  = len(_existing) + 1
+                    _ws_tag   = ws_ids[ws_idx]
+                    save_name = f"{_next_id:03d}_{_ws_tag}"
+                    # Ensure uniqueness by appending timestamp if collision
+                    _existing_names = {s['save_name'] for s in _existing}
+                    while save_name in _existing_names:
+                        _next_id += 1
+                        save_name = f"{_next_id:03d}_{_ws_tag}"
+
                     extra = []
-                    for name, race, char_class, app, per, is_ai, ai_pers, ai_diff in player_fields[1:]:
+                    for name, race, char_class, app, per, gender, is_ai, ai_pers, ai_diff in player_fields[1:]:
                         extra.append({
                             'name': name or f'Adventurer {len(extra)+2}',
                             'race': race, 'char_class': char_class,
                             'appearance': app, 'personality': per,
+                            'gender': gender,
                             'is_ai': is_ai,
                             'ai_personality': ai_pers, 'ai_difficulty': ai_diff,
                         })
@@ -933,6 +1122,7 @@ def main_menu():
                         st.session_state.save_manager.create_new_game(
                             save_name, lead[0], lead[1], lead[2], lead[3], lead[4],
                             difficulty, language,
+                            gender=lead[5],
                             world_context=custom_lore,
                             world_setting=ws_ids[ws_idx],
                             extra_players=extra or None,
@@ -1141,7 +1331,7 @@ def _render_party_sidebar(party, state, active_char):
             st.sidebar.markdown(
                 f"<div class='dead-slot'>"
                 f"<b>{flag}{ai_badge} {char.name}</b> ☠<br/>"
-                f"<i style='font-size:0.85em'>{char.race} {char.char_class}</i>"
+                f"<i style='font-size:0.85em'>{_tr_rc(char.race, char.char_class)}</i>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -1156,13 +1346,13 @@ def _render_party_sidebar(party, state, active_char):
                 f"<div class='active-slot'>"
                 f"<b>{flag}{ai_badge} {char.name}</b>{personality_label}"
                 f" <span style='color:#4caf50'>▶ ACTIVE</span><br/>"
-                f"<i style='font-size:0.85em'>{char.race} {char.char_class}</i>"
+                f"<i style='font-size:0.85em'>{_tr_rc(char.race, char.char_class)}</i>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
         else:
             st.sidebar.markdown(
-                f"**{flag}{ai_badge} {char.name}**  *{char.race} {char.char_class}*"
+                f"**{flag}{ai_badge} {char.name}**  *{_tr_rc(char.race, char.char_class)}*"
             )
 
         if not is_dead:
@@ -1322,7 +1512,7 @@ def _render_score_board(party, state):
 
         st.markdown(
             f"**{flag}{ai_tag} {char.name}**{dead}  "
-            f"<small style='color:#aaa'>({char.char_class})</small>  `{score:.0f}pt`",
+            f"<small style='color:#aaa'>({_tr_class(char.char_class)})</small>  `{score:.0f}pt`",
             unsafe_allow_html=True,
         )
         st.caption(f"⚔ {dmg}dmg  💚 {heal}heal  🎯 {chks}chk  ↩ {turns}t  💰 {char.gold}g")
@@ -1626,14 +1816,15 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 # ---------------------------------------------------------------------------
 
 def _render_characters_tab(party, state, active_char):
-    """Tab 3 — 角色: expanded stat cards for every party member."""
+    """Tab 3 — 角色: Player characters on top, then NPCs below."""
     from engine.world import WorldManager
     ws_id   = getattr(state, 'world_setting', None) or 'dnd5e'
     ws      = config.get_world_setting(ws_id)
     tm      = ws.get('term_map', {})
     ai_cfgs = getattr(state, 'ai_configs', None) or {}
 
-    st.subheader("👥 隊伍成員 — 詳細數值")
+    # ── Player Characters ─────────────────────────────────────────────
+    st.subheader("🎮 玩家角色 — 詳細數值")
 
     class_icons = {'warrior': '⚔️', 'mage': '🔮', 'rogue': '🗡️', 'cleric': '✨'}
 
@@ -1656,7 +1847,8 @@ def _render_characters_tab(party, state, active_char):
             ai_tag = ""
 
         cls_icon = class_icons.get(char.char_class.lower(), '👤')
-        header   = f"{flag} {cls_icon} {char.name} — {char.race} {char.char_class}{ai_tag}{active_tag}{dead_tag}"
+        gender_lbl = f" ({getattr(char, 'gender', '') or ''})" if getattr(char, 'gender', '') else ""
+        header   = f"{flag} {cls_icon} {char.name}{gender_lbl} — {_tr_rc(char.race, char.char_class)}{ai_tag}{active_tag}{dead_tag}"
 
         with st.expander(header, expanded=is_active):
             # ── Portrait ────────────────────────────────────────────────────
@@ -1750,6 +1942,77 @@ def _render_characters_tab(party, state, active_char):
                         _render_relation_rows(char_rels, char_key, _lk)
             except Exception:
                 pass
+
+    # ── NPC Characters ───────────────────────────────────────────────
+    rels = (state.relationships or {}) if state else {}
+    npc_list = [(name, d) for name, d in rels.items() if isinstance(d, dict)]
+    st.subheader(f"🧑‍🤝‍🧑 NPC — 已知角色（{len(npc_list)}）")
+
+    if not npc_list:
+        st.caption("尚未遭遇任何 NPC。隨著故事發展，NPC 將會自動記錄在此。")
+    else:
+        for name, d in npc_list:
+            proper   = d.get('proper_name', name)
+            affinity = d.get('affinity', 0)
+            state_lbl= d.get('state', 'Neutral')
+            goal     = d.get('goal', '')
+            emotion  = d.get('emotion', '')
+            health   = d.get('health', '')
+
+            npc_gender = d.get('gender', '')
+
+            aff_clr = '#4caf50' if affinity > 20 else ('#f44336' if affinity < -20 else '#9e9e9e')
+            header = f"{'🎭' if emotion else '👤'} {proper or name}"
+            if npc_gender:
+                header += f" ({npc_gender})"
+            if state_lbl:
+                header += f"  ·  {state_lbl}"
+            if emotion:
+                header += f"  ·  {emotion}"
+
+            with st.expander(header, expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.markdown(
+                        f"**好感度** <span style='color:{aff_clr};font-size:1.4em;"
+                        f"font-weight:bold'>{affinity:+d}</span>",
+                        unsafe_allow_html=True,
+                    )
+                with c2:
+                    st.markdown(f"**狀態** {state_lbl or '—'}")
+                with c3:
+                    st.markdown(f"**健康** {health or '—'}")
+
+                if goal:
+                    st.caption(f"🎯 目標：{goal}")
+
+                aliases = d.get('aliases') or []
+                if aliases:
+                    st.caption(f"代稱：{' · '.join(aliases)}")
+
+                bio = d.get('biography', '')
+                if bio:
+                    st.info(f"**生平** {bio}", icon="📜")
+
+                # Relations for this NPC
+                try:
+                    _db    = st.session_state.save_manager.db
+                    _sess  = _db.get_session()
+                    _world = WorldManager(_sess, state)
+                    npc_key = name.lower()
+                    npc_rels = _world.get_relations('char', npc_key)
+                    if npc_rels:
+                        _lk = {o['name'].lower(): o['name']
+                               for o in _world.list_organizations()}
+                        for nn in rels:
+                            _lk[nn.lower()] = rels[nn].get('proper_name', nn) if isinstance(rels[nn], dict) else nn
+                        for c in party:
+                            _lk[c.name.lower()] = c.name
+                        with st.expander("🔗 關係", expanded=False):
+                            _render_relation_rows(npc_rels, npc_key, _lk)
+                except Exception:
+                    pass
+
 
 # ---------------------------------------------------------------------------
 # Organizations tab — faction / org codex discovered during the story
@@ -2497,8 +2760,8 @@ def game_loop():
     )
 
     # ---- Tabs (故事 first = default selected) ----
-    tab_story, tab_board, tab_chars, tab_rules, tab_orgs, tab_book, tab_god = st.tabs(
-        ["📖 故事", "🗺️ 遊戲板", "👥 角色", "📜 規則", "🏛️ 組織", "📕 書本", "🔮 上帝模式"]
+    tab_story, tab_board, tab_chars, tab_orgs, tab_rules, tab_book, tab_god = st.tabs(
+        ["📖 故事", "🗺️ 遊戲板", "👥 角色", "🏛️ 組織", "📜 規則", "📕 書本", "🔮 上帝模式"]
     )
 
     with tab_story:
@@ -2510,11 +2773,11 @@ def game_loop():
     with tab_chars:
         _render_characters_tab(party, state, active_char)
 
-    with tab_rules:
-        _render_rules_tab(state)
-
     with tab_orgs:
         _render_organizations_tab(state)
+
+    with tab_rules:
+        _render_rules_tab(state)
 
     with tab_book:
         _render_book_tab(getattr(state, 'save_name', None))
@@ -2534,6 +2797,7 @@ _GOD_SCHEMA = {
         "name":        ("STRING",      "Player character display name"),
         "race":        ("STRING",      "Species — Human / Elf / Dwarf / Orc / Halfling"),
         "char_class":  ("STRING",      "Class — Warrior / Mage / Rogue / Cleric"),
+        "gender":      ("STRING",      "Character gender — Male / Female / Non-binary / Other"),
         "appearance":  ("TEXT",        "Free-text physical description used for image-gen prompts"),
         "personality": ("TEXT",        "Free-text personality injected into LLM system prompt"),
         "hp":          ("INTEGER",     "Current hit points"),
@@ -2589,11 +2853,12 @@ def _render_god_mode_tab(party, state):
     st.subheader("👤 characters 資料表")
     schema = _GOD_SCHEMA["characters"]
     for char in party:
-        with st.expander(f"🔴 {char.name} ({char.race} {char.char_class})", expanded=False):
+        with st.expander(f"🔴 {char.name} ({_tr_rc(char.race, char.char_class)})", expanded=False):
             rows = []
             live = {
                 "id": char.id, "name": char.name, "race": char.race,
-                "char_class": char.char_class, "appearance": char.appearance or "",
+                "char_class": char.char_class, "gender": getattr(char, 'gender', '') or '',
+                "appearance": char.appearance or "",
                 "personality": char.personality or "",
                 "hp": char.hp, "max_hp": char.max_hp,
                 "mp": char.mp, "max_mp": char.max_mp,
@@ -2687,17 +2952,21 @@ def _render_god_mode_tab(party, state):
             state_lbl= d.get('state', 'Neutral')
             goal     = d.get('goal', '')
 
+            npc_gender = d.get('gender', '')
             header = f"**{name}**"
             if proper and proper != name:
                 header += f"（本名：{proper}）"
+            if npc_gender:
+                header += f"　👤 {npc_gender}"
             if emotion:
                 header += f"　🎭 {emotion}"
             st.markdown(header)
 
-            info_cols = st.columns(3)
+            info_cols = st.columns(4)
             info_cols[0].metric("Affinity", f"{affinity:+d}", label_visibility="visible")
             info_cols[1].write(f"**狀態** {state_lbl}")
-            info_cols[2].write(f"**健康** {health or '—'}")
+            info_cols[2].write(f"**性別** {npc_gender or '—'}")
+            info_cols[3].write(f"**健康** {health or '—'}")
 
             if aliases:
                 st.caption(f"代稱／稱號：{' · '.join(aliases)}")
@@ -2711,6 +2980,48 @@ def _render_god_mode_tab(party, state):
                 st.info(f"**特質** {traits}", icon="👁️")
             if bio:
                 st.info(f"**生平** {bio}", icon="📜")
+            st.markdown("---")
+
+    # Organization full profiles — hidden parameters visible only in God Mode
+    orgs_raw = getattr(state, 'organizations', None) or {}
+    orgs_list = sorted(orgs_raw.values(), key=lambda o: o.get('first_seen_turn', 0))
+    with st.expander(f"🏛️ 組織完整檔案 (Full Organization Profiles) — {len(orgs_list)} 個", expanded=False):
+        if not orgs_list:
+            st.caption("（尚無組織）")
+        for org in orgs_list:
+            org_type = (org.get('type') or 'unknown').lower()
+            icon     = _ORG_TYPE_ICONS.get(org_type, '🏢')
+            st.markdown(f"**{icon} {org.get('name', '—')}**")
+
+            info_cols = st.columns(3)
+            with info_cols[0]:
+                st.write(f"**類型** {org.get('type') or '—'}")
+                st.write(f"**創辦人** {org.get('founder') or '—'}")
+                st.write(f"**成員規模** {org.get('member_count') or '—'}")
+            with info_cols[1]:
+                st.write(f"**現任領導人** {org.get('current_leader') or '—'}")
+                st.write(f"**據點** {org.get('headquarters') or '—'}")
+                st.write(f"**陣營傾向** {org.get('alignment') or '—'}")
+            with info_cols[2]:
+                turn = org.get('first_seen_turn')
+                turn_lbl = "開場白" if turn == 0 else f"第 {turn} 回合" if turn is not None else '—'
+                st.write(f"**首次登場** {turn_lbl}")
+
+            if org.get('description'):
+                st.info(f"**描述** {org['description']}", icon="📝")
+            if org.get('history'):
+                st.info(f"**歷史沿革** {org['history']}", icon="📜")
+
+            # Show raw JSON for all fields (including any unlisted/hidden ones)
+            visible_keys = {'name', 'type', 'founder', 'history', 'member_count',
+                            'current_leader', 'headquarters', 'alignment',
+                            'description', 'first_seen_turn'}
+            hidden = {k: v for k, v in org.items() if k not in visible_keys and v}
+            if hidden:
+                st.caption("🔒 隱藏欄位（僅上帝模式可見）")
+                for k, v in hidden.items():
+                    st.write(f"  **{k}**: {v}")
+
             st.markdown("---")
 
     with st.expander("⚔️ known_entities (戰鬥實體)", expanded=False):
