@@ -18,6 +18,49 @@ _img_dl = {
 
 _RACES_FALLBACK   = ["Human", "Elf", "Dwarf", "Orc", "Halfling"]
 _CLASSES_FALLBACK = ["Warrior", "Mage", "Rogue", "Cleric"]
+
+# ---------------------------------------------------------------------------
+# Localized display names for races and classes
+# Internal values remain English; these are used only for UI display via
+# format_func on selectboxes.
+# ---------------------------------------------------------------------------
+_RACE_L10N = {
+    "zh": {
+        "Human": "人類", "Elf": "精靈", "Dwarf": "矮人", "Halfling": "半身人",
+        "Half-Orc": "半獸人", "Tiefling": "提夫林", "Dragonborn": "龍裔",
+        "Gnome": "侏儒", "Orc": "獸人", "Goblin": "哥布林", "Leshy": "樹靈",
+        "Human (Empire)": "人類（帝國）", "Human (Bretonnian)": "人類（布列托尼亞）",
+        "Wood Elf": "木精靈", "High Elf": "高等精靈",
+        "Ogryn": "歐乏人", "Ratling": "鼠人",
+        "Ork": "獸人", "Troll": "巨魔",
+        "Human (Cygnaran)": "人類（席格納）", "Human (Khadoran)": "人類（凱多）",
+        "Dwarf (Rhulfolk)": "矮人（盧爾族）", "Gobber": "哥布",
+        "Trollkin": "巨魔族", "Iosan Elf": "艾歐珊精靈",
+        "Mutant": "變種人", "Human Survivor": "人類倖存者",
+        "Inox": "伊諾克斯", "Valrath": "瓦拉斯", "Quatryl": "夸特瑞爾",
+        "Orchid": "蘭花族", "Savvas": "薩瓦斯", "Aesther": "艾斯瑟",
+        "Harrower": "收割者",
+    },
+    "ja": {
+        "Human": "人間", "Elf": "エルフ", "Dwarf": "ドワーフ",
+        "Halfling": "ハーフリング", "Half-Orc": "ハーフオーク",
+        "Tiefling": "ティーフリング", "Dragonborn": "ドラゴンボーン",
+        "Gnome": "ノーム", "Orc": "オーク", "Goblin": "ゴブリン",
+        "Troll": "トロール", "Ork": "オーク", "Mutant": "ミュータント",
+    },
+    "es": {
+        "Human": "Humano", "Elf": "Elfo", "Dwarf": "Enano",
+        "Halfling": "Mediano", "Half-Orc": "Semiorco",
+        "Gnome": "Gnomo", "Orc": "Orco", "Goblin": "Goblin",
+        "Troll": "Trol", "Mutant": "Mutante",
+    },
+}
+
+_CLASS_L10N = {
+    "zh": {"Warrior": "戰士", "Mage": "法師", "Rogue": "盜賊", "Cleric": "牧師"},
+    "ja": {"Warrior": "戦士", "Mage": "魔法使い", "Rogue": "盗賊", "Cleric": "聖職者"},
+    "es": {"Warrior": "Guerrero", "Mage": "Mago", "Rogue": "Pícaro", "Cleric": "Clérigo"},
+}
 _GENDERS          = ["Male", "Female", "Non-binary", "Other"]
 
 from engine.save_load import SaveLoadManager
@@ -894,12 +937,30 @@ def _player_config_fields(idx, key_prefix, ws=None):
     name   = row1[0].text_input(_t("name"), key=name_key)
     gender = row1[1].selectbox(_t("gender"), _GENDERS, key=gender_key)
 
-    # Row 2: Race / Class
+    # Row 2: Race / Class (localized display names)
     row2 = st.columns([1, 1])
-    race       = row2[0].selectbox(_t("race"), ws_races, key=race_key)
+    _race_loc  = _RACE_L10N.get(lang_key, {})
+    _class_loc = _CLASS_L10N.get(lang_key, {})
+
+    race = row2[0].selectbox(
+        _t("race"), ws_races, key=race_key,
+        format_func=lambda r: f"{_race_loc[r]} ({r})" if r in _race_loc else r,
+    )
+
+    def _fmt_class(c):
+        loc   = _class_loc.get(c)
+        world = _class_display.get(c, c)
+        if loc and world != c:
+            return f"{loc} ({world})"
+        if loc:
+            return loc
+        if world != c:
+            return f"{world} ({c})"
+        return c
+
     char_class = row2[1].selectbox(
         _t("char_class"), ws_classes,
-        format_func=lambda c: f"{_class_display.get(c, c)} ({c})" if _class_display.get(c, c) != c else c,
+        format_func=_fmt_class,
         key=class_key,
     )
 
@@ -984,6 +1045,35 @@ def main_menu():
 
     with col1:
         st.header(_t("new_game"))
+
+        # World setting selector — OUTSIDE form so changes trigger an immediate
+        # Streamlit rerun, updating race / class / name options interactively.
+        st.markdown(f"**{_t('world_setting')}**")
+        ws_labels = [f"[{_w['category']}] {_w['name']}" for _w in config.WORLD_SETTINGS]
+        ws_ids    = [_w['id'] for _w in config.WORLD_SETTINGS]
+        ws_idx    = st.selectbox(
+            _t("universe"), range(len(config.WORLD_SETTINGS)),
+            format_func=lambda i: ws_labels[i],
+            index=st.session_state.pref_world_idx,
+            key="new_game_ws_select",
+        )
+        ws = config.WORLD_SETTINGS[ws_idx]
+        tm = ws.get('term_map', {})
+        st.caption(
+            f"**{ws['name']}** — {ws['description']}  \n"
+            f"{tm.get('hp_name','HP')}·{tm.get('mp_name','MP')}·"
+            f"{tm.get('gold_name','gold')}·GM={tm.get('dm_title','GM')}"
+        )
+
+        # Reset per-slot random caches when world changes so names /
+        # appearances regenerate from the new world's pools.
+        _ws_prev_key = "_prev_ws_idx"
+        if _ws_prev_key in st.session_state and st.session_state[_ws_prev_key] != ws_idx:
+            for _slot in range(config.MAX_PARTY_SIZE + 1):
+                for _pfx in ('_rand_name_ng_', '_rand_gender_ng_', '_rand_app_ng_'):
+                    st.session_state.pop(f"{_pfx}{_slot}", None)
+        st.session_state[_ws_prev_key] = ws_idx
+
         with st.form("new_game_form"):
             save_name  = st.text_input(_t("save_name"))
             difficulty = st.selectbox(_t("difficulty"), ["Easy", "Normal", "Hard"],
@@ -992,22 +1082,6 @@ def main_menu():
             # read it from session state so the game uses the selected language.
             language = st.session_state.pref_language
 
-            st.markdown(f"**{_t('world_setting')}**")
-            ws_labels = [f"[{ws['category']}] {ws['name']}" for ws in config.WORLD_SETTINGS]
-            ws_ids    = [ws['id'] for ws in config.WORLD_SETTINGS]
-            ws_idx    = st.selectbox(
-                _t("universe"), range(len(config.WORLD_SETTINGS)),
-                format_func=lambda i: ws_labels[i],
-                index=st.session_state.pref_world_idx,
-                key="new_game_ws_select",
-            )
-            ws = config.WORLD_SETTINGS[ws_idx]
-            tm = ws.get('term_map', {})
-            st.caption(
-                f"**{ws['name']}** — {ws['description']}  \n"
-                f"{tm.get('hp_name','HP')}·{tm.get('mp_name','MP')}·"
-                f"{tm.get('gold_name','gold')}·GM={tm.get('dm_title','GM')}"
-            )
             custom_lore = st.text_area(
                 _t("custom_lore"),
                 placeholder=ws.get('world_lore', '')[:150] + "...",
