@@ -164,6 +164,100 @@ _UI_STRINGS = {
         "dup_inherit":     "📂 Load Existing",
         "dup_inherit_desc": "Discard new settings and continue from the existing save.",
         "dup_cancel":      "✖ Cancel",
+        # Game tabs
+        "tab_story":         "📖 Story",
+        "tab_gameboard":     "🗺️ Game Board",
+        "tab_characters":    "👥 Characters",
+        "tab_rules":         "📜 Rules",
+        "tab_orgs":          "🏛️ Organizations",
+        "tab_book":          "📕 Book",
+        "tab_godmode":       "🔮 God Mode",
+        # Game board
+        "manual_dice":       "🎲 Manual Dice",
+        "dice_legend":       "🟡 Max  🔴 Min  — Normal",
+        "scoreboard":        "🏆 Score Board",
+        "continent_map":     "🌍 Continent Map",
+        "regen_map":         "🔄 Regenerate Map",
+        "gen_map":           "🎨 Generate Continent Map",
+        "location_map":      "🗺️ Location Tracking Map",
+        "location_map_hint": "Location map will appear after the game starts (switch to the Story tab to begin your first turn).",
+        "relation_graph":    "🔗 Relationship Graph",
+        "ai_acting":         "(AI) is acting…  Switch to the Story tab to view.",
+        "player_turn":       "it's your turn!  Switch to the Story tab to enter your action.",
+        # Story tab
+        "char_fallen":       "has fallen!  Waiting for the next player…",
+        "choose_action":     "{name}, choose your action:",
+        "custom_action_expander": "✏️ Or custom action…",
+        "custom_action_input":    "Enter custom action:",
+        "execute":           "Execute",
+        "action_prompt_single": "Enter your action…",
+        "action_prompt_multi":  "{flag} {name}'s action…",
+        "dm_thinking":       "is thinking…",
+        "allow_custom":      "Allow custom action input",
+        "allow_custom_help": "When checked, you can type a custom action during the game instead of choosing from options.",
+        "prologue_badge":    "📜 Prologue · Turn 0",
+        "writing_prologue":  "is writing the prologue…",
+        # Characters tab
+        "party_details":     "👥 Party Members — Details",
+        "dead_tag":          " ☠ Fallen",
+        "active_tag":        " ◀ Active",
+        "portrait_not_generated": "🖼️ Not generated",
+        "gen_portrait":      "🎨 Generate Portrait",
+        "regen_portrait_help": "Regenerate {name}'s portrait",
+        "skills_label":      "Skills",
+        "inventory_label":   "Inventory",
+        "appearance_label":  "Appearance",
+        "personality_label": "Personality",
+        "relations_expander":"🔗 Relations",
+        # Relations / NPC tab
+        "no_relations":      "No relationship data yet. As the story progresses, character and organization relationships will be automatically recorded here.",
+        "no_known_relations":"No known relations",
+        "rel_type_filter":   "Filter relation types",
+        # Organizations tab
+        "no_orgs":           "No organizations discovered yet. Continue your adventure and organization intel will be automatically recorded here.",
+        "search_orgs":       "🔍 Search Organizations",
+        "search_orgs_ph":    "Enter name, type, leader…",
+        "org_founder":       "Founder",
+        "org_leader":        "Current Leader",
+        "org_members":       "Members",
+        "org_hq":            "Headquarters",
+        "org_alignment":     "Alignment",
+        "org_first_seen":    "First Appeared",
+        "org_history":       "History",
+        "org_relations":     "Relations",
+        # Rules tab
+        "search_manual":     "🔍 Search Manual",
+        "search_manual_ph":  "Enter keywords, e.g.: attack, dice, stealth…",
+        "chapter_label":     "Chapter",
+        "toc_expander":      "📋 Table of Contents — Click to jump",
+        # Book tab
+        "no_story":          "📕 No story log yet.\nAfter playing, each turn's story and images are auto-saved here.",
+        "latest_pages":      "📌 Latest Pages (Last 2)",
+        "read_pages_header": "📖 Read Pages",
+        # Image generation
+        "img_style_expander":        "🎨 Image Style",
+        "regen_all_images":          "🔄 Regenerate All Images",
+        "img_gen_disabled_auto":     "⚠️ Image generation auto-disabled (repeated VRAM shortage)",
+        "img_gen_reenable":          "🔄 Re-enable",
+        "img_gen_ready":             "✅ Image generation ready",
+        "img_gen_vram_warn":         "⚡ VRAM may be insufficient, some scene images may be skipped",
+        "img_gen_disabled_notice":   "🚫 Image generation disabled, all generate buttons are frozen.",
+        # Sidebar
+        "save_game":         "💾 Save",
+        "quit_game":         "🚪 Quit",
+        "game_saved":        "Game saved!",
+        # VRAM
+        "vram_ok":           "✅ VRAM sufficient (~{n} GB needed)",
+        "vram_insufficient": "❌ VRAM insufficient (~{n} GB needed, GPU only {total:.1f} GB)",
+        "vram_warning":      "⚠️ CUDA available but VRAM unreadable (~{n} GB needed)",
+        "no_cuda":           "❌ No CUDA GPU",
+        # Save / load messages
+        "loaded_party":      "Loaded party [{names}]!",
+        "load_failed":       "Failed to load save file.",
+        "deleted_save":      "Deleted save '{save}'.",
+        "delete_failed":     "Failed to delete save '{save}'.",
+        "overwrite_failed":  "Failed to overwrite.",
+        "load_existing_failed": "Failed to load existing save.",
     },
     "繁體中文": {
         "model_expander":      "⚙️ 模型與語言",
@@ -202,6 +296,100 @@ _UI_STRINGS = {
         "dup_inherit":     "📂 繼承存檔",
         "dup_inherit_desc": "放棄新設定，繼續讀取現有存檔。",
         "dup_cancel":      "✖ 取消",
+        # Game tabs
+        "tab_story":         "📖 故事",
+        "tab_gameboard":     "🗺️ 遊戲板",
+        "tab_characters":    "👥 角色",
+        "tab_rules":         "📜 規則",
+        "tab_orgs":          "🏛️ 組織",
+        "tab_book":          "📕 書本",
+        "tab_godmode":       "🔮 上帝模式",
+        # Game board
+        "manual_dice":       "🎲 手動擲骰",
+        "dice_legend":       "🟡 最大值  🔴 最小值  — 普通結果",
+        "scoreboard":        "🏆 得分板",
+        "continent_map":     "🌍 大陸地圖",
+        "regen_map":         "🔄 重新生成地圖",
+        "gen_map":           "🎨 生成大陸地圖",
+        "location_map":      "🗺️ 位置追蹤地圖",
+        "location_map_hint": "位置地圖將在遊戲開始後顯示（切換至故事頁籤開始第一個回合）。",
+        "relation_graph":    "🔗 關係圖",
+        "ai_acting":         "(AI) 正在行動… 切換至故事頁籤查看。",
+        "player_turn":       "的回合！切換至故事頁籤輸入行動。",
+        # Story tab
+        "char_fallen":       "已倒下！等待下一位玩家…",
+        "choose_action":     "{name}，選擇你的行動:",
+        "custom_action_expander": "✏️ 或自訂行動…",
+        "custom_action_input":    "輸入其他行動:",
+        "execute":           "執行",
+        "action_prompt_single": "輸入你的行動…",
+        "action_prompt_multi":  "{flag} {name} 的行動…",
+        "dm_thinking":       "正在思考…",
+        "allow_custom":      "允許自訂行動輸入",
+        "allow_custom_help": "勾選後，遊戲中可輸入非選項的自訂行動",
+        "prologue_badge":    "📜 開場白 · Turn 0",
+        "writing_prologue":  "正在書寫開場白…",
+        # Characters tab
+        "party_details":     "👥 隊伍成員 — 詳細數值",
+        "dead_tag":          " ☠ 已倒下",
+        "active_tag":        " ◀ 行動中",
+        "portrait_not_generated": "🖼️ 尚未生成",
+        "gen_portrait":      "🎨 生成肖像",
+        "regen_portrait_help": "重新生成 {name} 肖像",
+        "skills_label":      "技能",
+        "inventory_label":   "背包",
+        "appearance_label":  "外觀",
+        "personality_label": "性格",
+        "relations_expander":"🔗 關係",
+        # Relations / NPC tab
+        "no_relations":      "尚無關係資料。隨著故事發展，角色與組織的關係將自動記錄於此。",
+        "no_known_relations":"無已知關係",
+        "rel_type_filter":   "篩選關係類型",
+        # Organizations tab
+        "no_orgs":           "尚未發現任何組織。繼續冒險，組織情報將會自動記錄在此。",
+        "search_orgs":       "🔍 搜尋組織",
+        "search_orgs_ph":    "輸入名稱、類型、領導人…",
+        "org_founder":       "創辦人",
+        "org_leader":        "現任領導人",
+        "org_members":       "成員規模",
+        "org_hq":            "據點",
+        "org_alignment":     "陣營傾向",
+        "org_first_seen":    "首次登場",
+        "org_history":       "歷史沿革",
+        "org_relations":     "關係",
+        # Rules tab
+        "search_manual":     "🔍 搜尋手冊關鍵字",
+        "search_manual_ph":  "輸入關鍵字，例如：attack、骰子、stealth…",
+        "chapter_label":     "章節",
+        "toc_expander":      "📋 目錄 — 點擊快速跳章",
+        # Book tab
+        "no_story":          "📕 尚無故事紀錄。\n遊戲進行後，每回合會自動儲存故事與圖片，在此閱讀完整冒險記錄。",
+        "latest_pages":      "📌 最新記錄（最近 2 頁）",
+        "read_pages_header": "📖 翻頁閱讀",
+        # Image generation
+        "img_style_expander":        "🎨 影像風格",
+        "regen_all_images":          "🔄 重新生成所有影像",
+        "img_gen_disabled_auto":     "⚠️ 影像生成已自動停用（連續 VRAM 不足）",
+        "img_gen_reenable":          "🔄 重新啟用",
+        "img_gen_ready":             "✅ 影像生成就緒",
+        "img_gen_vram_warn":         "⚡ VRAM 可能不足，部分場景圖可能跳過生成",
+        "img_gen_disabled_notice":   "🚫 影像生成已停用，所有生成按鈕均已凍結。",
+        # Sidebar
+        "save_game":         "💾 儲存",
+        "quit_game":         "🚪 離開",
+        "game_saved":        "遊戲已儲存！",
+        # VRAM
+        "vram_ok":           "✅ VRAM 足夠（需 ~{n} GB）",
+        "vram_insufficient": "❌ VRAM 不足（需 ~{n} GB，GPU 僅 {total:.1f} GB）",
+        "vram_warning":      "⚠️ CUDA 可用，但無法讀取 VRAM（需 ~{n} GB）",
+        "no_cuda":           "❌ 無 CUDA GPU",
+        # Save / load messages
+        "loaded_party":      "成功載入隊伍 [{names}]！",
+        "load_failed":       "載入存檔失敗。",
+        "deleted_save":      "已刪除存檔「{save}」。",
+        "delete_failed":     "刪除存檔「{save}」失敗。",
+        "overwrite_failed":  "覆蓋失敗。",
+        "load_existing_failed": "載入現有存檔失敗。",
     },
     "日本語": {
         "model_expander":      "⚙️ モデルと言語",
@@ -240,6 +428,100 @@ _UI_STRINGS = {
         "dup_inherit":     "📂 既存を読込",
         "dup_inherit_desc": "新しい設定を破棄し、既存のセーブを続けます。",
         "dup_cancel":      "✖ キャンセル",
+        # Game tabs
+        "tab_story":         "📖 ストーリー",
+        "tab_gameboard":     "🗺️ ゲーム板",
+        "tab_characters":    "👥 キャラクター",
+        "tab_rules":         "📜 ルール",
+        "tab_orgs":          "🏛️ 組織",
+        "tab_book":          "📕 ブック",
+        "tab_godmode":       "🔮 神モード",
+        # Game board
+        "manual_dice":       "🎲 手動ダイス",
+        "dice_legend":       "🟡 最大値  🔴 最小値  — 通常",
+        "scoreboard":        "🏆 スコアボード",
+        "continent_map":     "🌍 大陸マップ",
+        "regen_map":         "🔄 マップ再生成",
+        "gen_map":           "🎨 大陸マップ生成",
+        "location_map":      "🗺️ 位置追跡マップ",
+        "location_map_hint": "ゲーム開始後に位置マップが表示されます（ストーリータブで最初のターンを開始してください）。",
+        "relation_graph":    "🔗 関係グラフ",
+        "ai_acting":         "(AI) が行動中… ストーリータブで確認してください。",
+        "player_turn":       "のターン！ ストーリータブで行動を入力してください。",
+        # Story tab
+        "char_fallen":       "は倒れました！次のプレイヤーを待っています…",
+        "choose_action":     "{name}、行動を選んでください:",
+        "custom_action_expander": "✏️ またはカスタム行動…",
+        "custom_action_input":    "カスタム行動を入力:",
+        "execute":           "実行",
+        "action_prompt_single": "行動を入力…",
+        "action_prompt_multi":  "{flag} {name} の行動…",
+        "dm_thinking":       "考え中…",
+        "allow_custom":      "カスタム行動入力を許可",
+        "allow_custom_help": "チェックすると、ゲーム中に選択肢以外のカスタム行動を入力できます",
+        "prologue_badge":    "📜 プロローグ · ターン 0",
+        "writing_prologue":  "プロローグを作成中…",
+        # Characters tab
+        "party_details":     "👥 パーティメンバー — 詳細",
+        "dead_tag":          " ☠ 倒れた",
+        "active_tag":        " ◀ 行動中",
+        "portrait_not_generated": "🖼️ 未生成",
+        "gen_portrait":      "🎨 ポートレート生成",
+        "regen_portrait_help": "{name}のポートレートを再生成",
+        "skills_label":      "スキル",
+        "inventory_label":   "インベントリ",
+        "appearance_label":  "外見",
+        "personality_label": "性格",
+        "relations_expander":"🔗 関係",
+        # Relations / NPC tab
+        "no_relations":      "関係データがまだありません。ストーリーが進むにつれ、キャラクターと組織の関係が自動的に記録されます。",
+        "no_known_relations":"既知の関係なし",
+        "rel_type_filter":   "関係タイプをフィルター",
+        # Organizations tab
+        "no_orgs":           "組織はまだ発見されていません。冒険を続けると、組織情報が自動的に記録されます。",
+        "search_orgs":       "🔍 組織を検索",
+        "search_orgs_ph":    "名前、タイプ、リーダーを入力…",
+        "org_founder":       "創設者",
+        "org_leader":        "現在のリーダー",
+        "org_members":       "メンバー数",
+        "org_hq":            "本部",
+        "org_alignment":     "陣営",
+        "org_first_seen":    "初登場",
+        "org_history":       "歴史",
+        "org_relations":     "関係",
+        # Rules tab
+        "search_manual":     "🔍 マニュアルを検索",
+        "search_manual_ph":  "キーワードを入力（例：attack、ダイス、stealth）…",
+        "chapter_label":     "章",
+        "toc_expander":      "📋 目次 — クリックして章にジャンプ",
+        # Book tab
+        "no_story":          "📕 ストーリーログがまだありません。\nゲームを進めると、各ターンのストーリーと画像が自動的に保存されます。",
+        "latest_pages":      "📌 最新ページ（直近 2 ページ）",
+        "read_pages_header": "📖 ページ閲覧",
+        # Image generation
+        "img_style_expander":        "🎨 画像スタイル",
+        "regen_all_images":          "🔄 すべての画像を再生成",
+        "img_gen_disabled_auto":     "⚠️ 画像生成が自動的に無効化されました（VRAM 不足が続いています）",
+        "img_gen_reenable":          "🔄 再有効化",
+        "img_gen_ready":             "✅ 画像生成準備完了",
+        "img_gen_vram_warn":         "⚡ VRAM が不足している可能性があります。一部のシーン画像はスキップされる場合があります",
+        "img_gen_disabled_notice":   "🚫 画像生成が無効になっています。すべての生成ボタンが凍結されています。",
+        # Sidebar
+        "save_game":         "💾 保存",
+        "quit_game":         "🚪 終了",
+        "game_saved":        "ゲームが保存されました！",
+        # VRAM
+        "vram_ok":           "✅ VRAM 十分（~{n} GB 必要）",
+        "vram_insufficient": "❌ VRAM 不足（~{n} GB 必要、GPU は {total:.1f} GB のみ）",
+        "vram_warning":      "⚠️ CUDA 使用可能ですが VRAM を読み取れません（~{n} GB 必要）",
+        "no_cuda":           "❌ CUDA GPU なし",
+        # Save / load messages
+        "loaded_party":      "パーティを読み込みました [{names}]！",
+        "load_failed":       "セーブファイルの読み込みに失敗しました。",
+        "deleted_save":      "セーブ「{save}」を削除しました。",
+        "delete_failed":     "セーブ「{save}」の削除に失敗しました。",
+        "overwrite_failed":  "上書きに失敗しました。",
+        "load_existing_failed": "既存のセーブの読み込みに失敗しました。",
     },
     "Español": {
         "model_expander":      "⚙️ Modelo e Idioma",
@@ -278,10 +560,632 @@ _UI_STRINGS = {
         "dup_inherit":     "📂 Cargar existente",
         "dup_inherit_desc": "Descarta la nueva configuración y continúa desde el guardado existente.",
         "dup_cancel":      "✖ Cancelar",
+        # Game tabs
+        "tab_story":         "📖 Historia",
+        "tab_gameboard":     "🗺️ Tablero",
+        "tab_characters":    "👥 Personajes",
+        "tab_rules":         "📜 Reglas",
+        "tab_orgs":          "🏛️ Organizaciones",
+        "tab_book":          "📕 Libro",
+        "tab_godmode":       "🔮 Modo Dios",
+        # Game board
+        "manual_dice":       "🎲 Dados manuales",
+        "dice_legend":       "🟡 Máx  🔴 Mín  — Normal",
+        "scoreboard":        "🏆 Marcador",
+        "continent_map":     "🌍 Mapa continental",
+        "regen_map":         "🔄 Regenerar mapa",
+        "gen_map":           "🎨 Generar mapa continental",
+        "location_map":      "🗺️ Mapa de ubicación",
+        "location_map_hint": "El mapa de ubicación aparecerá después de iniciar el juego (cambia a la pestaña Historia para comenzar tu primer turno).",
+        "relation_graph":    "🔗 Gráfico de relaciones",
+        "ai_acting":         "(IA) está actuando… Cambia a la pestaña Historia para ver.",
+        "player_turn":       "¡es tu turno!  Cambia a la pestaña Historia para ingresar tu acción.",
+        # Story tab
+        "char_fallen":       "¡ha caído!  Esperando al siguiente jugador…",
+        "choose_action":     "{name}, elige tu acción:",
+        "custom_action_expander": "✏️ O acción personalizada…",
+        "custom_action_input":    "Ingresa acción personalizada:",
+        "execute":           "Ejecutar",
+        "action_prompt_single": "Ingresa tu acción…",
+        "action_prompt_multi":  "{flag} Acción de {name}…",
+        "dm_thinking":       "está pensando…",
+        "allow_custom":      "Permitir entrada de acción personalizada",
+        "allow_custom_help": "Si está marcado, puedes escribir una acción personalizada durante el juego en lugar de elegir entre las opciones.",
+        "prologue_badge":    "📜 Prólogo · Turno 0",
+        "writing_prologue":  "está escribiendo el prólogo…",
+        # Characters tab
+        "party_details":     "👥 Miembros del grupo — Detalles",
+        "dead_tag":          " ☠ Caído",
+        "active_tag":        " ◀ Activo",
+        "portrait_not_generated": "🖼️ No generado",
+        "gen_portrait":      "🎨 Generar retrato",
+        "regen_portrait_help": "Regenerar retrato de {name}",
+        "skills_label":      "Habilidades",
+        "inventory_label":   "Inventario",
+        "appearance_label":  "Apariencia",
+        "personality_label": "Personalidad",
+        "relations_expander":"🔗 Relaciones",
+        # Relations / NPC tab
+        "no_relations":      "No hay datos de relaciones todavía. A medida que avance la historia, las relaciones entre personajes y organizaciones se registrarán automáticamente aquí.",
+        "no_known_relations":"Sin relaciones conocidas",
+        "rel_type_filter":   "Filtrar tipos de relación",
+        # Organizations tab
+        "no_orgs":           "No se han descubierto organizaciones. Continúa la aventura y la información de organizaciones se registrará automáticamente.",
+        "search_orgs":       "🔍 Buscar organizaciones",
+        "search_orgs_ph":    "Ingresa nombre, tipo, líder…",
+        "org_founder":       "Fundador",
+        "org_leader":        "Líder actual",
+        "org_members":       "Miembros",
+        "org_hq":            "Sede",
+        "org_alignment":     "Alineamiento",
+        "org_first_seen":    "Primera aparición",
+        "org_history":       "Historia",
+        "org_relations":     "Relaciones",
+        # Rules tab
+        "search_manual":     "🔍 Buscar en el manual",
+        "search_manual_ph":  "Ingresa palabras clave, ej.: ataque, dado, stealth…",
+        "chapter_label":     "Capítulo",
+        "toc_expander":      "📋 Tabla de contenidos — Clic para saltar",
+        # Book tab
+        "no_story":          "📕 Sin registro de historia todavía.\nDespués de jugar, la historia e imágenes de cada turno se guardan automáticamente.",
+        "latest_pages":      "📌 Páginas recientes (últimas 2)",
+        "read_pages_header": "📖 Leer páginas",
+        # Image generation
+        "img_style_expander":        "🎨 Estilo de imagen",
+        "regen_all_images":          "🔄 Regenerar todas las imágenes",
+        "img_gen_disabled_auto":     "⚠️ Generación de imágenes desactivada automáticamente (VRAM insuficiente repetida)",
+        "img_gen_reenable":          "🔄 Volver a activar",
+        "img_gen_ready":             "✅ Generación de imágenes lista",
+        "img_gen_vram_warn":         "⚡ La VRAM puede ser insuficiente, algunas imágenes de escena pueden omitirse",
+        "img_gen_disabled_notice":   "🚫 Generación de imágenes desactivada, todos los botones de generación están bloqueados.",
+        # Sidebar
+        "save_game":         "💾 Guardar",
+        "quit_game":         "🚪 Salir",
+        "game_saved":        "¡Partida guardada!",
+        # VRAM
+        "vram_ok":           "✅ VRAM suficiente (~{n} GB necesarios)",
+        "vram_insufficient": "❌ VRAM insuficiente (~{n} GB necesarios, GPU solo {total:.1f} GB)",
+        "vram_warning":      "⚠️ CUDA disponible pero VRAM no legible (~{n} GB necesarios)",
+        "no_cuda":           "❌ Sin GPU CUDA",
+        # Save / load messages
+        "loaded_party":      "¡Grupo cargado [{names}]!",
+        "load_failed":       "Error al cargar el archivo de guardado.",
+        "deleted_save":      "Guardado '{save}' eliminado.",
+        "delete_failed":     "Error al eliminar '{save}'.",
+        "overwrite_failed":  "Error al sobreescribir.",
+        "load_existing_failed": "Error al cargar el guardado existente.",
+    },
+    "简体中文": {
+        "model_expander":      "⚙️ 模型与语言",
+        "llm_model_expander":  "⚙️ LLM 模型",
+        "language_expander":   "🌐 语言",
+        "switch_model":    "切换模型",
+        "ui_language":     "🌐 界面语言",
+        "new_game":        "新游戏",
+        "load_game":       "加载游戏",
+        "save_name":       "存档名称",
+        "difficulty":      "难度",
+        "world_setting":   "世界设定",
+        "universe":        "世界观",
+        "custom_lore":     "自定义世界观（选填）",
+        "img_style_hdr":   "🎨 图像风格",
+        "img_style_lbl":   "艺术风格",
+        "custom_suffix":   "自定义风格后缀（选填）",
+        "party_hdr":       "队伍（1-6 人）",
+        "num_players":     "玩家人数",
+        "start_adventure": "开始冒险",
+        "name":            "名字",
+        "race":            "种族",
+        "char_class":      "职业",
+        "appearance":      "外貌描述",
+        "personality":     "个性描述",
+        "ai_controlled":   "🤖 AI 操控",
+        "ai_personality":  "AI 个性",
+        "ai_difficulty":   "AI 难度",
+        "no_saves":        "找不到存档。",
+        "save_required":   "存档名称与玩家 1 名字为必填。",
+        "map_hint":        "🗺️ 大陆地图与角色肖像在开始游戏后生成。",
+        "dup_title":       "⚠️ 存档名称冲突",
+        "dup_warning":     "已存在。请选择操作：",
+        "dup_overwrite":   "🗑️ 覆盖",
+        "dup_overwrite_desc": "删除旧存档，以当前设定重新开始。",
+        "dup_inherit":     "📂 继承存档",
+        "dup_inherit_desc": "放弃新设定，继续读取现有存档。",
+        "dup_cancel":      "✖ 取消",
+        # Game tabs
+        "tab_story":         "📖 故事",
+        "tab_gameboard":     "🗺️ 游戏板",
+        "tab_characters":    "👥 角色",
+        "tab_rules":         "📜 规则",
+        "tab_orgs":          "🏛️ 组织",
+        "tab_book":          "📕 书本",
+        "tab_godmode":       "🔮 上帝模式",
+        # Game board
+        "manual_dice":       "🎲 手动掷骰",
+        "dice_legend":       "🟡 最大值  🔴 最小值  — 普通结果",
+        "scoreboard":        "🏆 得分板",
+        "continent_map":     "🌍 大陆地图",
+        "regen_map":         "🔄 重新生成地图",
+        "gen_map":           "🎨 生成大陆地图",
+        "location_map":      "🗺️ 位置追踪地图",
+        "location_map_hint": "位置地图将在游戏开始后显示（切换至故事页签开始第一个回合）。",
+        "relation_graph":    "🔗 关系图",
+        "ai_acting":         "(AI) 正在行动… 切换至故事页签查看。",
+        "player_turn":       "的回合！切换至故事页签输入行动。",
+        # Story tab
+        "char_fallen":       "已倒下！等待下一位玩家…",
+        "choose_action":     "{name}，选择你的行动:",
+        "custom_action_expander": "✏️ 或自定义行动…",
+        "custom_action_input":    "输入其他行动:",
+        "execute":           "执行",
+        "action_prompt_single": "输入你的行动…",
+        "action_prompt_multi":  "{flag} {name} 的行动…",
+        "dm_thinking":       "正在思考…",
+        "allow_custom":      "允许自定义行动输入",
+        "allow_custom_help": "勾选后，游戏中可输入非选项的自定义行动",
+        "prologue_badge":    "📜 开场白 · Turn 0",
+        "writing_prologue":  "正在书写开场白…",
+        # Characters tab
+        "party_details":     "👥 队伍成员 — 详细数值",
+        "dead_tag":          " ☠ 已倒下",
+        "active_tag":        " ◀ 行动中",
+        "portrait_not_generated": "🖼️ 尚未生成",
+        "gen_portrait":      "🎨 生成肖像",
+        "regen_portrait_help": "重新生成 {name} 肖像",
+        "skills_label":      "技能",
+        "inventory_label":   "背包",
+        "appearance_label":  "外观",
+        "personality_label": "性格",
+        "relations_expander":"🔗 关系",
+        # Relations / NPC tab
+        "no_relations":      "尚无关系资料。随着故事发展，角色与组织的关系将自动记录于此。",
+        "no_known_relations":"无已知关系",
+        "rel_type_filter":   "筛选关系类型",
+        # Organizations tab
+        "no_orgs":           "尚未发现任何组织。继续冒险，组织情报将会自动记录在此。",
+        "search_orgs":       "🔍 搜索组织",
+        "search_orgs_ph":    "输入名称、类型、领导人…",
+        "org_founder":       "创始人",
+        "org_leader":        "现任领导人",
+        "org_members":       "成员规模",
+        "org_hq":            "据点",
+        "org_alignment":     "阵营倾向",
+        "org_first_seen":    "首次登场",
+        "org_history":       "历史沿革",
+        "org_relations":     "关系",
+        # Rules tab
+        "search_manual":     "🔍 搜索手册关键字",
+        "search_manual_ph":  "输入关键字，例如：attack、骰子、stealth…",
+        "chapter_label":     "章节",
+        "toc_expander":      "📋 目录 — 点击快速跳章",
+        # Book tab
+        "no_story":          "📕 尚无故事记录。\n游戏进行后，每回合会自动保存故事与图片，在此阅读完整冒险记录。",
+        "latest_pages":      "📌 最新记录（最近 2 页）",
+        "read_pages_header": "📖 翻页阅读",
+        # Image generation
+        "img_style_expander":        "🎨 图像风格",
+        "regen_all_images":          "🔄 重新生成所有图像",
+        "img_gen_disabled_auto":     "⚠️ 图像生成已自动停用（连续 VRAM 不足）",
+        "img_gen_reenable":          "🔄 重新启用",
+        "img_gen_ready":             "✅ 图像生成就绪",
+        "img_gen_vram_warn":         "⚡ VRAM 可能不足，部分场景图可能跳过生成",
+        "img_gen_disabled_notice":   "🚫 图像生成已停用，所有生成按钮均已冻结。",
+        # Sidebar
+        "save_game":         "💾 保存",
+        "quit_game":         "🚪 离开",
+        "game_saved":        "游戏已保存！",
+        # VRAM
+        "vram_ok":           "✅ VRAM 足够（需 ~{n} GB）",
+        "vram_insufficient": "❌ VRAM 不足（需 ~{n} GB，GPU 仅 {total:.1f} GB）",
+        "vram_warning":      "⚠️ CUDA 可用，但无法读取 VRAM（需 ~{n} GB）",
+        "no_cuda":           "❌ 无 CUDA GPU",
+        # Save / load messages
+        "loaded_party":      "成功加载队伍 [{names}]！",
+        "load_failed":       "加载存档失败。",
+        "deleted_save":      "已删除存档「{save}」。",
+        "delete_failed":     "删除存档「{save}」失败。",
+        "overwrite_failed":  "覆盖失败。",
+        "load_existing_failed": "加载现有存档失败。",
+    },
+    "한국어": {
+        "model_expander":      "⚙️ 모델 및 언어",
+        "llm_model_expander":  "⚙️ LLM 모델",
+        "language_expander":   "🌐 언어",
+        "switch_model":    "모델 변경",
+        "ui_language":     "🌐 UI 언어",
+        "new_game":        "새 게임",
+        "load_game":       "게임 불러오기",
+        "save_name":       "저장 이름",
+        "difficulty":      "난이도",
+        "world_setting":   "세계 설정",
+        "universe":        "세계관",
+        "custom_lore":     "커스텀 세계관 (선택)",
+        "img_style_hdr":   "🎨 이미지 스타일",
+        "img_style_lbl":   "아트 스타일",
+        "custom_suffix":   "커스텀 스타일 접미사 (선택)",
+        "party_hdr":       "파티 (1-6명)",
+        "num_players":     "플레이어 수",
+        "start_adventure": "모험 시작",
+        "name":            "이름",
+        "race":            "종족",
+        "char_class":      "직업",
+        "appearance":      "외모 설명",
+        "personality":     "성격 설명",
+        "ai_controlled":   "🤖 AI 조종",
+        "ai_personality":  "AI 개성",
+        "ai_difficulty":   "AI 난이도",
+        "no_saves":        "저장 파일을 찾을 수 없습니다.",
+        "save_required":   "저장 이름과 플레이어 1 이름은 필수입니다.",
+        "map_hint":        "🗺️ 지도와 초상화는 게임 시작 후 생성됩니다.",
+        "dup_title":       "⚠️ 저장 이름 충돌",
+        "dup_warning":     "이(가) 이미 존재합니다. 작업을 선택하세요:",
+        "dup_overwrite":   "🗑️ 덮어쓰기",
+        "dup_overwrite_desc": "이전 저장을 삭제하고 새 설정으로 시작합니다.",
+        "dup_inherit":     "📂 기존 불러오기",
+        "dup_inherit_desc": "새 설정을 버리고 기존 저장에서 계속합니다.",
+        "dup_cancel":      "✖ 취소",
+        # Game tabs
+        "tab_story":         "📖 스토리",
+        "tab_gameboard":     "🗺️ 게임판",
+        "tab_characters":    "👥 캐릭터",
+        "tab_rules":         "📜 규칙",
+        "tab_orgs":          "🏛️ 조직",
+        "tab_book":          "📕 책",
+        "tab_godmode":       "🔮 신 모드",
+        # Game board
+        "manual_dice":       "🎲 주사위 굴리기",
+        "dice_legend":       "🟡 최대  🔴 최소  — 보통",
+        "scoreboard":        "🏆 점수판",
+        "continent_map":     "🌍 대륙 지도",
+        "regen_map":         "🔄 지도 재생성",
+        "gen_map":           "🎨 대륙 지도 생성",
+        "location_map":      "🗺️ 위치 추적 지도",
+        "location_map_hint": "게임 시작 후 위치 지도가 표시됩니다 (스토리 탭으로 전환하여 첫 번째 턴을 시작하세요).",
+        "relation_graph":    "🔗 관계 그래프",
+        "ai_acting":         "(AI)가 행동 중… 스토리 탭으로 전환하여 확인하세요.",
+        "player_turn":       "의 차례입니다!  스토리 탭으로 전환하여 행동을 입력하세요.",
+        # Story tab
+        "char_fallen":       "이(가) 쓰러졌습니다!  다음 플레이어를 기다리는 중…",
+        "choose_action":     "{name}, 행동을 선택하세요:",
+        "custom_action_expander": "✏️ 또는 커스텀 행동…",
+        "custom_action_input":    "다른 행동 입력:",
+        "execute":           "실행",
+        "action_prompt_single": "행동을 입력하세요…",
+        "action_prompt_multi":  "{flag} {name}의 행동…",
+        "dm_thinking":       "생각 중…",
+        "allow_custom":      "커스텀 행동 입력 허용",
+        "allow_custom_help": "체크하면 게임 중 선택지 외 커스텀 행동을 입력할 수 있습니다",
+        "prologue_badge":    "📜 프롤로그 · 턴 0",
+        "writing_prologue":  "프롤로그 작성 중…",
+        # Characters tab
+        "party_details":     "👥 파티원 — 상세 정보",
+        "dead_tag":          " ☠ 쓰러짐",
+        "active_tag":        " ◀ 행동 중",
+        "portrait_not_generated": "🖼️ 미생성",
+        "gen_portrait":      "🎨 초상화 생성",
+        "regen_portrait_help": "{name} 초상화 재생성",
+        "skills_label":      "기술",
+        "inventory_label":   "인벤토리",
+        "appearance_label":  "외모",
+        "personality_label": "성격",
+        "relations_expander":"🔗 관계",
+        # Relations / NPC tab
+        "no_relations":      "관계 데이터가 없습니다. 스토리가 진행되면 캐릭터와 조직의 관계가 자동으로 기록됩니다.",
+        "no_known_relations":"알려진 관계 없음",
+        "rel_type_filter":   "관계 유형 필터",
+        # Organizations tab
+        "no_orgs":           "아직 발견된 조직이 없습니다. 모험을 계속하면 조직 정보가 자동으로 기록됩니다.",
+        "search_orgs":       "🔍 조직 검색",
+        "search_orgs_ph":    "이름, 유형, 리더를 입력…",
+        "org_founder":       "창립자",
+        "org_leader":        "현재 리더",
+        "org_members":       "회원 수",
+        "org_hq":            "본부",
+        "org_alignment":     "성향",
+        "org_first_seen":    "첫 등장",
+        "org_history":       "역사",
+        "org_relations":     "관계",
+        # Rules tab
+        "search_manual":     "🔍 매뉴얼 검색",
+        "search_manual_ph":  "키워드 입력 (예: attack, 주사위, stealth)…",
+        "chapter_label":     "챕터",
+        "toc_expander":      "📋 목차 — 클릭하여 장으로 이동",
+        # Book tab
+        "no_story":          "📕 아직 스토리 기록이 없습니다.\n게임을 진행하면 각 턴의 스토리와 이미지가 자동으로 저장됩니다.",
+        "latest_pages":      "📌 최신 페이지 (최근 2페이지)",
+        "read_pages_header": "📖 페이지 읽기",
+        # Image generation
+        "img_style_expander":        "🎨 이미지 스타일",
+        "regen_all_images":          "🔄 모든 이미지 재생성",
+        "img_gen_disabled_auto":     "⚠️ 이미지 생성이 자동으로 비활성화되었습니다 (VRAM 부족 반복)",
+        "img_gen_reenable":          "🔄 다시 활성화",
+        "img_gen_ready":             "✅ 이미지 생성 준비 완료",
+        "img_gen_vram_warn":         "⚡ VRAM이 부족할 수 있습니다. 일부 장면 이미지가 건너뛰어질 수 있습니다",
+        "img_gen_disabled_notice":   "🚫 이미지 생성이 비활성화되어 있습니다. 모든 생성 버튼이 잠겨 있습니다.",
+        # Sidebar
+        "save_game":         "💾 저장",
+        "quit_game":         "🚪 종료",
+        "game_saved":        "게임이 저장되었습니다!",
+        # VRAM
+        "vram_ok":           "✅ VRAM 충분 (~{n} GB 필요)",
+        "vram_insufficient": "❌ VRAM 부족 (~{n} GB 필요, GPU는 {total:.1f} GB만 있음)",
+        "vram_warning":      "⚠️ CUDA 사용 가능하지만 VRAM 읽기 불가 (~{n} GB 필요)",
+        "no_cuda":           "❌ CUDA GPU 없음",
+        # Save / load messages
+        "loaded_party":      "파티를 불러왔습니다 [{names}]!",
+        "load_failed":       "저장 파일 불러오기에 실패했습니다.",
+        "deleted_save":      "저장 '{save}'을(를) 삭제했습니다.",
+        "delete_failed":     "저장 '{save}' 삭제에 실패했습니다.",
+        "overwrite_failed":  "덮어쓰기에 실패했습니다.",
+        "load_existing_failed": "기존 저장 불러오기에 실패했습니다.",
+    },
+    "Français": {
+        "model_expander":      "⚙️ Modèle et langue",
+        "llm_model_expander":  "⚙️ Modèle LLM",
+        "language_expander":   "🌐 Langue",
+        "switch_model":    "Changer de modèle",
+        "ui_language":     "🌐 Langue de l'interface",
+        "new_game":        "Nouvelle partie",
+        "load_game":       "Charger une partie",
+        "save_name":       "Nom de la sauvegarde",
+        "difficulty":      "Difficulté",
+        "world_setting":   "Univers",
+        "universe":        "Cadre",
+        "custom_lore":     "Contexte personnalisé (optionnel)",
+        "img_style_hdr":   "🎨 Style d'image",
+        "img_style_lbl":   "Style artistique",
+        "custom_suffix":   "Suffixe de style personnalisé (optionnel)",
+        "party_hdr":       "Groupe (1-6 joueurs)",
+        "num_players":     "Nombre de joueurs",
+        "start_adventure": "Commencer l'aventure",
+        "name":            "Nom",
+        "race":            "Race",
+        "char_class":      "Classe",
+        "appearance":      "Apparence",
+        "personality":     "Personnalité",
+        "ai_controlled":   "🤖 Contrôlé par IA",
+        "ai_personality":  "Personnalité IA",
+        "ai_difficulty":   "Difficulté IA",
+        "no_saves":        "Aucune sauvegarde trouvée.",
+        "save_required":   "Le nom de la sauvegarde et le nom du Joueur 1 sont obligatoires.",
+        "map_hint":        "🗺️ La carte et les portraits sont générés après le début du jeu.",
+        "dup_title":       "⚠️ Conflit de nom de sauvegarde",
+        "dup_warning":     "existe déjà. Choisissez une action :",
+        "dup_overwrite":   "🗑️ Écraser",
+        "dup_overwrite_desc": "Supprime l'ancienne sauvegarde et commence avec les nouveaux paramètres.",
+        "dup_inherit":     "📂 Charger l'existant",
+        "dup_inherit_desc": "Ignore les nouveaux paramètres et continue depuis la sauvegarde existante.",
+        "dup_cancel":      "✖ Annuler",
+        # Game tabs
+        "tab_story":         "📖 Histoire",
+        "tab_gameboard":     "🗺️ Plateau",
+        "tab_characters":    "👥 Personnages",
+        "tab_rules":         "📜 Règles",
+        "tab_orgs":          "🏛️ Organisations",
+        "tab_book":          "📕 Livre",
+        "tab_godmode":       "🔮 Mode Dieu",
+        # Game board
+        "manual_dice":       "🎲 Dés manuels",
+        "dice_legend":       "🟡 Max  🔴 Min  — Normal",
+        "scoreboard":        "🏆 Classement",
+        "continent_map":     "🌍 Carte continentale",
+        "regen_map":         "🔄 Régénérer la carte",
+        "gen_map":           "🎨 Générer la carte",
+        "location_map":      "🗺️ Carte de localisation",
+        "location_map_hint": "La carte de localisation apparaîtra après le début du jeu (passez à l'onglet Histoire pour commencer votre premier tour).",
+        "relation_graph":    "🔗 Graphique des relations",
+        "ai_acting":         "(IA) agit… Passez à l'onglet Histoire pour voir.",
+        "player_turn":       "c'est votre tour !  Passez à l'onglet Histoire pour entrer votre action.",
+        # Story tab
+        "char_fallen":       "est tombé !  En attente du prochain joueur…",
+        "choose_action":     "{name}, choisissez votre action :",
+        "custom_action_expander": "✏️ Ou action personnalisée…",
+        "custom_action_input":    "Entrez une action personnalisée :",
+        "execute":           "Exécuter",
+        "action_prompt_single": "Entrez votre action…",
+        "action_prompt_multi":  "{flag} Action de {name}…",
+        "dm_thinking":       "réfléchit…",
+        "allow_custom":      "Autoriser la saisie d'action personnalisée",
+        "allow_custom_help": "Si coché, vous pouvez saisir une action personnalisée pendant le jeu au lieu de choisir parmi les options.",
+        "prologue_badge":    "📜 Prologue · Tour 0",
+        "writing_prologue":  "écrit le prologue…",
+        # Characters tab
+        "party_details":     "👥 Membres du groupe — Détails",
+        "dead_tag":          " ☠ Tombé",
+        "active_tag":        " ◀ Actif",
+        "portrait_not_generated": "🖼️ Non généré",
+        "gen_portrait":      "🎨 Générer le portrait",
+        "regen_portrait_help": "Régénérer le portrait de {name}",
+        "skills_label":      "Compétences",
+        "inventory_label":   "Inventaire",
+        "appearance_label":  "Apparence",
+        "personality_label": "Personnalité",
+        "relations_expander":"🔗 Relations",
+        # Relations / NPC tab
+        "no_relations":      "Aucune donnée de relation pour l'instant. Au fil de l'histoire, les relations entre personnages et organisations seront automatiquement enregistrées ici.",
+        "no_known_relations":"Aucune relation connue",
+        "rel_type_filter":   "Filtrer les types de relations",
+        # Organizations tab
+        "no_orgs":           "Aucune organisation découverte. Continuez l'aventure et les informations sur les organisations seront enregistrées automatiquement.",
+        "search_orgs":       "🔍 Rechercher des organisations",
+        "search_orgs_ph":    "Entrez nom, type, chef…",
+        "org_founder":       "Fondateur",
+        "org_leader":        "Chef actuel",
+        "org_members":       "Membres",
+        "org_hq":            "Quartier général",
+        "org_alignment":     "Alignement",
+        "org_first_seen":    "Première apparition",
+        "org_history":       "Histoire",
+        "org_relations":     "Relations",
+        # Rules tab
+        "search_manual":     "🔍 Rechercher dans le manuel",
+        "search_manual_ph":  "Entrez des mots-clés, ex. : attaque, dé, stealth…",
+        "chapter_label":     "Chapitre",
+        "toc_expander":      "📋 Table des matières — Cliquer pour accéder",
+        # Book tab
+        "no_story":          "📕 Aucun journal d'histoire pour l'instant.\nAprès avoir joué, l'histoire et les images de chaque tour sont sauvegardées automatiquement.",
+        "latest_pages":      "📌 Pages récentes (2 dernières)",
+        "read_pages_header": "📖 Lire les pages",
+        # Image generation
+        "img_style_expander":        "🎨 Style d'image",
+        "regen_all_images":          "🔄 Régénérer toutes les images",
+        "img_gen_disabled_auto":     "⚠️ Génération d'images désactivée automatiquement (VRAM insuffisante répétée)",
+        "img_gen_reenable":          "🔄 Réactiver",
+        "img_gen_ready":             "✅ Génération d'images prête",
+        "img_gen_vram_warn":         "⚡ La VRAM peut être insuffisante, certaines images de scènes peuvent être ignorées",
+        "img_gen_disabled_notice":   "🚫 Génération d'images désactivée, tous les boutons de génération sont gelés.",
+        # Sidebar
+        "save_game":         "💾 Sauvegarder",
+        "quit_game":         "🚪 Quitter",
+        "game_saved":        "Partie sauvegardée !",
+        # VRAM
+        "vram_ok":           "✅ VRAM suffisante (~{n} Go requis)",
+        "vram_insufficient": "❌ VRAM insuffisante (~{n} Go requis, GPU : {total:.1f} Go seulement)",
+        "vram_warning":      "⚠️ CUDA disponible mais VRAM illisible (~{n} Go requis)",
+        "no_cuda":           "❌ Pas de GPU CUDA",
+        # Save / load messages
+        "loaded_party":      "Groupe chargé [{names}] !",
+        "load_failed":       "Échec du chargement de la sauvegarde.",
+        "deleted_save":      "Sauvegarde '{save}' supprimée.",
+        "delete_failed":     "Échec de la suppression de '{save}'.",
+        "overwrite_failed":  "Échec de l'écrasement.",
+        "load_existing_failed": "Échec du chargement de la sauvegarde existante.",
+    },
+    "Deutsch": {
+        "model_expander":      "⚙️ Modell & Sprache",
+        "llm_model_expander":  "⚙️ LLM-Modell",
+        "language_expander":   "🌐 Sprache",
+        "switch_model":    "Modell wechseln",
+        "ui_language":     "🌐 UI-Sprache",
+        "new_game":        "Neues Spiel",
+        "load_game":       "Spiel laden",
+        "save_name":       "Speichername",
+        "difficulty":      "Schwierigkeit",
+        "world_setting":   "Welteinstellung",
+        "universe":        "Universum",
+        "custom_lore":     "Benutzerdefinierter Hintergrund (optional)",
+        "img_style_hdr":   "🎨 Bildstil",
+        "img_style_lbl":   "Kunststil",
+        "custom_suffix":   "Benutzerdefiniertes Stil-Suffix (optional)",
+        "party_hdr":       "Gruppe (1-6 Spieler)",
+        "num_players":     "Spielerzahl",
+        "start_adventure": "Abenteuer starten",
+        "name":            "Name",
+        "race":            "Rasse",
+        "char_class":      "Klasse",
+        "appearance":      "Aussehen",
+        "personality":     "Persönlichkeit",
+        "ai_controlled":   "🤖 KI-gesteuert",
+        "ai_personality":  "KI-Persönlichkeit",
+        "ai_difficulty":   "KI-Schwierigkeit",
+        "no_saves":        "Keine Spielstände gefunden.",
+        "save_required":   "Speichername und Spieler-1-Name sind erforderlich.",
+        "map_hint":        "🗺️ Karte und Porträts werden nach dem Spielstart generiert.",
+        "dup_title":       "⚠️ Speichernamenskonflikt",
+        "dup_warning":     "existiert bereits. Wählen Sie eine Aktion:",
+        "dup_overwrite":   "🗑️ Überschreiben",
+        "dup_overwrite_desc": "Löscht den alten Spielstand und beginnt mit den neuen Einstellungen.",
+        "dup_inherit":     "📂 Vorhandenen laden",
+        "dup_inherit_desc": "Verwirft die neuen Einstellungen und setzt den vorhandenen Spielstand fort.",
+        "dup_cancel":      "✖ Abbrechen",
+        # Game tabs
+        "tab_story":         "📖 Geschichte",
+        "tab_gameboard":     "🗺️ Spielfeld",
+        "tab_characters":    "👥 Charaktere",
+        "tab_rules":         "📜 Regeln",
+        "tab_orgs":          "🏛️ Organisationen",
+        "tab_book":          "📕 Buch",
+        "tab_godmode":       "🔮 Gottmodus",
+        # Game board
+        "manual_dice":       "🎲 Manuelle Würfel",
+        "dice_legend":       "🟡 Max  🔴 Min  — Normal",
+        "scoreboard":        "🏆 Punktestand",
+        "continent_map":     "🌍 Kontinentkarte",
+        "regen_map":         "🔄 Karte regenerieren",
+        "gen_map":           "🎨 Kontinentkarte erstellen",
+        "location_map":      "🗺️ Positionskarte",
+        "location_map_hint": "Die Positionskarte erscheint nach dem Spielstart (wechseln Sie zum Geschichte-Tab, um Ihren ersten Zug zu beginnen).",
+        "relation_graph":    "🔗 Beziehungsgraph",
+        "ai_acting":         "(KI) handelt… Wechseln Sie zum Geschichte-Tab, um es zu sehen.",
+        "player_turn":       "Sie sind dran!  Wechseln Sie zum Geschichte-Tab, um Ihre Aktion einzugeben.",
+        # Story tab
+        "char_fallen":       "ist gefallen!  Warten auf den nächsten Spieler…",
+        "choose_action":     "{name}, wähle deine Aktion:",
+        "custom_action_expander": "✏️ Oder benutzerdefinierte Aktion…",
+        "custom_action_input":    "Benutzerdefinierte Aktion eingeben:",
+        "execute":           "Ausführen",
+        "action_prompt_single": "Gib deine Aktion ein…",
+        "action_prompt_multi":  "{flag} {name}s Aktion…",
+        "dm_thinking":       "denkt nach…",
+        "allow_custom":      "Benutzerdefinierte Aktionseingabe erlauben",
+        "allow_custom_help": "Wenn aktiviert, können Sie im Spiel eine benutzerdefinierte Aktion eingeben statt aus den Optionen zu wählen.",
+        "prologue_badge":    "📜 Prolog · Zug 0",
+        "writing_prologue":  "schreibt den Prolog…",
+        # Characters tab
+        "party_details":     "👥 Gruppenmitglieder — Details",
+        "dead_tag":          " ☠ Gefallen",
+        "active_tag":        " ◀ Aktiv",
+        "portrait_not_generated": "🖼️ Nicht generiert",
+        "gen_portrait":      "🎨 Porträt generieren",
+        "regen_portrait_help": "{name}s Porträt regenerieren",
+        "skills_label":      "Fähigkeiten",
+        "inventory_label":   "Inventar",
+        "appearance_label":  "Aussehen",
+        "personality_label": "Persönlichkeit",
+        "relations_expander":"🔗 Beziehungen",
+        # Relations / NPC tab
+        "no_relations":      "Noch keine Beziehungsdaten. Im Laufe der Geschichte werden die Beziehungen zwischen Charakteren und Organisationen automatisch aufgezeichnet.",
+        "no_known_relations":"Keine bekannten Beziehungen",
+        "rel_type_filter":   "Beziehungstypen filtern",
+        # Organizations tab
+        "no_orgs":           "Noch keine Organisationen entdeckt. Setze das Abenteuer fort und Organisationsdaten werden automatisch aufgezeichnet.",
+        "search_orgs":       "🔍 Organisationen suchen",
+        "search_orgs_ph":    "Name, Typ, Anführer eingeben…",
+        "org_founder":       "Gründer",
+        "org_leader":        "Aktueller Anführer",
+        "org_members":       "Mitglieder",
+        "org_hq":            "Hauptquartier",
+        "org_alignment":     "Gesinnung",
+        "org_first_seen":    "Erstmals erschienen",
+        "org_history":       "Geschichte",
+        "org_relations":     "Beziehungen",
+        # Rules tab
+        "search_manual":     "🔍 Handbuch durchsuchen",
+        "search_manual_ph":  "Stichwörter eingeben, z.B.: Angriff, Würfel, Stealth…",
+        "chapter_label":     "Kapitel",
+        "toc_expander":      "📋 Inhaltsverzeichnis — Klicken zum Springen",
+        # Book tab
+        "no_story":          "📕 Noch kein Storyprotokoll.\nNach dem Spielen werden Geschichte und Bilder jedes Zuges automatisch gespeichert.",
+        "latest_pages":      "📌 Neueste Seiten (letzte 2)",
+        "read_pages_header": "📖 Seiten lesen",
+        # Image generation
+        "img_style_expander":        "🎨 Bildstil",
+        "regen_all_images":          "🔄 Alle Bilder regenerieren",
+        "img_gen_disabled_auto":     "⚠️ Bildgenerierung automatisch deaktiviert (wiederholter VRAM-Mangel)",
+        "img_gen_reenable":          "🔄 Wieder aktivieren",
+        "img_gen_ready":             "✅ Bildgenerierung bereit",
+        "img_gen_vram_warn":         "⚡ VRAM könnte unzureichend sein, einige Szenenbilder werden möglicherweise übersprungen",
+        "img_gen_disabled_notice":   "🚫 Bildgenerierung deaktiviert, alle Generierungsschaltflächen sind gesperrt.",
+        # Sidebar
+        "save_game":         "💾 Speichern",
+        "quit_game":         "🚪 Beenden",
+        "game_saved":        "Spiel gespeichert!",
+        # VRAM
+        "vram_ok":           "✅ VRAM ausreichend (~{n} GB benötigt)",
+        "vram_insufficient": "❌ VRAM unzureichend (~{n} GB benötigt, GPU nur {total:.1f} GB)",
+        "vram_warning":      "⚠️ CUDA verfügbar, aber VRAM nicht lesbar (~{n} GB benötigt)",
+        "no_cuda":           "❌ Kein CUDA-GPU",
+        # Save / load messages
+        "loaded_party":      "Gruppe geladen [{names}]!",
+        "load_failed":       "Spielstand konnte nicht geladen werden.",
+        "deleted_save":      "Spielstand '{save}' gelöscht.",
+        "delete_failed":     "Spielstand '{save}' konnte nicht gelöscht werden.",
+        "overwrite_failed":  "Überschreiben fehlgeschlagen.",
+        "load_existing_failed": "Vorhandener Spielstand konnte nicht geladen werden.",
     },
 }
 
-_LANGUAGES = ["English", "繁體中文", "日本語", "Español"]
+_LANGUAGES = ["English", "繁體中文", "简体中文", "日本語", "한국어", "Français", "Deutsch", "Español"]
 
 
 def _t(key):
@@ -343,7 +1247,7 @@ def _duplicate_save_dialog(pending):
             st.session_state.book_page_idx   = 0
             st.rerun()
         else:
-            st.error("Failed to overwrite.")
+            st.error(_t('overwrite_failed'))
 
     if c2.button(_t('dup_inherit'), use_container_width=True):
         party, game_state, session = st.session_state.save_manager.load_game(save_name)
@@ -361,7 +1265,7 @@ def _duplicate_save_dialog(pending):
             st.session_state.duplicate_save_pending = None
             st.rerun()
         else:
-            st.error("Failed to load existing save.")
+            st.error(_t('load_existing_failed'))
 
     if c3.button(_t('dup_cancel'), use_container_width=True):
         st.session_state.duplicate_save_pending = None
@@ -488,7 +1392,7 @@ def _render_image_model_selector():
                 prefs['img_gen_enabled'] = False
                 PersistenceManager.save_prefs(prefs)
                 st.rerun()
-            st.info("🚫 影像生成已停用，所有生成按鈕均已凍結。")
+            st.info(_t('img_gen_disabled_notice'))
             # Still render the global download bar below, then return early
         else:
             if not _img_enabled():
@@ -685,15 +1589,15 @@ def _render_model_switcher():
                 )
                 if _vram_req:
                     if _total_gb >= _vram_req:
-                        st.sidebar.success(f"✅ VRAM 足夠（需 ~{_vram_req} GB）")
+                        st.sidebar.success(_t('vram_ok').format(n=_vram_req))
                     else:
                         st.sidebar.error(
-                            f"❌ VRAM 不足（需 ~{_vram_req} GB，GPU 僅 {_total_gb:.1f} GB）"
+                            _t('vram_insufficient').format(n=_vram_req, total=_total_gb)
                         )
             except Exception:
-                st.sidebar.warning(f"⚠️ CUDA 可用，但無法讀取 VRAM（需 ~{_vram_req} GB）")
+                st.sidebar.warning(_t('vram_warning').format(n=_vram_req))
         else:
-            msg = f"❌ 無 CUDA GPU（需 ~{_vram_req} GB）" if _vram_req else "❌ 無 CUDA GPU"
+            msg = _t('vram_insufficient').format(n=_vram_req, total=0) if _vram_req else _t('no_cuda')
             st.sidebar.error(msg)
 
     with st.sidebar.expander(_t("llm_model_expander"), expanded=False):
@@ -898,8 +1802,8 @@ def main_menu():
             )
             st.caption(_t("map_hint"))
 
-            allow_custom_action = st.checkbox("允許自訂行動輸入", value=True,
-                                              help="勾選後，遊戲中可輸入非選項的自訂行動")
+            allow_custom_action = st.checkbox(_t('allow_custom'), value=True,
+                                              help=_t('allow_custom_help'))
 
             st.markdown("---")
             st.markdown(f"**{_t('party_hdr')}**")
@@ -1050,18 +1954,18 @@ def main_menu():
                     # Open book at last page on load
                     st.session_state.book_page_idx   = max(0, len(prior_log) - 1)
                     names = ", ".join(c.name for c in party)
-                    st.success(f"Loaded party [{names}]!")
+                    st.success(_t('loaded_party').format(names=names))
                     st.rerun()
                 else:
-                    st.error("Failed to load save file.")
-            
+                    st.error(_t('load_failed'))
+
             if d_col.button("🗑️ Delete", use_container_width=True):
                 selected_save = save_names[selected_idx]
                 if st.session_state.save_manager.delete_game(selected_save):
-                    st.success(f"Deleted save '{selected_save}'.")
+                    st.success(_t('deleted_save').format(save=selected_save))
                     st.rerun()
                 else:
-                    st.error(f"Failed to delete save '{selected_save}'.")
+                    st.error(_t('delete_failed').format(save=selected_save))
 
     # ---- Duplicate Save Dialog (popup modal) ----
     if st.session_state.duplicate_save_pending:
@@ -1259,7 +2163,7 @@ def _render_prologue_badge(container=None):
     ctx.markdown(
         "<div style='background:#0a0a1a;border-left:4px solid #4a6aaa;"
         "padding:6px 10px;border-radius:4px;margin-bottom:6px;"
-        "font-size:0.82em;color:#8898cc'>📜 開場白 · Turn 0</div>",
+        f"font-size:0.82em;color:#8898cc'>{_t('prologue_badge')}</div>",
         unsafe_allow_html=True,
     )
 
@@ -1278,7 +2182,7 @@ def _render_world_map_widget(party, active_char):
 
 def _render_manual_dice_roller():
     """Row of clickable dice buttons with large result display."""
-    st.markdown("#### 🎲 手動擲骰")
+    st.markdown(f"#### {_t('manual_dice')}")
     dice_types = [('d4', 4), ('d6', 6), ('d8', 8), ('d10', 10), ('d12', 12), ('d20', 20)]
     dice       = DiceRoller()
     cols       = st.columns(len(dice_types))
@@ -1298,12 +2202,12 @@ def _render_manual_dice_roller():
                 f"color:{color};line-height:1.1;margin-top:4px'>{result}</div>",
                 unsafe_allow_html=True,
             )
-    st.caption("🟡 最大值  🔴 最小值  — 普通結果")
+    st.caption(_t('dice_legend'))
 
 
 def _render_score_board(party, state):
     """Contribution score board: damage, healing, skill checks, gold."""
-    st.markdown("#### 🏆 得分板")
+    st.markdown(f"#### {_t('scoreboard')}")
     contribs = state.party_contributions or {}
     ai_cfgs  = getattr(state, 'ai_configs', None) or {}
 
@@ -1339,14 +2243,12 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     # Turn indicator
     if active_char.hp > 0:
         if is_ai:
-            st.info(f"🤖 {flag} **{active_char.name}** (AI) 正在行動…  "
-                    f"切換至 📖 故事 頁籤查看。")
+            st.info(f"🤖 {flag} **{active_char.name}** {_t('ai_acting')}")
         else:
-            st.info(f"{flag} **{active_char.name}** 的回合！  "
-                    f"切換至 📖 故事 頁籤輸入行動。")
+            st.info(f"{flag} **{active_char.name}** {_t('player_turn')}")
 
     # ── Continent map image ────────────────────────────────────────────────
-    st.markdown("#### 🌍 大陸地圖 (Continent Map)")
+    st.markdown(f"#### {_t('continent_map')}")
     continent_img = st.session_state.get('continent_map')
     img_style     = st.session_state.get('image_style', 'fantasy_art')
     style_name    = IMAGE_STYLES.get(img_style, {}).get('name', img_style)
@@ -1354,19 +2256,18 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     if continent_img is not None:
         st.image(continent_img, caption=f"🌍 {ws['name']}  ·  風格: {style_name}",
                  use_container_width=True)
-        if st.button("🔄 重新生成地圖", key="regen_map_btn",
+        if st.button(_t('regen_map'), key="regen_map_btn",
                      disabled=not _img_enabled()):
             st.session_state.continent_map = None
             _generate_continent_map(ws)
     else:
         gen_col, _ = st.columns([2, 3])
-        if gen_col.button("🎨 生成大陸地圖", key="gen_map_btn",
+        if gen_col.button(_t('gen_map'), key="gen_map_btn",
                           use_container_width=True, disabled=not _img_enabled()):
             _generate_continent_map(ws)
         else:
             st.caption(
-                f"點擊「生成大陸地圖」以 **{style_name}** 風格生成 {ws['name']} 的世界地圖。  "
-                f"可在側欄「🎨 影像風格」更換畫風。"
+                f"🎨 {ws['name']}  ·  {style_name}"
             )
 
     st.divider()
@@ -1375,7 +2276,7 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     col_map, col_right = st.columns([3, 1])
 
     with col_map:
-        st.markdown("#### 🗺️ 位置追蹤地圖")
+        st.markdown(f"#### {_t('location_map')}")
         if st.session_state.world_map:
             _render_world_map_widget(party, active_char)
             st.caption(
@@ -1387,7 +2288,7 @@ def _render_game_board_tab(party, state, active_char, active_idx):
                 )
             )
         else:
-            st.info("位置地圖將在遊戲開始後顯示（切換至 📖 故事 頁籤開始第一個回合）。")
+            st.info(_t('location_map_hint'))
 
     with col_right:
         _render_score_board(party, state)
@@ -1396,7 +2297,7 @@ def _render_game_board_tab(party, state, active_char, active_idx):
 
     # ── Relationship graph ─────────────────────────────────────────────────
     st.divider()
-    st.markdown("#### 🔗 關係圖")
+    st.markdown(f"#### {_t('relation_graph')}")
     _render_relation_graph(state, party)
 
 # ---------------------------------------------------------------------------
@@ -1468,14 +2369,14 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
     action_taken = None
 
     if active_char.hp <= 0:
-        st.warning(f"**{active_char.name}** 已倒下！等待下一位玩家…")
+        st.warning(f"**{active_char.name}** {_t('char_fallen')}")
 
     elif current_choices:
         # Branching narrative choices — display prominently (≥3 choices, 3-col layout)
         st.markdown("---")
         st.markdown(
             f"<div style='font-size:1.1em;font-weight:bold;color:#c0c0ff;"
-            f"margin-bottom:6px'>🔀 {flag} {active_char.name}，選擇你的行動:</div>",
+            f"margin-bottom:6px'>🔀 {flag} {_t('choose_action').format(name=active_char.name)}</div>",
             unsafe_allow_html=True,
         )
         n_cols      = min(max(len(current_choices), 3), 3)
@@ -1490,17 +2391,17 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                 action_taken = choice
 
         if getattr(state, 'allow_custom_action', 1):
-            with st.expander("✏️ 或自訂行動…"):
+            with st.expander(_t('custom_action_expander')):
                 with st.form("custom_action_form", clear_on_submit=True):
-                    custom = st.text_input("輸入其他行動:")
-                    if st.form_submit_button("執行") and custom:
+                    custom = st.text_input(_t('custom_action_input'))
+                    if st.form_submit_button(_t('execute')) and custom:
                         action_taken = custom
     else:
         # Free-text action input
         with st.form("action_form", clear_on_submit=True):
             prompt_text = (
-                f"{flag} {active_char.name} 的行動…" if len(party) > 1
-                else "輸入你的行動…"
+                _t('action_prompt_multi').format(flag=flag, name=active_char.name) if len(party) > 1
+                else _t('action_prompt_single')
             )
             col_in, col_btn = st.columns([4, 1])
             action_taken = col_in.text_input(prompt_text, key="action_input")
@@ -1516,7 +2417,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "content":     action_taken,
             "all_choices": list(current_choices),   # records all branch options for strikethrough
         })
-        with st.spinner(f"📖 {dm_lbl} 正在思考…"):
+        with st.spinner(f"📖 {dm_lbl} {_t('dm_thinking')}"):
             state.language = st.session_state.pref_language
             response, choices, turn_data, dice_result = (
                 st.session_state.event_manager.process_turn(
@@ -1633,7 +2534,7 @@ def _render_characters_tab(party, state, active_char):
     tm      = ws.get('term_map', {})
     ai_cfgs = getattr(state, 'ai_configs', None) or {}
 
-    st.subheader("👥 隊伍成員 — 詳細數值")
+    st.subheader(_t('party_details'))
 
     class_icons = {'warrior': '⚔️', 'mage': '🔮', 'rogue': '🗡️', 'cleric': '✨'}
 
@@ -1644,8 +2545,8 @@ def _render_characters_tab(party, state, active_char):
         ai_cfg    = ai_cfgs.get(str(i), {})
         is_ai     = ai_cfg.get('is_ai', False)
 
-        dead_tag   = " ☠ 已倒下"   if is_dead   else ""
-        active_tag = " ◀ 行動中"   if is_active else ""
+        dead_tag   = _t('dead_tag')   if is_dead   else ""
+        active_tag = _t('active_tag') if is_active else ""
         if is_ai:
             p = ai_cfg.get('personality', '')
             d = ai_cfg.get('difficulty', '')
@@ -1666,7 +2567,7 @@ def _render_characters_tab(party, state, active_char):
                 if portrait is not None:
                     st.image(portrait, caption=char.name, use_container_width=True)
                     if st.button("🔄", key=f"regen_por_{char.id}",
-                                 help=f"重新生成 {char.name} 肖像",
+                                 help=_t('regen_portrait_help').format(name=char.name),
                                  disabled=not _img_enabled()):
                         del st.session_state.portraits[char.id]
                         _generate_portrait(char, ws)
@@ -1675,10 +2576,10 @@ def _render_characters_tab(party, state, active_char):
                         "<div style='background:#0d1117;border:1px dashed #333;"
                         "height:150px;display:flex;align-items:center;"
                         "justify-content:center;border-radius:6px;"
-                        "color:#555;font-size:0.8em'>🖼️ 尚未生成</div>",
+                        f"color:#555;font-size:0.8em'>{_t('portrait_not_generated')}</div>",
                         unsafe_allow_html=True,
                     )
-                    if st.button(f"🎨 生成肖像", key=f"gen_por_{char.id}",
+                    if st.button(_t('gen_portrait'), key=f"gen_por_{char.id}",
                                  use_container_width=True,
                                  disabled=not _img_enabled()):
                         _generate_portrait(char, ws)
@@ -1715,18 +2616,18 @@ def _render_characters_tab(party, state, active_char):
 
                 with c3:
                     if char.skills:
-                        st.markdown("**技能:**")
+                        st.markdown(f"**{_t('skills_label')}:**")
                         for skill in char.skills:
                             st.write(f"  • {skill}")
                     if char.inventory:
-                        st.markdown("**背包:**")
+                        st.markdown(f"**{_t('inventory_label')}:**")
                         for item in char.inventory:
                             nm = item.get('name', item) if isinstance(item, dict) else item
                             st.write(f"  • {nm}")
                     if char.appearance:
-                        st.caption(f"外觀: {char.appearance}")
+                        st.caption(f"{_t('appearance_label')}: {char.appearance}")
                     if char.personality:
-                        st.caption(f"性格: {char.personality}")
+                        st.caption(f"{_t('personality_label')}: {char.personality}")
 
             # ── Relations for this character ─────────────────────────────
             try:
@@ -1746,7 +2647,7 @@ def _render_characters_tab(party, state, active_char):
                         _lk[npc.lower()] = npc
                     for c in party:
                         _lk[c.name.lower()] = c.name
-                    with st.expander("🔗 關係", expanded=False):
+                    with st.expander(_t('relations_expander'), expanded=False):
                         _render_relation_rows(char_rels, char_key, _lk)
             except Exception:
                 pass
@@ -1819,12 +2720,12 @@ def _render_relation_graph(state, party=None):
         pass
 
     if not all_relations:
-        st.info("尚無關係資料。隨著故事發展，角色與組織的關係將自動記錄於此。")
+        st.info(_t('no_relations'))
         return
 
     st.caption(f"共 **{len(all_relations)}** 條關係記錄")
     rel_types = sorted({r.relation_type for r in all_relations})
-    sel_types = st.multiselect("篩選關係類型", rel_types, default=rel_types,
+    sel_types = st.multiselect(_t('rel_type_filter'), rel_types, default=rel_types,
                                key="board_rel_type_filter")
     shown = [r for r in all_relations if r.relation_type in sel_types]
     for rel in sorted(shown, key=lambda r: r.since_turn):
@@ -1854,7 +2755,7 @@ def _render_relation_rows(relations, self_key, label_lookup):
     label_lookup — dict mapping entity_key → display label
     """
     if not relations:
-        st.caption("無已知關係")
+        st.caption(_t('no_known_relations'))
         return
     for rel in sorted(relations, key=lambda r: -abs(r.strength)):
         is_outgoing = rel.source_key == self_key.lower()
@@ -1902,12 +2803,12 @@ def _render_organizations_tab(state):
             pass
 
     if not orgs:
-        st.info("尚未發現任何組織。繼續冒險，組織情報將會自動記錄在此。")
+        st.info(_t('no_orgs'))
         return
 
     # Search bar
-    search = st.text_input("🔍 搜尋組織", key="org_search",
-                           placeholder="輸入名稱、類型、領導人…")
+    search = st.text_input(_t('search_orgs'), key="org_search",
+                           placeholder=_t('search_orgs_ph'))
     query = search.strip().lower()
     filtered = orgs
     if query:
@@ -1930,31 +2831,30 @@ def _render_organizations_tab(state):
             cols = st.columns([1, 1])
             with cols[0]:
                 if org.get('founder'):
-                    st.markdown(f"**創辦人** {org['founder']}")
+                    st.markdown(f"**{_t('org_founder')}** {org['founder']}")
                 if org.get('current_leader'):
-                    st.markdown(f"**現任領導人** {org['current_leader']}")
+                    st.markdown(f"**{_t('org_leader')}** {org['current_leader']}")
                 if org.get('member_count'):
-                    st.markdown(f"**成員規模** {org['member_count']}")
+                    st.markdown(f"**{_t('org_members')}** {org['member_count']}")
             with cols[1]:
                 if org.get('headquarters'):
-                    st.markdown(f"**據點** {org['headquarters']}")
+                    st.markdown(f"**{_t('org_hq')}** {org['headquarters']}")
                 if org.get('alignment'):
-                    st.markdown(f"**陣營傾向** {org['alignment']}")
+                    st.markdown(f"**{_t('org_alignment')}** {org['alignment']}")
                 turn = org.get('first_seen_turn')
                 if turn is not None:
-                    label_t = "開場白" if turn == 0 else f"第 {turn} 回合"
-                    st.markdown(f"**首次登場** {label_t}")
+                    st.markdown(f"**{_t('org_first_seen')}** Turn {turn}")
             if org.get('description'):
                 st.markdown(f"> {org['description']}")
             if org.get('history'):
-                st.markdown("**歷史沿革**")
+                st.markdown(f"**{_t('org_history')}**")
                 st.markdown(org['history'])
             # Per-org relation rows
             org_key  = org['name'].lower()
             org_rels = [r for r in all_relations
                         if r.source_key == org_key or r.target_key == org_key]
             if org_rels:
-                st.markdown("**關係**")
+                st.markdown(f"**{_t('org_relations')}**")
                 _render_relation_rows(org_rels, org_key, label_lookup)
 
 
@@ -1972,9 +2872,9 @@ def _render_rules_tab(state):
 
     # ── Keyword search ──────────────────────────────────────────────────────
     search = st.text_input(
-        "🔍 搜尋手冊關鍵字",
+        _t('search_manual'),
         key="manual_search",
-        placeholder="輸入關鍵字，例如：attack、骰子、stealth…",
+        placeholder=_t('search_manual_ph'),
     )
 
     if search.strip():
@@ -2011,7 +2911,7 @@ def _render_rules_tab(state):
             st.rerun()
     with col_sel:
         sel = st.selectbox(
-            "章節",
+            _t('chapter_label'),
             range(n),
             index=idx,
             format_func=lambda i: chapter_labels[i],
@@ -2039,7 +2939,7 @@ def _render_rules_tab(state):
     st.divider()
 
     # ── Table of Contents (collapsible) ────────────────────────────────────
-    with st.expander("📋 目錄 — 點擊快速跳章", expanded=False):
+    with st.expander(_t('toc_expander'), expanded=False):
         toc_cols = st.columns(2)
         for i, c in enumerate(chapters):
             btn_label = f"{c['icon']} {c['title']}"
@@ -2144,17 +3044,14 @@ def _render_book_tab(save_name):
     )
 
     if not pages:
-        st.info(
-            "📕 尚無故事紀錄。  \n"
-            "遊戲進行後，每回合會自動儲存故事與圖片，在此閱讀完整冒險記錄。"
-        )
+        st.info(_t('no_story'))
         return
 
     n = len(pages)
     st.caption(f"📕 共 **{n}** 頁故事記錄  ·  存檔：`{save_name}`")
 
     # ── 📌 最新記錄 — always show last 2 pages at top ──────────────────────
-    with st.expander("📌 最新記錄（最近 2 頁）", expanded=True):
+    with st.expander(_t('latest_pages'), expanded=True):
         recent_pages = pages[-2:]
         if len(recent_pages) == 2:
             col_a, col_b = st.columns(2)
@@ -2170,7 +3067,7 @@ def _render_book_tab(save_name):
             _book_render_page_content(recent_pages[0])
 
     st.divider()
-    st.markdown("#### 📖 翻頁閱讀")
+    st.markdown(f"#### {_t('read_pages_header')}")
 
     # Page index state (default to last page)
     if 'book_page_idx' not in st.session_state:
@@ -2240,7 +3137,7 @@ def _render_book_tab(save_name):
                 for i in chunk
             ).strip()
         )
-    st.caption("  \n".join(dot_rows) + f"  　第 {idx+1} / {n} 頁  ★=最新")
+    st.caption("  \n".join(dot_rows) + f"  　{idx+1} / {n}  ★")
 
 
 # ---------------------------------------------------------------------------
@@ -2249,7 +3146,7 @@ def _render_book_tab(save_name):
 
 def _render_image_style_switcher():
     """Sidebar expander: switch image art style and regenerate map/portraits."""
-    with st.sidebar.expander("🎨 影像風格", expanded=False):
+    with st.sidebar.expander(_t('img_style_expander'), expanded=False):
         style_keys   = list(IMAGE_STYLES.keys())
         style_labels = [
             f"{IMAGE_STYLES[k]['name']} ({IMAGE_STYLES[k]['name_en']})"
@@ -2280,7 +3177,7 @@ def _render_image_style_switcher():
             st.session_state.image_style       = style_keys[new_idx]
             st.session_state.custom_img_suffix = new_custom
 
-        if st.button("🔄 重新生成所有影像", use_container_width=True,
+        if st.button(_t('regen_all_images'), use_container_width=True,
                      key="sidebar_regen_images", disabled=not _img_enabled()):
             st.session_state.continent_map = None
             st.session_state.portraits     = {}
@@ -2293,15 +3190,15 @@ def _render_image_style_switcher():
         img_gen = st.session_state.get('img_gen')
         if img_gen:
             if img_gen.is_disabled():
-                st.error("⚠️ 影像生成已自動停用（連續 VRAM 不足）")
-                if st.button("🔄 重新啟用", key="reenable_img_gen",
+                st.error(_t('img_gen_disabled_auto'))
+                if st.button(_t('img_gen_reenable'), key="reenable_img_gen",
                              use_container_width=True):
                     img_gen.reset_disabled()
                     st.rerun()
             elif not img_gen.can_generate_safely():
-                st.warning("⚡ VRAM 可能不足，部分場景圖可能跳過生成")
+                st.warning(_t('img_gen_vram_warn'))
             else:
-                st.success("✅ 影像生成就緒")
+                st.success(_t('img_gen_ready'))
 
 
 # ---------------------------------------------------------------------------
@@ -2315,7 +3212,7 @@ def _generate_continent_map(ws):
         st.session_state.get('image_style', 'fantasy_art'),
         st.session_state.get('custom_img_suffix', ''),
     )
-    with st.spinner(f"🎨 繪製 {ws['name']} 大陸地圖…"):
+    with st.spinner(f"🎨 {ws['name']}…"):
         img = st.session_state.img_gen.generate_image(prompt)
     if img:
         st.session_state.continent_map = img
@@ -2325,7 +3222,7 @@ def _generate_continent_map(ws):
             save_image_with_text(save_name, img, ws.get('name', ''), 0, 'map')
         st.rerun()
     else:
-        st.warning("影像生成失敗 (Strategy A 或 GPU 未就緒)")
+        st.warning("Image generation failed (Strategy A or GPU not ready)")
 
 
 def _generate_portrait(char, ws):
@@ -2335,7 +3232,7 @@ def _generate_portrait(char, ws):
         st.session_state.get('image_style', 'fantasy_art'),
         st.session_state.get('custom_img_suffix', ''),
     )
-    with st.spinner(f"🎨 繪製 {char.name} 肖像…"):
+    with st.spinner(f"🎨 {char.name}…"):
         img = st.session_state.img_gen.generate_image(prompt)
     if img:
         st.session_state.portraits[char.id] = img
@@ -2392,14 +3289,14 @@ def game_loop():
         st.session_state.portraits         = {}
 
     sq_col, qq_col = st.sidebar.columns(2)
-    if sq_col.button("💾 儲存", use_container_width=True):
+    if sq_col.button(_t('save_game'), use_container_width=True):
         # Flush story log then commit DB — stay in game
         save_name_sq = getattr(state, 'save_name', None)
         if save_name_sq and st.session_state.history:
             save_game_log(save_name_sq, compress_game_log(st.session_state.history))
         st.session_state.current_session.commit()
-        st.toast("遊戲已儲存！", icon="💾")
-    if qq_col.button("🚪 離開", use_container_width=True):
+        st.toast(_t('game_saved'), icon="💾")
+    if qq_col.button(_t('quit_game'), use_container_width=True):
         st.session_state.current_session.close()
         _clear_game_state()
         st.rerun()
@@ -2432,7 +3329,7 @@ def game_loop():
         ws_id_p = getattr(state, 'world_setting', None) or 'dnd5e'
         tm_p    = config.get_world_setting(ws_id_p).get('term_map', {})
         dm_lbl_p = tm_p.get('dm_title', 'GM')
-        with st.spinner(f"📖 {dm_lbl_p} 正在書寫開場白…"):
+        with st.spinner(f"📖 {dm_lbl_p} {_t('writing_prologue')}"):
             state.language = st.session_state.pref_language
             pro_narrative, pro_choices, pro_data = (
                 st.session_state.event_manager.generate_prologue(state, party)
@@ -2497,9 +3394,10 @@ def game_loop():
     )
 
     # ---- Tabs (故事 first = default selected) ----
-    tab_story, tab_board, tab_chars, tab_rules, tab_orgs, tab_book, tab_god = st.tabs(
-        ["📖 故事", "🗺️ 遊戲板", "👥 角色", "📜 規則", "🏛️ 組織", "📕 書本", "🔮 上帝模式"]
-    )
+    tab_story, tab_board, tab_chars, tab_rules, tab_orgs, tab_book, tab_god = st.tabs([
+        _t('tab_story'), _t('tab_gameboard'), _t('tab_characters'),
+        _t('tab_rules'), _t('tab_orgs'), _t('tab_book'), _t('tab_godmode'),
+    ])
 
     with tab_story:
         _render_story_tab(party, state, active_char, active_idx, ws_id)
