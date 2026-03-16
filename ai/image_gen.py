@@ -111,7 +111,7 @@ class ImageGenerator:
     # Main generation entry point — dispatches by provider
     # ------------------------------------------------------------------
 
-    def generate_image(self, prompt, context_type="scene"):
+    def generate_image(self, prompt, negative_prompt=None, context_type="scene"):
         """
         Generate an image from prompt. Returns PIL Image or None.
 
@@ -131,13 +131,13 @@ class ImageGenerator:
         else:
             if not self.can_generate_safely():
                 return None
-            return self._generate_diffusers(prompt)
+            return self._generate_diffusers(prompt, negative_prompt=negative_prompt)
 
     # ------------------------------------------------------------------
     # Provider implementations
     # ------------------------------------------------------------------
 
-    def _generate_diffusers(self, prompt):
+    def _generate_diffusers(self, prompt, negative_prompt=None):
         """Local GPU inference via HuggingFace diffusers."""
         preset   = self._preset()
         steps    = preset.get('steps', 2)
@@ -146,11 +146,14 @@ class ImageGenerator:
         if config.VRAM_STRATEGY == "B":
             try:
                 self.load_model()
-                image = self.pipeline(
+                pipe_kwargs = dict(
                     prompt=prompt,
                     num_inference_steps=steps,
                     guidance_scale=guidance,
-                ).images[0]
+                )
+                if negative_prompt:
+                    pipe_kwargs['negative_prompt'] = negative_prompt
+                image = self.pipeline(**pipe_kwargs).images[0]
                 self.unload_model()
                 self._fail_count = 0
                 return image

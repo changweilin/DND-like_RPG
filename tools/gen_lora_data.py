@@ -89,7 +89,7 @@ _ACTIONS  = [
     "I attempt to break free from the chains.",
 ]
 _DIFFICULTIES = ["Easy", "Normal", "Hard"]
-_LANGUAGES    = ["English", "繁體中文"]
+_LANGUAGES    = ["English", "繁體中文", "简体中文", "日本語", "한국어", "Français", "Deutsch", "Español"]
 
 
 def _make_scenario():
