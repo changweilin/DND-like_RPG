@@ -631,6 +631,32 @@ class EventManager:
         self._auto_register_npcs(characters_present, current_state, world, party_names)
         self._extract_and_register_relations(narrative, current_state, world, party, turn_number=0)
 
+        # Store prologue choices in session_memory so the first player turn
+        # can compute unchosen_choices (what the player did NOT pick).
+        npc_only = [n for n in characters_present if n not in party_names]
+        char_keys = [f"npc:{n.lower()}" for n in npc_only[:6]]
+        narrative_lower = narrative.lower()
+        orgs_dict = current_state.organizations or {}
+        org_keys  = [
+            f"org:{key}"
+            for key, org in orgs_dict.items()
+            if (org.get('name') or key).lower() in narrative_lower
+        ][:3]
+        memory = list(current_state.session_memory or [])
+        memory.append({
+            "turn":                    0,
+            "player_action":           "[prologue]",
+            "narrative":               narrative[:200],
+            "outcome":                 "PROLOGUE",
+            "unchosen_choices":        [],
+            "offered_choices":         choices or [],
+            "location":                current_state.current_location or "",
+            "characters_present":      char_keys,
+            "organizations_mentioned": org_keys,
+            "scene_type":              turn_data.get('scene_type', 'exploration'),
+        })
+        current_state.session_memory = memory
+
         return narrative, choices, turn_data
 
     def run_ai_turn(self, current_state, party):
