@@ -11,6 +11,7 @@ class Character(Base):
     name = Column(String, nullable=False)
     race = Column(String, nullable=False)
     char_class = Column(String, nullable=False)
+    gender = Column(String, default='')  # Inferred or chosen gender
     appearance = Column(Text)       # Physical description for image generation
     personality = Column(Text)      # Personality traits for LLM prompts
 
@@ -182,6 +183,7 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN known_entities TEXT DEFAULT '{}'",
             "ALTER TABLE game_state ADD COLUMN allow_custom_action INTEGER DEFAULT 1",
             "ALTER TABLE game_state ADD COLUMN organizations TEXT DEFAULT '{}'",
+            "ALTER TABLE characters ADD COLUMN gender VARCHAR DEFAULT ''",
         ]
         with engine.connect() as conn:
             for sql in migrations:

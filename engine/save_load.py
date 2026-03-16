@@ -92,6 +92,7 @@ class SaveLoadManager:
                         world_context="", world_setting="dnd5e",
                         extra_players=None,
                         allow_custom_action=True,
+                        gender="",
                         llm=None, rag=None):
         """
         Create a new game with 1-4 players.
@@ -131,6 +132,7 @@ class SaveLoadManager:
             'char_class':  char_class,
             'appearance':  appearance,
             'personality': personality,
+            'gender':      gender,
             'is_ai':       False,   # party leader is always human
         }]
         for ep in (extra_players or []):
@@ -140,6 +142,7 @@ class SaveLoadManager:
                 'char_class':     ep.get('char_class', 'Warrior'),
                 'appearance':     ep.get('appearance', ''),
                 'personality':    ep.get('personality', ''),
+                'gender':         ep.get('gender', ''),
                 'is_ai':          ep.get('is_ai', False),
                 'ai_personality': ep.get('ai_personality', 'tactical'),
                 'ai_difficulty':  ep.get('ai_difficulty', 'normal'),
@@ -156,6 +159,7 @@ class SaveLoadManager:
                 name=cfg['name'],
                 race=cfg['race'],
                 char_class=cfg['char_class'],
+                gender=cfg.get('gender', ''),
                 appearance=cfg['appearance'],
                 personality=cfg['personality'],
                 hp=base['hp'],       max_hp=base['max_hp'],
