@@ -153,10 +153,11 @@ if 'save_manager' not in st.session_state:
 
     # Form-field keys — initialised here so values survive reruns caused by
     # the world-setting selectbox (which lives outside the form).
-    st.session_state["ng_save_name"]   = ''
-    st.session_state["ng_difficulty"]  = prefs.get('difficulty', 'Normal')
-    st.session_state["ng_img_style"]   = prefs.get('img_style', 0)
-    st.session_state["ng_num_players"] = prefs.get('num_players', 1)
+    st.session_state["ng_save_name"]      = ''
+    st.session_state["ng_difficulty"]     = prefs.get('difficulty', 'Normal')
+    st.session_state["ng_img_style"]      = prefs.get('img_style', 0)
+    st.session_state["ng_num_players"]    = prefs.get('num_players', 1)
+    st.session_state["new_game_ws_select"] = prefs.get('world_idx', 0)
 
     # State for duplicate save name handling
     st.session_state.duplicate_save_pending = None # {save_name, lead_fields, difficulty, language, lore, world_idx, style_idx, custom_img, extra_players}
@@ -2053,7 +2054,6 @@ def main_menu():
         ws_idx    = st.selectbox(
             _t("universe"), range(len(config.WORLD_SETTINGS)),
             format_func=lambda i: ws_labels[i],
-            index=st.session_state.pref_world_idx,
             key="new_game_ws_select",
         )
         ws = config.WORLD_SETTINGS[ws_idx]
