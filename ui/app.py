@@ -48,6 +48,33 @@ _RACE_L10N = {
         "Gnome": "ノーム", "Orc": "オーク", "Goblin": "ゴブリン",
         "Troll": "トロール", "Ork": "オーク", "Mutant": "ミュータント",
     },
+    "ko": {
+        "Human": "인간", "Elf": "엘프", "Dwarf": "드워프",
+        "Halfling": "하프링", "Half-Orc": "하프오크",
+        "Tiefling": "티플링", "Dragonborn": "드래곤본",
+        "Gnome": "노움", "Orc": "오크", "Goblin": "고블린",
+        "Troll": "트롤", "Ork": "오크", "Mutant": "변종인",
+        "High Elf": "하이엘프", "Wood Elf": "우드엘프",
+        "Human Survivor": "인간 생존자",
+    },
+    "fr": {
+        "Human": "Humain", "Elf": "Elfe", "Dwarf": "Nain",
+        "Halfling": "Halfelin", "Half-Orc": "Demi-Orc",
+        "Tiefling": "Tiefelin", "Dragonborn": "Drakéide",
+        "Gnome": "Gnome", "Orc": "Orque", "Goblin": "Gobelin",
+        "Troll": "Troll", "Ork": "Orque", "Mutant": "Mutant",
+        "High Elf": "Haut-Elfe", "Wood Elf": "Elfe sylvain",
+        "Human Survivor": "Survivant humain",
+    },
+    "de": {
+        "Human": "Mensch", "Elf": "Elf", "Dwarf": "Zwerg",
+        "Halfling": "Halbling", "Half-Orc": "Halbork",
+        "Tiefling": "Tiefling", "Dragonborn": "Drachengeborener",
+        "Gnome": "Gnom", "Orc": "Ork", "Goblin": "Goblin",
+        "Troll": "Troll", "Ork": "Ork", "Mutant": "Mutant",
+        "High Elf": "Hochelfe", "Wood Elf": "Waldelfe",
+        "Human Survivor": "Menschlicher Überlebender",
+    },
     "es": {
         "Human": "Humano", "Elf": "Elfo", "Dwarf": "Enano",
         "Halfling": "Mediano", "Half-Orc": "Semiorco",
@@ -59,6 +86,9 @@ _RACE_L10N = {
 _CLASS_L10N = {
     "zh": {"Warrior": "戰士", "Mage": "法師", "Rogue": "盜賊", "Cleric": "牧師"},
     "ja": {"Warrior": "戦士", "Mage": "魔法使い", "Rogue": "盗賊", "Cleric": "聖職者"},
+    "ko": {"Warrior": "전사", "Mage": "마법사", "Rogue": "도적", "Cleric": "성직자"},
+    "fr": {"Warrior": "Guerrier", "Mage": "Mage", "Rogue": "Roublard", "Cleric": "Clerc"},
+    "de": {"Warrior": "Krieger", "Mage": "Magier", "Rogue": "Schurke", "Cleric": "Kleriker"},
     "es": {"Warrior": "Guerrero", "Mage": "Mago", "Rogue": "Pícaro", "Cleric": "Clérigo"},
 }
 _GENDERS          = ["Male", "Female", "Non-binary", "Other"]
@@ -205,6 +235,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 AI-controlled",
         "ai_personality":  "AI Personality",
         "ai_difficulty":   "AI Difficulty",
+        "difficulty_easy":   "Easy",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Hard",
         "no_saves":        "No saves found.",
         "save_required":   "Player 1 Name is required.",
         "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
@@ -341,6 +374,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 AI 操控",
         "ai_personality":  "AI 個性",
         "ai_difficulty":   "AI 難度",
+        "difficulty_easy":   "簡單",
+        "difficulty_normal": "普通",
+        "difficulty_hard":   "困難",
         "no_saves":        "找不到存檔。",
         "save_required":   "玩家 1 名字為必填。",
         "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
@@ -477,6 +513,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 AI操作",
         "ai_personality":  "AIの個性",
         "ai_difficulty":   "AIの難易度",
+        "difficulty_easy":   "簡単",
+        "difficulty_normal": "普通",
+        "difficulty_hard":   "難しい",
         "no_saves":        "セーブデータが見つかりません。",
         "save_required":   "プレイヤー1の名前は必須です。",
         "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
@@ -613,6 +652,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 IA controlada",
         "ai_personality":  "Personalidad IA",
         "ai_difficulty":   "Dificultad IA",
+        "difficulty_easy":   "Fácil",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Difícil",
         "no_saves":        "No hay partidas guardadas.",
         "save_required":   "El nombre del Jugador 1 es obligatorio.",
         "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
@@ -745,9 +787,13 @@ _UI_STRINGS = {
         "char_class":      "职业",
         "appearance":      "外貌描述",
         "personality":     "个性描述",
+        "gender":          "性别",
         "ai_controlled":   "🤖 AI 操控",
         "ai_personality":  "AI 个性",
         "ai_difficulty":   "AI 难度",
+        "difficulty_easy":   "简单",
+        "difficulty_normal": "普通",
+        "difficulty_hard":   "困难",
         "no_saves":        "找不到存档。",
         "save_required":   "存档名称与玩家 1 名字为必填。",
         "map_hint":        "🗺️ 大陆地图与角色肖像在开始游戏后生成。",
@@ -880,9 +926,13 @@ _UI_STRINGS = {
         "char_class":      "직업",
         "appearance":      "외모 설명",
         "personality":     "성격 설명",
+        "gender":          "성별",
         "ai_controlled":   "🤖 AI 조종",
         "ai_personality":  "AI 개성",
         "ai_difficulty":   "AI 난이도",
+        "difficulty_easy":   "쉬움",
+        "difficulty_normal": "보통",
+        "difficulty_hard":   "어려움",
         "no_saves":        "저장 파일을 찾을 수 없습니다.",
         "save_required":   "저장 이름과 플레이어 1 이름은 필수입니다.",
         "map_hint":        "🗺️ 지도와 초상화는 게임 시작 후 생성됩니다.",
@@ -1015,9 +1065,13 @@ _UI_STRINGS = {
         "char_class":      "Classe",
         "appearance":      "Apparence",
         "personality":     "Personnalité",
+        "gender":          "Genre",
         "ai_controlled":   "🤖 Contrôlé par IA",
         "ai_personality":  "Personnalité IA",
         "ai_difficulty":   "Difficulté IA",
+        "difficulty_easy":   "Facile",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Difficile",
         "no_saves":        "Aucune sauvegarde trouvée.",
         "save_required":   "Le nom de la sauvegarde et le nom du Joueur 1 sont obligatoires.",
         "map_hint":        "🗺️ La carte et les portraits sont générés après le début du jeu.",
@@ -1150,9 +1204,13 @@ _UI_STRINGS = {
         "char_class":      "Klasse",
         "appearance":      "Aussehen",
         "personality":     "Persönlichkeit",
+        "gender":          "Geschlecht",
         "ai_controlled":   "🤖 KI-gesteuert",
         "ai_personality":  "KI-Persönlichkeit",
         "ai_difficulty":   "KI-Schwierigkeit",
+        "difficulty_easy":   "Leicht",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Schwer",
         "no_saves":        "Keine Spielstände gefunden.",
         "save_required":   "Speichername und Spieler-1-Name sind erforderlich.",
         "map_hint":        "🗺️ Karte und Porträts werden nach dem Spielstart generiert.",
@@ -1845,7 +1903,11 @@ def _player_config_fields(idx, key_prefix, ws=None):
 
     # Resolve localized pools
     lang = st.session_state.get('pref_language', 'English')
-    _lang_key_map = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}
+    _lang_key_map = {
+        '繁體中文': 'zh', '简体中文': 'zh',
+        '日本語': 'ja', '한국어': 'ko',
+        'Français': 'fr', 'Deutsch': 'de', 'Español': 'es',
+    }
     lang_key = _lang_key_map.get(lang, 'en')
 
     def _pick_localized(field):
@@ -2075,8 +2137,10 @@ def main_menu():
 
         with st.form("new_game_form"):
             save_name  = st.text_input(_t("save_name"), key="ng_save_name")
+            _DIFF_KEYS = ["Easy", "Normal", "Hard"]
             difficulty = st.selectbox(
-                _t("difficulty"), ["Easy", "Normal", "Hard"],
+                _t("difficulty"), _DIFF_KEYS,
+                format_func=lambda d: _t(f"difficulty_{d.lower()}"),
                 key="ng_difficulty",
             )
             # Language is now set via the model/language expander in the sidebar;
