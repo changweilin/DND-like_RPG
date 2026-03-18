@@ -74,6 +74,63 @@ def _seed_world_rules(llm, rag, ws, language):
         print(f"[save_load] _seed_world_rules failed: {e}")
 
 
+def _extract_world_entities(llm, game_state, session, language):
+    """
+    After world_context is generated, extract organizations and named NPCs
+    mentioned in it and register them with full generated profiles.
+
+    Organizations: extracted via extract_organizations (already generates rich
+    fields like history, description, etc. in one pass).
+    NPCs: extracted via extract_characters, then profiled via generate_npc_profile
+    (same pattern as _auto_register_npcs in EventManager).
+    """
+    from engine.world import WorldManager
+    world = WorldManager(session, game_state)
+    text = game_state.world_context or ''
+    if not text.strip():
+        return
+
+    # --- Organizations ---
+    try:
+        orgs = llm.extract_organizations(
+            narrative_text=text,
+            world_context=text,
+            language=language,
+            turn_number=0,
+        )
+        for org in orgs:
+            world.register_organization(org)
+    except Exception as e:
+        print(f"[save_load] world org extraction failed: {e}")
+
+    # --- Named NPCs ---
+    try:
+        org_names_lower = {
+            (org.get('name') or key).lower()
+            for key, org in (game_state.organizations or {}).items()
+        }
+        names = llm.extract_characters(text, world_context=text, language=language)
+        for name in names:
+            if not name or name.lower() in org_names_lower:
+                continue
+            existing_rel = (game_state.relationships or {}).get(name)
+            if existing_rel and isinstance(existing_rel, dict) and existing_rel.get('biography'):
+                continue  # already has a full profile
+            try:
+                profile = llm.generate_npc_profile(
+                    display_name=name,
+                    world_context=text,
+                    existing_rel=existing_rel if isinstance(existing_rel, dict) else {},
+                    language=language,
+                )
+            except Exception as e:
+                print(f"[save_load] NPC profile error for {name!r}: {e}")
+                profile = {}
+            world.register_npc(name, profile)
+    except Exception as e:
+        print(f"[save_load] world NPC extraction failed: {e}")
+
+
 class SaveLoadManager:
     """Handles creating, saving, and loading game sessions (1-4 players)."""
 
@@ -229,6 +286,11 @@ class SaveLoadManager:
             if generated:
                 game_state.world_context = generated
                 session.commit()
+
+        # Extract organizations and named NPCs from the world_context and register
+        # them with generated profiles so they appear in the org/NPC lists immediately.
+        if llm and game_state.world_context:
+            _extract_world_entities(llm, game_state, session, language)
 
         # Seed world-specific mechanical/social rules into the shared game_rules RAG
         if llm and rag:

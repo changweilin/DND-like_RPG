@@ -1201,6 +1201,45 @@ class LLMClient:
         return stat_block
 
     # ------------------------------------------------------------------
+    # Character appearance generation — for the new-game creation form
+    # ------------------------------------------------------------------
+
+    def generate_character_appearance(self, race, gender, char_class, mbti,
+                                       world_context="", language="English"):
+        """
+        Generate a 1-2 sentence physical appearance description for a new character.
+
+        Uses race, gender, class, and MBTI personality to produce a contextual
+        description that fits the world setting.  Called when the player clicks
+        the 🎲 button in the character creation form.
+        Returns "" on failure so the caller can fall back to the word-pool.
+        """
+        system_prompt = (
+            "You are a TRPG character creator. Write a 1-2 sentence physical appearance "
+            "description for a new character. Be specific about build, hair, eyes, skin, "
+            "clothing, and any distinctive features that suit the race and class.\n"
+            "Return ONLY the description — no labels, no JSON, no extra commentary.\n"
+            f"Write EXCLUSIVELY in {language}.\n"
+            f"World context: {world_context[:200]}"
+        )
+        user_msg = (
+            f"Race: {race}, Gender: {gender}, Class: {char_class}, "
+            f"Personality (MBTI): {mbti}"
+        )
+        try:
+            raw = self._chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": user_msg},
+                ],
+                json_mode=False,
+            ).strip()
+            return raw[:300] if len(raw) > 20 else ""
+        except Exception as e:
+            print(f"Character appearance generation error: {e}")
+            return ""
+
+    # ------------------------------------------------------------------
     # NPC profile generation — rich profile for newly encountered NPCs
     # ------------------------------------------------------------------
 
@@ -1516,6 +1555,97 @@ class LLMClient:
             return result
         except Exception as e:
             print(f"Organization extraction error: {e}")
+            return []
+
+    def generate_organization_profile(self, org_name, world_context="", existing_org=None, language="English"):
+        """
+        Generate a rich profile for an organization that was registered with sparse data.
+
+        Similar to generate_npc_profile — called as a back-fill when an org's
+        description or history fields are empty.  Never overwrites existing fields.
+        Returns a dict matching WorldManager.register_organization's schema.
+        """
+        existing_hint = ""
+        if existing_org and isinstance(existing_org, dict):
+            parts = []
+            for f in ('type', 'current_leader', 'headquarters', 'alignment'):
+                if existing_org.get(f):
+                    parts.append(f"{f}: {existing_org[f]}")
+            if parts:
+                existing_hint = "Known facts (do NOT contradict): " + ", ".join(parts) + "\n"
+
+        system_prompt = (
+            "You are a TRPG game master creating a detailed organization profile.\n"
+            "Respond ONLY with valid JSON, no markdown.\n\n"
+            "Schema:\n"
+            '{\n'
+            '  "type": "<government|army|guild|religious order|secret society|academy|mercenary company|noble house|other>",\n'
+            '  "founder": "<name of the founder>",\n'
+            '  "history": "<2-3 sentences of founding history and key events>",\n'
+            '  "member_count": "<rough size estimate, e.g. ~500 members>",\n'
+            '  "current_leader": "<current leader name and title>",\n'
+            '  "headquarters": "<main base or location>",\n'
+            '  "alignment": "<moral alignment, e.g. Lawful Neutral>",\n'
+            '  "description": "<1-2 sentence flavour blurb summarising the organisation>"\n'
+            '}\n\n'
+            f"World context: {world_context[:400]}\n"
+            f"{existing_hint}"
+            f"CRITICAL: Write all text fields exclusively in {language}. "
+            f"All details must be consistent with the game world."
+        )
+        try:
+            raw = self._chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": f"Generate organization profile for: {org_name}"},
+                ],
+                json_mode=True,
+            )
+            data = json.loads(_repair_json(raw))
+            return {
+                'name':           org_name,
+                'type':           str(data.get('type', '')).strip(),
+                'founder':        str(data.get('founder', '')).strip(),
+                'history':        str(data.get('history', '')).strip(),
+                'member_count':   str(data.get('member_count', '')).strip(),
+                'current_leader': str(data.get('current_leader', '')).strip(),
+                'headquarters':   str(data.get('headquarters', '')).strip(),
+                'alignment':      str(data.get('alignment', '')).strip(),
+                'description':    str(data.get('description', '')).strip(),
+            }
+        except Exception as e:
+            print(f"Organization profile generation error for {org_name!r}: {e}")
+            return {'name': org_name}
+
+    def extract_characters(self, text, world_context="", language="English"):
+        """
+        Extract named NPC/character names mentioned in free text.
+
+        Returns a list of name strings.  Organization names and generic
+        titles that don't refer to a specific individual are excluded.
+        """
+        system_prompt = (
+            "You are a TRPG lore keeper. Read the text and list every specific "
+            "named NPC or individual character mentioned (NOT organization names, "
+            "NOT generic roles like 'the king' unless tied to a proper name).\n"
+            "Return ONLY a JSON array of name strings, e.g. [\"Ser Aldric\", \"Elder Morin\"].\n"
+            "Return [] if no named characters are found.\n"
+            f"World context: {world_context[:300]}"
+        )
+        try:
+            raw = self._chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": f"Text:\n{text[:2000]}"},
+                ],
+                json_mode=True,
+            )
+            data = json.loads(_repair_json(raw))
+            if not isinstance(data, list):
+                return []
+            return [str(n).strip() for n in data if n and str(n).strip()]
+        except Exception as e:
+            print(f"Character extraction error: {e}")
             return []
 
     def extract_relations(self, narrative_text, known_orgs, known_chars,

@@ -447,7 +447,7 @@ class EventManager:
             session_memory_text=session_memory_text,
         )
 
-        # Build a mutable set for dedup throughout the three supplement passes below.
+        # Build a mutable set for dedup throughout the supplement passes below.
         _present_lower_set = {n.lower() for n in characters_present}
 
         # Supplement pass 1 — npc_relationship_changes keys.
@@ -478,6 +478,34 @@ class EventManager:
             if any(n.lower() in narrative_lower for n in search_names if n and len(n) > 1):
                 characters_present.append(npc_name)
                 _present_lower_set.add(npc_name.lower())
+
+        # Supplement pass 3 — carry forward NPCs who were present last turn and
+        # haven't left.  Runs only when the scene stays in the same location
+        # (no location_change in this turn's turn_data) and the NPC isn't dead.
+        # This prevents an NPC from "disappearing" simply because the LLM forgot
+        # to include them in characters_present this turn.
+        if _prev_mem and not turn_data.get('location_change'):
+            last_mem       = _prev_mem[-1]
+            last_location  = last_mem.get('location', '')
+            cur_location   = current_state.current_location or ''
+            # Only carry forward if we know the previous location and it matches
+            if not last_location or last_location == cur_location:
+                lower_to_display = {n.lower(): n for n in (current_state.relationships or {})}
+                known_entities   = current_state.known_entities or {}
+                for key in (last_mem.get('characters_present') or []):
+                    if not key.startswith('npc:'):
+                        continue
+                    npc_lower = key[4:]   # strip "npc:" prefix
+                    if npc_lower in _present_lower_set:
+                        continue
+                    # Never carry forward a defeated NPC
+                    entity_info = known_entities.get(npc_lower, {})
+                    if entity_info and not entity_info.get('alive', True):
+                        continue
+                    display_name = lower_to_display.get(npc_lower)
+                    if display_name:
+                        characters_present.append(display_name)
+                        _present_lower_set.add(npc_lower)
 
         # --- Step 7.5: Auto-register new NPCs from the scene ---
         # Extract organizations from the narrative FIRST so their names are
@@ -1460,6 +1488,10 @@ class EventManager:
         Call LLMClient.extract_organizations on the narrative, then persist any
         new organizations via WorldManager.register_organization.
 
+        Also back-fills description/history for any tracked organization that
+        still has no description — limited to 2 back-fills per call to bound
+        LLM overhead (mirrors the NPC back-fill in _auto_register_npcs).
+
         Runs in a try/except so an LLM error never breaks the game loop.
         """
         if not narrative:
@@ -1477,6 +1509,25 @@ class EventManager:
                 world.register_organization(org)
         except Exception as e:
             print(f"Organization extraction error: {e}")
+
+        # Back-fill: generate description for any org registered without one
+        back_fill = 0
+        for key, org in list((current_state.organizations or {}).items()):
+            if back_fill >= 2:
+                break
+            if not isinstance(org, dict) or org.get('description') or org.get('history'):
+                continue
+            try:
+                profile = self.llm.generate_organization_profile(
+                    org_name=org.get('name') or key,
+                    world_context=current_state.world_context or '',
+                    existing_org=org,
+                    language=current_state.language or 'English',
+                )
+                world.register_organization(profile)
+                back_fill += 1
+            except Exception as e:
+                print(f"Org back-fill profile error for {key!r}: {e}")
 
     def _seed_world_lore(self, current_state):
         """

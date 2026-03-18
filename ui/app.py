@@ -230,6 +230,7 @@ _UI_STRINGS = {
         "race":            "Race",
         "char_class":      "Class",
         "appearance":      "Appearance",
+        "regen_appearance": "🎲 Regenerate appearance",
         "personality":     "Personality",
         "gender":          "Gender",
         "ai_controlled":   "🤖 AI-controlled",
@@ -383,6 +384,7 @@ _UI_STRINGS = {
         "race":            "種族",
         "char_class":      "職業",
         "appearance":      "外貌描述",
+        "regen_appearance": "🎲 重新生成外貌",
         "personality":     "個性描述",
         "gender":          "性別",
         "ai_controlled":   "🤖 AI 操控",
@@ -842,6 +844,7 @@ _UI_STRINGS = {
         "race":            "种族",
         "char_class":      "职业",
         "appearance":      "外貌描述",
+        "regen_appearance": "🎲 重新生成外貌",
         "personality":     "个性描述",
         "gender":          "性别",
         "ai_controlled":   "🤖 AI 操控",
@@ -2038,14 +2041,16 @@ def _player_config_fields(idx, key_prefix, ws=None):
         entry = config.MBTI_DATABASE.get(t, {})
         return entry.get(lang_key) or entry.get('en') or t
 
-    # Generate appearance text based on race + gender + world pool
-    def _generate_appearance(r, g):
+    # Generate appearance text based on race + gender + class + MBTI + world pool
+    def _generate_appearance(r, g, c='', mbti='', force_new=False):
         pool = _pick_localized('appearances')
         if not pool:
             return ""
-        # Use a deterministic-ish seed from race+gender so the same combo
-        # always picks from the same subset, but still has variety
-        rng = random.Random(f"{key_prefix}_{idx}_{r}_{g}")
+        if force_new:
+            import time as _time_mod
+            rng = random.Random(f"{r}_{g}_{c}_{mbti}_{_time_mod.time()}")
+        else:
+            rng = random.Random(f"{key_prefix}_{idx}_{r}_{g}_{c}_{mbti}")
         return rng.choice(pool)
 
     # Random default appearance — initial
@@ -2146,7 +2151,9 @@ def _player_config_fields(idx, key_prefix, ws=None):
     if old_race is not None or old_gender is not None:
         if (cur_race != old_race or cur_gender != old_gender):
             if not st.session_state[app_manual_key]:
-                new_app = _generate_appearance(cur_race, cur_gender)
+                _cur_class = st.session_state.get(class_key, ws_classes[0])
+                _cur_mbti  = st.session_state.get(mbti_key, '')
+                new_app = _generate_appearance(cur_race, cur_gender, _cur_class, _cur_mbti)
                 st.session_state[f"{key_prefix}_app_{idx}"] = new_app
                 st.session_state[app_rand_key] = new_app
     st.session_state[prev_race_key]   = cur_race
@@ -2190,7 +2197,32 @@ def _player_config_fields(idx, key_prefix, ws=None):
         if app_key not in st.session_state or not st.session_state[app_key]:
             st.session_state[app_key] = st.session_state[app_rand_key]
 
-        appearance = st.text_input(_t("appearance"), key=app_key)
+        _app_col, _regen_col = st.columns([5, 1])
+        with _app_col:
+            appearance = st.text_input(_t("appearance"), key=app_key)
+        with _regen_col:
+            st.write("")
+            _regen_clicked = st.form_submit_button("🎲", help=_t("regen_appearance"))
+
+        if _regen_clicked:
+            _r = st.session_state.get(race_key, ws_races[0])
+            _g = st.session_state.get(gender_key, "Male")
+            _c = st.session_state.get(class_key, ws_classes[0])
+            _m = st.session_state.get(mbti_key, "")
+            _llm = st.session_state.get('llm')
+            _new_app = ""
+            if _llm:
+                _world_ctx = ws.get('world_lore', '') if ws else ''
+                _new_app = _llm.generate_character_appearance(
+                    race=_r, gender=_g, char_class=_c, mbti=_m,
+                    world_context=_world_ctx, language=lang,
+                )
+            if not _new_app:
+                _new_app = _generate_appearance(_r, _g, _c, _m, force_new=True)
+            st.session_state[app_rand_key]   = _new_app
+            st.session_state[app_manual_key] = False
+            st.session_state.pop(app_key, None)  # cleared; re-init from app_rand_key on next run
+            st.rerun()
 
         # Detect manual appearance edit — compare current value against last auto-generated
         if st.session_state.get(app_key, '') != st.session_state.get(app_rand_key, ''):
@@ -2212,6 +2244,30 @@ def main_menu():
     _render_language_switcher()
     _render_model_switcher()
     _render_image_model_selector()
+
+    # Restore form fields from saved prefs when returning from an in-progress game.
+    # This ensures the create-new-game form always shows the last-used settings
+    # rather than stale or re-initialised defaults after the game widgets unrendered.
+    if st.session_state.pop('_menu_needs_restore', False):
+        _p = PersistenceManager.load_prefs()
+        for _k, _v in {
+            'ng_difficulty':      _p.get('difficulty', 'Normal'),
+            'ng_num_players':     _p.get('num_players', 1),
+            'ng_img_style':       _p.get('img_style', 0),
+            'new_game_ws_select': _p.get('world_idx', 0),
+            'new_game_lore':      _p.get('custom_lore', ''),
+            'new_game_custom_img':_p.get('custom_img_suffix', ''),
+        }.items():
+            st.session_state[_k] = _v
+        for _si in range(6):
+            for _f in ('race', 'class', 'app', 'gender', 'mbti'):
+                _pv = _p.get(f'{_f}_{_si}')
+                if _pv:
+                    st.session_state[f'ng_{_f}_{_si}'] = _pv
+            if _si > 0:
+                _pv = _p.get(f'is_ai_{_si}')
+                if _pv is not None:
+                    st.session_state[f'ng_is_ai_{_si}'] = _pv
 
     st.title("D&D AI RPG Engine")
 
@@ -2362,8 +2418,10 @@ def main_menu():
                             'custom_img_suffix': custom_img_suffix.strip(),
                             'custom_lore':       custom_lore,
                             # Player 1 (lead)
-                            'race_0':  lead[1], 'class_0': lead[2],
-                            'app_0':   lead[3], 'per_0':   lead[4],
+                            'race_0':   lead[1], 'class_0':  lead[2],
+                            'app_0':    lead[3], 'per_0':    lead[4],
+                            'gender_0': lead[5],
+                            'mbti_0':   st.session_state.get('ng_mbti_0', ''),
                         }
                         for _si, _ep in enumerate(extra, start=1):
                             new_prefs[f'race_{_si}']           = _ep['race']
@@ -2371,6 +2429,8 @@ def main_menu():
                             new_prefs[f'is_ai_{_si}']          = _ep['is_ai']
                             new_prefs[f'ai_personality_{_si}'] = _ep['ai_personality']
                             new_prefs[f'ai_difficulty_{_si}']  = _ep['ai_difficulty']
+                            new_prefs[f'gender_{_si}']         = _ep['gender']
+                            new_prefs[f'mbti_{_si}']           = st.session_state.get(f'ng_mbti_{_si}', '')
                         PersistenceManager.save_prefs(new_prefs)
 
                         # Auto-load the new game immediately (no separate Load step)
@@ -3842,6 +3902,7 @@ def game_loop():
         for key in ('current_session', 'game_state', 'player', 'event_manager'):
             st.session_state[key] = None
         st.session_state.party             = []
+        st.session_state['_menu_needs_restore'] = True
         st.session_state.history           = []
         st.session_state.world_map         = {}
         st.session_state.player_positions  = {}
@@ -4304,18 +4365,18 @@ def _render_god_mode_tab(party, state):
     # ----------------------------------------------------------------
     st.subheader("⚙️ 引擎設定常數 (engine/config.py)")
     cfg_rows = [
-        ("LLM_MODEL_NAME",          config.LLM_MODEL_NAME,          "Ollama/API 語言模型識別碼"),
-        ("IMAGE_MODEL_NAME",        config.IMAGE_MODEL_NAME,         "預設影像模型識別碼"),
-        ("VRAM_STRATEGY",           config.VRAM_STRATEGY,            "A=跳過影像 / B=換模型"),
-        ("USER_VRAM_GB",            config.USER_VRAM_GB,             "總 GPU VRAM 預算（GB）"),
-        ("IMAGE_VRAM_REQUIRED_GB",  config.IMAGE_VRAM_REQUIRED_GB,   "最低可用 VRAM 門檻（GB）"),
-        ("IMAGE_GEN_MAX_FAILURES",  config.IMAGE_GEN_MAX_FAILURES,   "連續失敗幾次後停用影像生成"),
-        ("IMAGE_GEN_MILESTONE_TURNS",config.IMAGE_GEN_MILESTONE_TURNS,"每 N 回合強制生成場景圖"),
-        ("SESSION_MEMORY_WINDOW",   config.SESSION_MEMORY_WINDOW,    "滑動記憶窗口大小（回合數）"),
-        ("CONTEXT_WINDOW_SIZE",     config.CONTEXT_WINDOW_SIZE,      "目標 token 預算（需與模型一致）"),
-        ("EMBEDDING_MODEL",         config.EMBEDDING_MODEL or "(default MiniLM)", "ChromaDB 嵌入模型路徑"),
-        ("SAVE_DIR",                config.SAVE_DIR,                 "SQLite 存檔目錄"),
-        ("CHROMA_DB_DIR",           config.CHROMA_DB_DIR,            "ChromaDB 持久化目錄"),
+        ("LLM_MODEL_NAME",           str(config.LLM_MODEL_NAME),          "Ollama/API 語言模型識別碼"),
+        ("IMAGE_MODEL_NAME",         str(config.IMAGE_MODEL_NAME),         "預設影像模型識別碼"),
+        ("VRAM_STRATEGY",            str(config.VRAM_STRATEGY),            "A=跳過影像 / B=換模型"),
+        ("USER_VRAM_GB",             str(config.USER_VRAM_GB),             "總 GPU VRAM 預算（GB）"),
+        ("IMAGE_VRAM_REQUIRED_GB",   str(config.IMAGE_VRAM_REQUIRED_GB),   "最低可用 VRAM 門檻（GB）"),
+        ("IMAGE_GEN_MAX_FAILURES",   str(config.IMAGE_GEN_MAX_FAILURES),   "連續失敗幾次後停用影像生成"),
+        ("IMAGE_GEN_MILESTONE_TURNS",str(config.IMAGE_GEN_MILESTONE_TURNS),"每 N 回合強制生成場景圖"),
+        ("SESSION_MEMORY_WINDOW",    str(config.SESSION_MEMORY_WINDOW),    "滑動記憶窗口大小（回合數）"),
+        ("CONTEXT_WINDOW_SIZE",      str(config.CONTEXT_WINDOW_SIZE),      "目標 token 預算（需與模型一致）"),
+        ("EMBEDDING_MODEL",          str(config.EMBEDDING_MODEL or "(default MiniLM)"), "ChromaDB 嵌入模型路徑"),
+        ("SAVE_DIR",                 str(config.SAVE_DIR),                 "SQLite 存檔目錄"),
+        ("CHROMA_DB_DIR",            str(config.CHROMA_DB_DIR),            "ChromaDB 持久化目錄"),
     ]
     st.dataframe(
         pd.DataFrame(cfg_rows, columns=["常數", "值", "說明"]),
