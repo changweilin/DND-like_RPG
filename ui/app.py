@@ -48,6 +48,33 @@ _RACE_L10N = {
         "Gnome": "ノーム", "Orc": "オーク", "Goblin": "ゴブリン",
         "Troll": "トロール", "Ork": "オーク", "Mutant": "ミュータント",
     },
+    "ko": {
+        "Human": "인간", "Elf": "엘프", "Dwarf": "드워프",
+        "Halfling": "하프링", "Half-Orc": "하프오크",
+        "Tiefling": "티플링", "Dragonborn": "드래곤본",
+        "Gnome": "노움", "Orc": "오크", "Goblin": "고블린",
+        "Troll": "트롤", "Ork": "오크", "Mutant": "변종인",
+        "High Elf": "하이엘프", "Wood Elf": "우드엘프",
+        "Human Survivor": "인간 생존자",
+    },
+    "fr": {
+        "Human": "Humain", "Elf": "Elfe", "Dwarf": "Nain",
+        "Halfling": "Halfelin", "Half-Orc": "Demi-Orc",
+        "Tiefling": "Tiefelin", "Dragonborn": "Drakéide",
+        "Gnome": "Gnome", "Orc": "Orque", "Goblin": "Gobelin",
+        "Troll": "Troll", "Ork": "Orque", "Mutant": "Mutant",
+        "High Elf": "Haut-Elfe", "Wood Elf": "Elfe sylvain",
+        "Human Survivor": "Survivant humain",
+    },
+    "de": {
+        "Human": "Mensch", "Elf": "Elf", "Dwarf": "Zwerg",
+        "Halfling": "Halbling", "Half-Orc": "Halbork",
+        "Tiefling": "Tiefling", "Dragonborn": "Drachengeborener",
+        "Gnome": "Gnom", "Orc": "Ork", "Goblin": "Goblin",
+        "Troll": "Troll", "Ork": "Ork", "Mutant": "Mutant",
+        "High Elf": "Hochelfe", "Wood Elf": "Waldelfe",
+        "Human Survivor": "Menschlicher Überlebender",
+    },
     "es": {
         "Human": "Humano", "Elf": "Elfo", "Dwarf": "Enano",
         "Halfling": "Mediano", "Half-Orc": "Semiorco",
@@ -59,6 +86,9 @@ _RACE_L10N = {
 _CLASS_L10N = {
     "zh": {"Warrior": "戰士", "Mage": "法師", "Rogue": "盜賊", "Cleric": "牧師"},
     "ja": {"Warrior": "戦士", "Mage": "魔法使い", "Rogue": "盗賊", "Cleric": "聖職者"},
+    "ko": {"Warrior": "전사", "Mage": "마법사", "Rogue": "도적", "Cleric": "성직자"},
+    "fr": {"Warrior": "Guerrier", "Mage": "Mage", "Rogue": "Roublard", "Cleric": "Clerc"},
+    "de": {"Warrior": "Krieger", "Mage": "Magier", "Rogue": "Schurke", "Cleric": "Kleriker"},
     "es": {"Warrior": "Guerrero", "Mage": "Mago", "Rogue": "Pícaro", "Cleric": "Clérigo"},
 }
 _GENDERS          = ["Male", "Female", "Non-binary", "Other"]
@@ -153,10 +183,11 @@ if 'save_manager' not in st.session_state:
 
     # Form-field keys — initialised here so values survive reruns caused by
     # the world-setting selectbox (which lives outside the form).
-    st.session_state["ng_save_name"]   = ''
-    st.session_state["ng_difficulty"]  = prefs.get('difficulty', 'Normal')
-    st.session_state["ng_img_style"]   = prefs.get('img_style', 0)
-    st.session_state["ng_num_players"] = prefs.get('num_players', 1)
+    st.session_state["ng_save_name"]      = ''
+    st.session_state["ng_difficulty"]     = prefs.get('difficulty', 'Normal')
+    st.session_state["ng_img_style"]      = prefs.get('img_style', 0)
+    st.session_state["ng_num_players"]    = prefs.get('num_players', 1)
+    st.session_state["new_game_ws_select"] = prefs.get('world_idx', 0)
 
     # State for duplicate save name handling
     st.session_state.duplicate_save_pending = None # {save_name, lead_fields, difficulty, language, lore, world_idx, style_idx, custom_img, extra_players}
@@ -204,6 +235,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 AI-controlled",
         "ai_personality":  "AI Personality",
         "ai_difficulty":   "AI Difficulty",
+        "difficulty_easy":   "Easy",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Hard",
         "no_saves":        "No saves found.",
         "save_required":   "Player 1 Name is required.",
         "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
@@ -275,6 +309,20 @@ _UI_STRINGS = {
         "org_first_seen":    "First Appeared",
         "org_history":       "History",
         "org_relations":     "Relations",
+        "org_count":         "**{n}** organizations recorded",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NPC — Known Characters ({n})",
+        "no_npcs":           "No NPCs encountered yet. As the story progresses, NPCs will be automatically recorded here.",
+        "npc_affinity":      "Affinity",
+        "npc_state_lbl":     "State",
+        "npc_health_lbl":    "Health",
+        "npc_goal_lbl":      "🎯 Goal:",
+        "npc_aliases_lbl":   "Aliases:",
+        "npc_bio_lbl":       "Biography",
+        # Relation graph
+        "rel_count":         "**{n}** relationships recorded",
+        "prologue_turn":     "Prologue",
+        "turn_label":        "Turn {n}",
         # Rules tab
         "search_manual":     "🔍 Search Manual",
         "search_manual_ph":  "Enter keywords, e.g.: attack, dice, stealth…",
@@ -340,6 +388,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 AI 操控",
         "ai_personality":  "AI 個性",
         "ai_difficulty":   "AI 難度",
+        "difficulty_easy":   "簡單",
+        "difficulty_normal": "普通",
+        "difficulty_hard":   "困難",
         "no_saves":        "找不到存檔。",
         "save_required":   "玩家 1 名字為必填。",
         "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
@@ -411,6 +462,20 @@ _UI_STRINGS = {
         "org_first_seen":    "首次登場",
         "org_history":       "歷史沿革",
         "org_relations":     "關係",
+        "org_count":         "共記錄 **{n}** 個組織",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NPC — 已知角色（{n}）",
+        "no_npcs":           "尚未遭遇任何 NPC。隨著故事發展，NPC 將會自動記錄在此。",
+        "npc_affinity":      "好感度",
+        "npc_state_lbl":     "狀態",
+        "npc_health_lbl":    "健康",
+        "npc_goal_lbl":      "🎯 目標：",
+        "npc_aliases_lbl":   "代稱：",
+        "npc_bio_lbl":       "生平",
+        # Relation graph
+        "rel_count":         "共 **{n}** 條關係記錄",
+        "prologue_turn":     "開場白",
+        "turn_label":        "第 {n} 回合",
         # Rules tab
         "search_manual":     "🔍 搜尋手冊關鍵字",
         "search_manual_ph":  "輸入關鍵字，例如：attack、骰子、stealth…",
@@ -476,6 +541,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 AI操作",
         "ai_personality":  "AIの個性",
         "ai_difficulty":   "AIの難易度",
+        "difficulty_easy":   "簡単",
+        "difficulty_normal": "普通",
+        "difficulty_hard":   "難しい",
         "no_saves":        "セーブデータが見つかりません。",
         "save_required":   "プレイヤー1の名前は必須です。",
         "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
@@ -547,6 +615,20 @@ _UI_STRINGS = {
         "org_first_seen":    "初登場",
         "org_history":       "歴史",
         "org_relations":     "関係",
+        "org_count":         "**{n}** 件の組織を記録",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NPC — 既知のキャラクター（{n}）",
+        "no_npcs":           "まだNPCに遭遇していません。ストーリーが進むにつれ、NPCが自動的に記録されます。",
+        "npc_affinity":      "好感度",
+        "npc_state_lbl":     "状態",
+        "npc_health_lbl":    "健康",
+        "npc_goal_lbl":      "🎯 目標：",
+        "npc_aliases_lbl":   "別名：",
+        "npc_bio_lbl":       "経歴",
+        # Relation graph
+        "rel_count":         "**{n}** 件の関係を記録",
+        "prologue_turn":     "プロローグ",
+        "turn_label":        "ターン {n}",
         # Rules tab
         "search_manual":     "🔍 マニュアルを検索",
         "search_manual_ph":  "キーワードを入力（例：attack、ダイス、stealth）…",
@@ -612,6 +694,9 @@ _UI_STRINGS = {
         "ai_controlled":   "🤖 IA controlada",
         "ai_personality":  "Personalidad IA",
         "ai_difficulty":   "Dificultad IA",
+        "difficulty_easy":   "Fácil",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Difícil",
         "no_saves":        "No hay partidas guardadas.",
         "save_required":   "El nombre del Jugador 1 es obligatorio.",
         "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
@@ -683,6 +768,20 @@ _UI_STRINGS = {
         "org_first_seen":    "Primera aparición",
         "org_history":       "Historia",
         "org_relations":     "Relaciones",
+        "org_count":         "**{n}** organizaciones registradas",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NPC — Personajes conocidos ({n})",
+        "no_npcs":           "Aún no se ha encontrado ningún NPC. A medida que avance la historia, los NPCs se registrarán automáticamente.",
+        "npc_affinity":      "Afinidad",
+        "npc_state_lbl":     "Estado",
+        "npc_health_lbl":    "Salud",
+        "npc_goal_lbl":      "🎯 Objetivo:",
+        "npc_aliases_lbl":   "Alias:",
+        "npc_bio_lbl":       "Biografía",
+        # Relation graph
+        "rel_count":         "**{n}** relaciones registradas",
+        "prologue_turn":     "Prólogo",
+        "turn_label":        "Turno {n}",
         # Rules tab
         "search_manual":     "🔍 Buscar en el manual",
         "search_manual_ph":  "Ingresa palabras clave, ej.: ataque, dado, stealth…",
@@ -744,9 +843,13 @@ _UI_STRINGS = {
         "char_class":      "职业",
         "appearance":      "外貌描述",
         "personality":     "个性描述",
+        "gender":          "性别",
         "ai_controlled":   "🤖 AI 操控",
         "ai_personality":  "AI 个性",
         "ai_difficulty":   "AI 难度",
+        "difficulty_easy":   "简单",
+        "difficulty_normal": "普通",
+        "difficulty_hard":   "困难",
         "no_saves":        "找不到存档。",
         "save_required":   "存档名称与玩家 1 名字为必填。",
         "map_hint":        "🗺️ 大陆地图与角色肖像在开始游戏后生成。",
@@ -818,6 +921,20 @@ _UI_STRINGS = {
         "org_first_seen":    "首次登场",
         "org_history":       "历史沿革",
         "org_relations":     "关系",
+        "org_count":         "共记录 **{n}** 个组织",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NPC — 已知角色（{n}）",
+        "no_npcs":           "尚未遭遇任何 NPC。随着故事发展，NPC 将会自动记录在此。",
+        "npc_affinity":      "好感度",
+        "npc_state_lbl":     "状态",
+        "npc_health_lbl":    "健康",
+        "npc_goal_lbl":      "🎯 目标：",
+        "npc_aliases_lbl":   "代称：",
+        "npc_bio_lbl":       "生平",
+        # Relation graph
+        "rel_count":         "共 **{n}** 条关系记录",
+        "prologue_turn":     "开场白",
+        "turn_label":        "第 {n} 回合",
         # Rules tab
         "search_manual":     "🔍 搜索手册关键字",
         "search_manual_ph":  "输入关键字，例如：attack、骰子、stealth…",
@@ -879,9 +996,13 @@ _UI_STRINGS = {
         "char_class":      "직업",
         "appearance":      "외모 설명",
         "personality":     "성격 설명",
+        "gender":          "성별",
         "ai_controlled":   "🤖 AI 조종",
         "ai_personality":  "AI 개성",
         "ai_difficulty":   "AI 난이도",
+        "difficulty_easy":   "쉬움",
+        "difficulty_normal": "보통",
+        "difficulty_hard":   "어려움",
         "no_saves":        "저장 파일을 찾을 수 없습니다.",
         "save_required":   "저장 이름과 플레이어 1 이름은 필수입니다.",
         "map_hint":        "🗺️ 지도와 초상화는 게임 시작 후 생성됩니다.",
@@ -953,6 +1074,20 @@ _UI_STRINGS = {
         "org_first_seen":    "첫 등장",
         "org_history":       "역사",
         "org_relations":     "관계",
+        "org_count":         "**{n}**개 조직 기록됨",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NPC — 알려진 캐릭터 ({n})",
+        "no_npcs":           "아직 NPC를 만나지 못했습니다. 스토리가 진행되면 NPC가 자동으로 기록됩니다.",
+        "npc_affinity":      "호감도",
+        "npc_state_lbl":     "상태",
+        "npc_health_lbl":    "건강",
+        "npc_goal_lbl":      "🎯 목표:",
+        "npc_aliases_lbl":   "별칭:",
+        "npc_bio_lbl":       "약력",
+        # Relation graph
+        "rel_count":         "**{n}**개 관계 기록됨",
+        "prologue_turn":     "프롤로그",
+        "turn_label":        "{n}턴",
         # Rules tab
         "search_manual":     "🔍 매뉴얼 검색",
         "search_manual_ph":  "키워드 입력 (예: attack, 주사위, stealth)…",
@@ -1014,9 +1149,13 @@ _UI_STRINGS = {
         "char_class":      "Classe",
         "appearance":      "Apparence",
         "personality":     "Personnalité",
+        "gender":          "Genre",
         "ai_controlled":   "🤖 Contrôlé par IA",
         "ai_personality":  "Personnalité IA",
         "ai_difficulty":   "Difficulté IA",
+        "difficulty_easy":   "Facile",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Difficile",
         "no_saves":        "Aucune sauvegarde trouvée.",
         "save_required":   "Le nom de la sauvegarde et le nom du Joueur 1 sont obligatoires.",
         "map_hint":        "🗺️ La carte et les portraits sont générés après le début du jeu.",
@@ -1088,6 +1227,20 @@ _UI_STRINGS = {
         "org_first_seen":    "Première apparition",
         "org_history":       "Histoire",
         "org_relations":     "Relations",
+        "org_count":         "**{n}** organisation(s) enregistrée(s)",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 PNJ — Personnages connus ({n})",
+        "no_npcs":           "Aucun PNJ rencontré pour l'instant. Au fil de l'histoire, les PNJ seront automatiquement enregistrés ici.",
+        "npc_affinity":      "Affinité",
+        "npc_state_lbl":     "État",
+        "npc_health_lbl":    "Santé",
+        "npc_goal_lbl":      "🎯 Objectif :",
+        "npc_aliases_lbl":   "Alias :",
+        "npc_bio_lbl":       "Biographie",
+        # Relation graph
+        "rel_count":         "**{n}** relation(s) enregistrée(s)",
+        "prologue_turn":     "Prologue",
+        "turn_label":        "Tour {n}",
         # Rules tab
         "search_manual":     "🔍 Rechercher dans le manuel",
         "search_manual_ph":  "Entrez des mots-clés, ex. : attaque, dé, stealth…",
@@ -1149,9 +1302,13 @@ _UI_STRINGS = {
         "char_class":      "Klasse",
         "appearance":      "Aussehen",
         "personality":     "Persönlichkeit",
+        "gender":          "Geschlecht",
         "ai_controlled":   "🤖 KI-gesteuert",
         "ai_personality":  "KI-Persönlichkeit",
         "ai_difficulty":   "KI-Schwierigkeit",
+        "difficulty_easy":   "Leicht",
+        "difficulty_normal": "Normal",
+        "difficulty_hard":   "Schwer",
         "no_saves":        "Keine Spielstände gefunden.",
         "save_required":   "Speichername und Spieler-1-Name sind erforderlich.",
         "map_hint":        "🗺️ Karte und Porträts werden nach dem Spielstart generiert.",
@@ -1223,6 +1380,20 @@ _UI_STRINGS = {
         "org_first_seen":    "Erstmals erschienen",
         "org_history":       "Geschichte",
         "org_relations":     "Beziehungen",
+        "org_count":         "**{n}** Organisation(en) aufgezeichnet",
+        # NPC section
+        "npc_known":         "🧑‍🤝‍🧑 NSC — Bekannte Charaktere ({n})",
+        "no_npcs":           "Noch keine NSCs begegnet. Im Verlauf der Geschichte werden NSCs automatisch hier aufgezeichnet.",
+        "npc_affinity":      "Affinität",
+        "npc_state_lbl":     "Zustand",
+        "npc_health_lbl":    "Gesundheit",
+        "npc_goal_lbl":      "🎯 Ziel:",
+        "npc_aliases_lbl":   "Aliasse:",
+        "npc_bio_lbl":       "Biografie",
+        # Relation graph
+        "rel_count":         "**{n}** Beziehung(en) aufgezeichnet",
+        "prologue_turn":     "Prolog",
+        "turn_label":        "Runde {n}",
         # Rules tab
         "search_manual":     "🔍 Handbuch durchsuchen",
         "search_manual_ph":  "Stichwörter eingeben, z.B.: Angriff, Würfel, Stealth…",
@@ -1844,7 +2015,11 @@ def _player_config_fields(idx, key_prefix, ws=None):
 
     # Resolve localized pools
     lang = st.session_state.get('pref_language', 'English')
-    _lang_key_map = {'繁體中文': 'zh', '日本語': 'ja', 'Español': 'es'}
+    _lang_key_map = {
+        '繁體中文': 'zh', '简体中文': 'zh',
+        '日本語': 'ja', '한국어': 'ko',
+        'Français': 'fr', 'Deutsch': 'de', 'Español': 'es',
+    }
     lang_key = _lang_key_map.get(lang, 'en')
 
     def _pick_localized(field):
@@ -2053,7 +2228,6 @@ def main_menu():
         ws_idx    = st.selectbox(
             _t("universe"), range(len(config.WORLD_SETTINGS)),
             format_func=lambda i: ws_labels[i],
-            index=st.session_state.pref_world_idx,
             key="new_game_ws_select",
         )
         ws = config.WORLD_SETTINGS[ws_idx]
@@ -2075,8 +2249,10 @@ def main_menu():
 
         with st.form("new_game_form"):
             save_name  = st.text_input(_t("save_name"), key="ng_save_name")
+            _DIFF_KEYS = ["Easy", "Normal", "Hard"]
             difficulty = st.selectbox(
-                _t("difficulty"), ["Easy", "Normal", "Hard"],
+                _t("difficulty"), _DIFF_KEYS,
+                format_func=lambda d: _t(f"difficulty_{d.lower()}"),
                 key="ng_difficulty",
             )
             # Language is now set via the model/language expander in the sidebar;
@@ -2973,10 +3149,10 @@ def _render_characters_tab(party, state, active_char):
     # ── NPC Characters ───────────────────────────────────────────────
     rels = (state.relationships or {}) if state else {}
     npc_list = [(name, d) for name, d in rels.items() if isinstance(d, dict)]
-    st.subheader(f"🧑‍🤝‍🧑 NPC — 已知角色（{len(npc_list)}）")
+    st.subheader(_t('npc_known').format(n=len(npc_list)))
 
     if not npc_list:
-        st.caption("尚未遭遇任何 NPC。隨著故事發展，NPC 將會自動記錄在此。")
+        st.caption(_t('no_npcs'))
     else:
         for name, d in npc_list:
             proper   = d.get('proper_name', name)
@@ -3001,25 +3177,25 @@ def _render_characters_tab(party, state, active_char):
                 c1, c2, c3 = st.columns(3)
                 with c1:
                     st.markdown(
-                        f"**好感度** <span style='color:{aff_clr};font-size:1.4em;"
+                        f"**{_t('npc_affinity')}** <span style='color:{aff_clr};font-size:1.4em;"
                         f"font-weight:bold'>{affinity:+d}</span>",
                         unsafe_allow_html=True,
                     )
                 with c2:
-                    st.markdown(f"**狀態** {state_lbl or '—'}")
+                    st.markdown(f"**{_t('npc_state_lbl')}** {state_lbl or '—'}")
                 with c3:
-                    st.markdown(f"**健康** {health or '—'}")
+                    st.markdown(f"**{_t('npc_health_lbl')}** {health or '—'}")
 
                 if goal:
-                    st.caption(f"🎯 目標：{goal}")
+                    st.caption(f"{_t('npc_goal_lbl')} {goal}")
 
                 aliases = d.get('aliases') or []
                 if aliases:
-                    st.caption(f"代稱：{' · '.join(aliases)}")
+                    st.caption(f"{_t('npc_aliases_lbl')} {' · '.join(aliases)}")
 
                 bio = d.get('biography', '')
                 if bio:
-                    st.info(f"**生平** {bio}", icon="📜")
+                    st.info(f"**{_t('npc_bio_lbl')}** {bio}", icon="📜")
 
                 # Relations for this NPC
                 try:
@@ -3035,7 +3211,7 @@ def _render_characters_tab(party, state, active_char):
                             _lk[nn.lower()] = rels[nn].get('proper_name', nn) if isinstance(rels[nn], dict) else nn
                         for c in party:
                             _lk[c.name.lower()] = c.name
-                        with st.expander("🔗 關係", expanded=False):
+                        with st.expander(_t('relations_expander'), expanded=False):
                             _render_relation_rows(npc_rels, npc_key, _lk)
                 except Exception:
                     pass
@@ -3112,7 +3288,7 @@ def _render_relation_graph(state, party=None):
         st.info(_t('no_relations'))
         return
 
-    st.caption(f"共 **{len(all_relations)}** 條關係記錄")
+    st.caption(_t('rel_count').format(n=len(all_relations)))
     rel_types = sorted({r.relation_type for r in all_relations})
     sel_types = st.multiselect(_t('rel_type_filter'), rel_types, default=rel_types,
                                key="board_rel_type_filter")
@@ -3121,7 +3297,7 @@ def _render_relation_graph(state, party=None):
         src_label = label_lookup.get(rel.source_key, rel.source_key.title())
         tgt_label = label_lookup.get(rel.target_key, rel.target_key.title())
         colour    = _strength_colour(rel.strength)
-        turn_lbl  = "開場白" if rel.since_turn == 0 else f"第 {rel.since_turn} 回合"
+        turn_lbl  = _t('prologue_turn') if rel.since_turn == 0 else _t('turn_label').format(n=rel.since_turn)
         st.markdown(
             f"<div style='padding:5px 0;border-bottom:1px solid #1e1e2e'>"
             f"<b>{src_label}</b>"
@@ -3152,7 +3328,7 @@ def _render_relation_rows(relations, self_key, label_lookup):
         other_label = label_lookup.get(other_key, other_key.title())
         arrow       = "→" if is_outgoing else "←"
         colour      = _strength_colour(rel.strength)
-        turn_label  = "開場白" if rel.since_turn == 0 else f"第 {rel.since_turn} 回合"
+        turn_label  = _t('prologue_turn') if rel.since_turn == 0 else _t('turn_label').format(n=rel.since_turn)
         st.markdown(
             f"<div style='display:flex;align-items:baseline;gap:8px;"
             f"padding:4px 0;border-bottom:1px solid #1e1e2e'>"
@@ -3207,7 +3383,7 @@ def _render_organizations_tab(state):
                     or query in (o.get('current_leader') or '').lower()
                     or query in (o.get('headquarters') or '').lower()]
 
-    st.caption(f"共記錄 **{len(filtered)}** 個組織")
+    st.caption(_t('org_count').format(n=len(filtered)))
 
     for org in filtered:
         org_type = (org.get('type') or 'unknown').lower()
@@ -4024,7 +4200,7 @@ def _render_god_mode_tab(party, state):
                 st.write(f"**陣營傾向** {org.get('alignment') or '—'}")
             with info_cols[2]:
                 turn = org.get('first_seen_turn')
-                turn_lbl = "開場白" if turn == 0 else f"第 {turn} 回合" if turn is not None else '—'
+                turn_lbl = _t('prologue_turn') if turn == 0 else _t('turn_label').format(n=turn) if turn is not None else '—'
                 st.write(f"**首次登場** {turn_lbl}")
 
             if org.get('description'):

@@ -480,6 +480,12 @@ class EventManager:
                 _present_lower_set.add(npc_name.lower())
 
         # --- Step 7.5: Auto-register new NPCs from the scene ---
+        # Extract organizations from the narrative FIRST so their names are
+        # known before we filter characters_present and register NPCs.
+        # This mirrors the generate_prologue order and prevents org names from
+        # being accidentally registered as NPCs.
+        self._extract_and_register_organizations(narrative, current_state, world)
+
         # Filter out organization names that the LLM mistakenly placed in
         # characters_present — they belong in the organizations dict, not
         # relationships (NPC list).
@@ -582,8 +588,8 @@ class EventManager:
             event_id=event_id,
         )
 
-        # --- Step 10c: Extract organizations + relationships from this turn's narrative ---
-        self._extract_and_register_organizations(narrative, current_state, world)
+        # --- Step 10c: Extract entity relationships from this turn's narrative ---
+        # (Organization extraction already ran at Step 7.5 before NPC registration)
         self._extract_and_register_relations(narrative, current_state, world, party or [])
 
         return narrative, choices, turn_data, dice_result
@@ -656,6 +662,8 @@ class EventManager:
             "scene_type":              turn_data.get('scene_type', 'exploration'),
         })
         current_state.session_memory = memory
+        flag_modified(current_state, 'session_memory')
+        self.session.commit()
 
         return narrative, choices, turn_data
 
