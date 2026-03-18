@@ -11,11 +11,13 @@ _PROVIDER_STABILITY = 'stability'
 
 
 class ImageGenerator:
-    def __init__(self):
-        self.model_id    = config.IMAGE_MODEL_NAME
-        self.pipeline    = None
-        self._fail_count = 0   # consecutive generation failures
-        self._disabled   = False  # permanently off for this session after too many OOM
+    def __init__(self, on_vram_acquire=None, on_vram_release=None):
+        self.model_id        = config.IMAGE_MODEL_NAME
+        self.pipeline        = None
+        self._fail_count     = 0   # consecutive generation failures
+        self._disabled       = False  # permanently off for this session after too many OOM
+        self.on_vram_acquire = on_vram_acquire  # called before loading diffusers (e.g. unload LLM)
+        self.on_vram_release = on_vram_release  # called after unloading diffusers (e.g. reload LLM)
 
     # ------------------------------------------------------------------
     # Model switching
@@ -144,7 +146,11 @@ class ImageGenerator:
         guidance = preset.get('guidance', 0.0)
 
         if config.VRAM_STRATEGY == "B":
+            vram_acquired = False
             try:
+                if self.on_vram_acquire:
+                    self.on_vram_acquire()
+                    vram_acquired = True
                 self.load_model()
                 pipe_kwargs = dict(
                     prompt=prompt,
@@ -155,11 +161,15 @@ class ImageGenerator:
                     pipe_kwargs['negative_prompt'] = negative_prompt
                 image = self.pipeline(**pipe_kwargs).images[0]
                 self.unload_model()
+                if vram_acquired and self.on_vram_release:
+                    self.on_vram_release()
                 self._fail_count = 0
                 return image
 
             except torch.cuda.OutOfMemoryError:
                 self.unload_model()
+                if vram_acquired and self.on_vram_release:
+                    self.on_vram_release()
                 self._fail_count += 1
                 max_f = getattr(config, 'IMAGE_GEN_MAX_FAILURES', 3)
                 if self._fail_count >= max_f:
@@ -171,6 +181,8 @@ class ImageGenerator:
 
             except Exception as exc:
                 self.unload_model()
+                if vram_acquired and self.on_vram_release:
+                    self.on_vram_release()
                 self._fail_count += 1
                 max_f = getattr(config, 'IMAGE_GEN_MAX_FAILURES', 3)
                 if self._fail_count >= max_f:

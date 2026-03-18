@@ -123,7 +123,10 @@ if 'save_manager' not in st.session_state:
     st.session_state.save_manager    = SaveLoadManager()
     st.session_state.llm             = LLMClient()
     st.session_state.rag             = RAGSystem()
-    st.session_state.img_gen         = ImageGenerator()
+    st.session_state.img_gen         = ImageGenerator(
+        on_vram_acquire=lambda: st.session_state.llm.unload_from_vram(),
+        on_vram_release=lambda: st.session_state.llm.preload_to_vram(),
+    )
 
     st.session_state.current_session = None
     st.session_state.game_state      = None

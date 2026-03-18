@@ -978,7 +978,10 @@ class EventManager:
         for name, data in list((current_state.relationships or {}).items()):
             if back_fill >= 2:
                 break
-            if not isinstance(data, dict) or name in party_names or data.get('biography'):
+            if not isinstance(data, dict) or name in party_names:
+                continue
+            _NPC_IMPORTANT = ('biography', 'personality', 'traits', 'proper_name')
+            if all(data.get(f) for f in _NPC_IMPORTANT):
                 continue
             try:
                 profile = self.llm.generate_npc_profile(
@@ -1515,7 +1518,11 @@ class EventManager:
         for key, org in list((current_state.organizations or {}).items()):
             if back_fill >= 2:
                 break
-            if not isinstance(org, dict) or org.get('description') or org.get('history'):
+            if not isinstance(org, dict):
+                continue
+            _ORG_IMPORTANT = ('description', 'history', 'type', 'founder',
+                              'current_leader', 'headquarters')
+            if all(org.get(f) for f in _ORG_IMPORTANT):
                 continue
             try:
                 profile = self.llm.generate_organization_profile(

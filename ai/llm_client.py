@@ -252,6 +252,44 @@ class LLMClient:
         self.provider = provider or _detect_provider(model_id)
 
     # ------------------------------------------------------------------
+    # VRAM lifecycle — let external systems (e.g. ImageGenerator) ask
+    # Ollama to unload / reload the LLM so GPU memory can be reused.
+    # ------------------------------------------------------------------
+
+    def unload_from_vram(self):
+        if self.provider != 'ollama':
+            return
+        try:
+            ollama.generate(model=self.model, prompt="", keep_alive=0)
+            # Poll ollama.ps() to confirm the model is actually out of VRAM
+            import time
+            for _ in range(30):  # up to ~15 seconds
+                time.sleep(0.5)
+                try:
+                    running = ollama.ps()
+                    loaded = [m.model for m in running.models]
+                    if not any(n.startswith(self.model) for n in loaded):
+                        break
+                except Exception:
+                    time.sleep(1)
+                    break
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            print(f"[LLM] Unloaded {self.model} from VRAM")
+        except Exception as e:
+            print(f"[LLM] Failed to unload {self.model}: {e}")
+
+    def preload_to_vram(self):
+        if self.provider != 'ollama':
+            return
+        try:
+            ollama.generate(model=self.model, prompt="", keep_alive="5m")
+            print(f"[LLM] Preloaded {self.model} into VRAM")
+        except Exception as e:
+            print(f"[LLM] Failed to preload {self.model}: {e}")
+
+    # ------------------------------------------------------------------
     # Unified provider routing — _chat()
     # All public methods funnel through here so adding a new provider
     # requires changing only one place.
@@ -1340,6 +1378,44 @@ class LLMClient:
             print(f"NPC profile localization error: {e}")
         return profile
 
+    def _localize_org_profile(self, profile, language):
+        """
+        Translate organization profile text fields that are not in the target language.
+        Checks description, history, founder, current_leader, headquarters, alignment.
+        """
+        _ORG_TEXT_FIELDS = ['description', 'history', 'founder', 'current_leader',
+                            'headquarters', 'alignment', 'member_count']
+        wrong = [
+            f for f in _ORG_TEXT_FIELDS
+            if profile.get(f) and not _is_correct_language(profile[f], language)
+        ]
+        if not wrong:
+            return profile
+        sections = "\n".join(
+            f"##{f.upper()}##\n{profile[f]}" for f in wrong
+        )
+        prompt = (
+            f"Translate the following organization profile fields to {language}.\n"
+            "Keep each section header (e.g. ##DESCRIPTION##) exactly as-is.\n"
+            "Return ONLY the translated sections, nothing else.\n\n"
+            + sections
+        )
+        try:
+            raw = self._chat(
+                messages=[{"role": "user", "content": prompt}],
+                json_mode=False,
+            ).strip()
+            for f in wrong:
+                tag = f.upper()
+                m = re.search(rf'##{tag}##\s*(.*?)(?=##[A-Z_]+##|$)', raw, re.DOTALL)
+                if m:
+                    translated = m.group(1).strip()
+                    if translated:
+                        profile[f] = translated
+        except Exception as e:
+            print(f"Org profile localization error: {e}")
+        return profile
+
     # ------------------------------------------------------------------
     # NPC generative agent reactions  (Section 3.5)
     # ------------------------------------------------------------------
@@ -1567,12 +1643,14 @@ class LLMClient:
         """
         existing_hint = ""
         if existing_org and isinstance(existing_org, dict):
-            parts = []
-            for f in ('type', 'current_leader', 'headquarters', 'alignment'):
-                if existing_org.get(f):
-                    parts.append(f"{f}: {existing_org[f]}")
-            if parts:
-                existing_hint = "Known facts (do NOT contradict): " + ", ".join(parts) + "\n"
+            _all_fields = ('type', 'founder', 'current_leader', 'headquarters',
+                           'alignment', 'description', 'history', 'member_count')
+            known = [f"{f}: {existing_org[f]}" for f in _all_fields if existing_org.get(f)]
+            empty = [f for f in _all_fields if not existing_org.get(f)]
+            if known:
+                existing_hint += "Known facts (do NOT contradict): " + "; ".join(known) + "\n"
+            if empty:
+                existing_hint += "Fields that need generating (fill these): " + ", ".join(empty) + "\n"
 
         system_prompt = (
             "You are a TRPG game master creating a detailed organization profile.\n"
@@ -1602,7 +1680,7 @@ class LLMClient:
                 json_mode=True,
             )
             data = json.loads(_repair_json(raw))
-            return {
+            result = {
                 'name':           org_name,
                 'type':           str(data.get('type', '')).strip(),
                 'founder':        str(data.get('founder', '')).strip(),
@@ -1613,6 +1691,7 @@ class LLMClient:
                 'alignment':      str(data.get('alignment', '')).strip(),
                 'description':    str(data.get('description', '')).strip(),
             }
+            return self._localize_org_profile(result, language)
         except Exception as e:
             print(f"Organization profile generation error for {org_name!r}: {e}")
             return {'name': org_name}
