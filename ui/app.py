@@ -138,6 +138,7 @@ if 'save_manager' not in st.session_state:
     # Model switcher state
     st.session_state.active_model_id  = config.LLM_MODEL_NAME
     st.session_state.last_model_check = ""   # ISO date string
+    st.session_state.vram_busy        = False  # True while LLM/image VRAM is in use
 
     # Board state (world map + player token positions + manual dice)
     st.session_state.world_map        = {}   # loc_name → {row, col, icon}
@@ -1672,12 +1673,16 @@ def _render_image_model_selector():
             cur_idx = 1                                 # fall back to first real model
 
     with st.sidebar.expander("🖼️ Image Model", expanded=False):
+        _img_vram_busy = st.session_state.get('vram_busy', False)
+        if _img_vram_busy:
+            st.warning("🔒 VRAM 使用中，圖像模型切換已鎖定。\nVRAM in use — switching locked.")
         sel_idx = st.selectbox(
             "Model",
             range(len(all_ids)),
             index=cur_idx,
             format_func=lambda i: all_labels[i],
             key="img_model_selector",
+            disabled=_img_vram_busy,
         )
 
         # ---- Disabled sentinel -----------------------------------------------
@@ -1897,6 +1902,10 @@ def _render_model_switcher():
             st.sidebar.error(msg)
 
     with st.sidebar.expander(_t("llm_model_expander"), expanded=False):
+        _vram_busy = st.session_state.get('vram_busy', False)
+        if _vram_busy:
+            st.warning("🔒 VRAM 使用中，模型切換已鎖定。\nVRAM in use — switching locked.")
+
         # ── Step 1: size / tier category ────────────────────────────────────
         _SIZE_CATEGORIES = ["雲端", "8B", "14B", "32B"]
         _SIZE_LABELS = {
@@ -1918,6 +1927,7 @@ def _render_model_switcher():
             index=_cat_idx,
             format_func=lambda i: _SIZE_LABELS[_SIZE_CATEGORIES[i]],
             key="model_size_cat_sel",
+            disabled=_vram_busy,
         )
         sel_cat = _SIZE_CATEGORIES[sel_cat_idx]
 
@@ -1959,6 +1969,7 @@ def _render_model_switcher():
             index=cur_filtered_idx,
             format_func=_model_label,
             key="model_name_sel",
+            disabled=_vram_busy,
         )
         preset = filtered_presets[selected_filtered_idx]
         new_id = preset['id']
@@ -3000,7 +3011,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
     if st.session_state.history and st.session_state.history[-1]['role'] == 'dm':
         current_choices = st.session_state.history[-1].get('choices', [])
 
-    action_taken = None
+    # Restore action deferred from previous run (VRAM lock pattern)
+    action_taken = st.session_state.pop('_vram_pending_action', None)
 
     if active_char.hp <= 0:
         st.warning(f"**{active_char.name}** {_t('char_fallen')}")
@@ -3045,13 +3057,22 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
     # Process action
     if action_taken and active_char.hp > 0:
+        # Deferred VRAM lock: on first detection set busy flag and rerun so
+        # the sidebar renders with locked controls before we occupy VRAM.
+        if not st.session_state.get('vram_busy'):
+            st.session_state['_vram_pending_action'] = action_taken
+            st.session_state.vram_busy = True
+            st.rerun()
+
+        # vram_busy is already True (second run) — proceed with processing.
         st.session_state.history.append({
             "role":        "player",
             "actor":       f"{flag} {active_char.name}" if len(party) > 1 else "",
             "content":     action_taken,
             "all_choices": list(current_choices),   # records all branch options for strikethrough
         })
-        with st.spinner(f"📖 {dm_lbl} {_t('dm_thinking')}"):
+        try:
+          with st.spinner(f"📖 {dm_lbl} {_t('dm_thinking')}"):
             state.language = st.session_state.pref_language
             response, choices, turn_data, dice_result = (
                 st.session_state.event_manager.process_turn(
@@ -3132,6 +3153,9 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                 # Notify once when generation just got auto-disabled
                 if img_gen.is_disabled():
                     st.warning(_t('img_gen_disabled_auto'))
+
+        finally:
+            st.session_state.vram_busy = False
 
         st.session_state.history.append({
             "role":            "dm",
@@ -4029,11 +4053,15 @@ def game_loop():
         ws_id_p = getattr(state, 'world_setting', None) or 'dnd5e'
         tm_p    = config.get_world_setting(ws_id_p).get('term_map', {})
         dm_lbl_p = tm_p.get('dm_title', 'GM')
-        with st.spinner(f"📖 {dm_lbl_p} {_t('writing_prologue')}"):
-            state.language = st.session_state.pref_language
-            pro_narrative, pro_choices, pro_data = (
-                st.session_state.event_manager.generate_prologue(state, party)
-            )
+        st.session_state.vram_busy = True
+        try:
+            with st.spinner(f"📖 {dm_lbl_p} {_t('writing_prologue')}"):
+                state.language = st.session_state.pref_language
+                pro_narrative, pro_choices, pro_data = (
+                    st.session_state.event_manager.generate_prologue(state, party)
+                )
+        finally:
+            st.session_state.vram_busy = False
         st.session_state.history.append({
             "role":            "dm",
             "content":         pro_narrative,
@@ -4059,11 +4087,15 @@ def game_loop():
         flag        = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else '🤖'
         personality = active_ai.get('personality', 'tactical')
         p_name      = config.AI_PERSONALITIES.get(personality, {}).get('name', personality.title())
-        with st.spinner(f"🤖 {flag} {active_char.name} ({p_name}) is deciding…"):
-            state.language = st.session_state.pref_language
-            action_text, response, choices, turn_data, dice_result = (
-                st.session_state.event_manager.run_ai_turn(state, party)
-            )
+        st.session_state.vram_busy = True
+        try:
+            with st.spinner(f"🤖 {flag} {active_char.name} ({p_name}) is deciding…"):
+                state.language = st.session_state.pref_language
+                action_text, response, choices, turn_data, dice_result = (
+                    st.session_state.event_manager.run_ai_turn(state, party)
+                )
+        finally:
+            st.session_state.vram_busy = False
         if turn_data.get('location_change'):
             _move_player_on_map(active_char, turn_data['location_change'])
         st.session_state.history.append({
