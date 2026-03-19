@@ -1897,21 +1897,70 @@ def _render_model_switcher():
             st.sidebar.error(msg)
 
     with st.sidebar.expander(_t("llm_model_expander"), expanded=False):
-        preset_labels = [f"[{p['category']}] {p['name']}" for p in config.MODEL_PRESETS]
-        preset_ids    = [p['id'] for p in config.MODEL_PRESETS]
+        # ── Step 1: size / tier category ────────────────────────────────────
+        _SIZE_CATEGORIES = ["雲端", "8B", "14B", "32B"]
+        _SIZE_LABELS = {
+            "雲端": "☁️ 雲端 (Cloud)",
+            "8B":   "🏠 8B  (~6-8 GB VRAM)",
+            "14B":  "🏠 14B (~10 GB VRAM)",
+            "32B":  "🏠 32B (~20 GB VRAM)",
+        }
+        # Derive default category from the currently active model
+        _active_cat = _active_preset.get('size_category', '8B')
         try:
-            current_idx = preset_ids.index(st.session_state.active_model_id)
+            _cat_idx = _SIZE_CATEGORIES.index(_active_cat)
         except ValueError:
-            current_idx = 0
+            _cat_idx = 0
 
-        selected_idx = st.selectbox(
-            "LLM Model",
-            range(len(config.MODEL_PRESETS)),
-            index=current_idx,
-            format_func=lambda i: preset_labels[i],
-            key="model_selector",
+        sel_cat_idx = st.selectbox(
+            "類別 / Category",
+            range(len(_SIZE_CATEGORIES)),
+            index=_cat_idx,
+            format_func=lambda i: _SIZE_LABELS[_SIZE_CATEGORIES[i]],
+            key="model_size_cat_sel",
         )
-        preset = config.MODEL_PRESETS[selected_idx]
+        sel_cat = _SIZE_CATEGORIES[sel_cat_idx]
+
+        # ── Step 2: model name, filtered by chosen category ──────────────────
+        filtered_presets = [p for p in config.MODEL_PRESETS
+                            if p.get('size_category') == sel_cat]
+        if not filtered_presets:
+            filtered_presets = config.MODEL_PRESETS  # fallback
+
+        # Check which Ollama models are already downloaded locally
+        _installed_ollama = set()
+        try:
+            import ollama as _ollama_lib
+            for _m in _ollama_lib.list().models:
+                _installed_ollama.add(_m.model)
+                if ':' in _m.model:
+                    _installed_ollama.add(_m.model.split(':')[0])
+        except Exception:
+            pass
+
+        def _model_label(i):
+            p = filtered_presets[i]
+            if p.get('provider') == 'ollama':
+                pid = p['id']
+                inst = pid in _installed_ollama or pid.split(':')[0] in _installed_ollama
+                icon = "✅" if inst else "⬇️"
+                return f"{icon} {p['name']}"
+            return f"☁️ {p['name']}"
+
+        filtered_ids = [p['id'] for p in filtered_presets]
+        try:
+            cur_filtered_idx = filtered_ids.index(st.session_state.active_model_id)
+        except ValueError:
+            cur_filtered_idx = 0
+
+        selected_filtered_idx = st.selectbox(
+            "模型 / Model",
+            range(len(filtered_presets)),
+            index=cur_filtered_idx,
+            format_func=_model_label,
+            key="model_name_sel",
+        )
+        preset = filtered_presets[selected_filtered_idx]
         new_id = preset['id']
 
         st.caption(preset.get('description', ''))
@@ -1919,6 +1968,32 @@ def _render_model_switcher():
             st.markdown(f"✅ **Pros:** {preset['pros']}")
         if preset.get('cons'):
             st.markdown(f"⚠️ **Cons:** {preset['cons']}")
+
+        # ── Ollama: not installed → show download instructions ────────────────
+        if preset.get('provider') == 'ollama':
+            _pid = preset['id']
+            _installed = _pid in _installed_ollama or _pid.split(':')[0] in _installed_ollama
+            if not _installed:
+                st.warning(f"⬇️ **{preset['name']}** 尚未下載 (not downloaded)")
+                st.code(f"ollama pull {_pid}", language="bash")
+                st.caption(
+                    "在終端執行上述指令下載模型，完成後重新整理頁面即可使用。\n"
+                    "Run the command above in your terminal, then refresh this page."
+                )
+                if st.button(f"⬇️ 背景下載 {preset['name']}",
+                             key="llm_bg_download_btn",
+                             use_container_width=True):
+                    try:
+                        import subprocess
+                        subprocess.Popen(["ollama", "pull", _pid])
+                        st.success(
+                            "✅ 下載已在背景啟動，請稍候後重新整理頁面。\n"
+                            "Download started in background — refresh once complete."
+                        )
+                    except Exception as _dl_err:
+                        st.error(f"無法啟動下載 / Could not start download: {_dl_err}")
+                # Don't switch to a model that isn't downloaded yet
+                return
 
         env_key = preset.get('env_key')
         key_ready = True  # False if cloud model selected but key missing
@@ -1948,7 +2023,7 @@ def _render_model_switcher():
                         "The model will switch once a valid key is saved."
                     )
 
-        # Auto-switch when dropdown selection differs from active model
+        # Auto-switch when dropdown selection differs from active model.
         # Block switch for cloud models until the API key is actually present.
         if new_id != st.session_state.active_model_id:
             if key_ready:
@@ -1958,7 +2033,7 @@ def _render_model_switcher():
                 prefs['active_model_id'] = new_id
                 PersistenceManager.save_prefs(prefs)
                 st.success(f"✅ Switched to **{preset['name']}**")
-            # else: key not ready — don't switch; warning already shown above
+            # else: key not ready — warning already shown above
         else:
             if key_ready:
                 st.success(f"▶ **{preset['name']}** is active")
