@@ -138,6 +138,7 @@ if 'save_manager' not in st.session_state:
     # Model switcher state
     st.session_state.active_model_id  = config.LLM_MODEL_NAME
     st.session_state.last_model_check = ""   # ISO date string
+    st.session_state.vram_busy        = False  # True while LLM/image VRAM is in use
 
     # Board state (world map + player token positions + manual dice)
     st.session_state.world_map        = {}   # loc_name → {row, col, icon}
@@ -1672,12 +1673,16 @@ def _render_image_model_selector():
             cur_idx = 1                                 # fall back to first real model
 
     with st.sidebar.expander("🖼️ Image Model", expanded=False):
+        _img_vram_busy = st.session_state.get('vram_busy', False)
+        if _img_vram_busy:
+            st.warning("🔒 VRAM 使用中，圖像模型切換已鎖定。\nVRAM in use — switching locked.")
         sel_idx = st.selectbox(
             "Model",
             range(len(all_ids)),
             index=cur_idx,
             format_func=lambda i: all_labels[i],
             key="img_model_selector",
+            disabled=_img_vram_busy,
         )
 
         # ---- Disabled sentinel -----------------------------------------------
@@ -1897,21 +1902,76 @@ def _render_model_switcher():
             st.sidebar.error(msg)
 
     with st.sidebar.expander(_t("llm_model_expander"), expanded=False):
-        preset_labels = [f"[{p['category']}] {p['name']}" for p in config.MODEL_PRESETS]
-        preset_ids    = [p['id'] for p in config.MODEL_PRESETS]
-        try:
-            current_idx = preset_ids.index(st.session_state.active_model_id)
-        except ValueError:
-            current_idx = 0
+        _vram_busy = st.session_state.get('vram_busy', False)
+        if _vram_busy:
+            st.warning("🔒 VRAM 使用中，模型切換已鎖定。\nVRAM in use — switching locked.")
 
-        selected_idx = st.selectbox(
-            "LLM Model",
-            range(len(config.MODEL_PRESETS)),
-            index=current_idx,
-            format_func=lambda i: preset_labels[i],
-            key="model_selector",
+        # ── Step 1: size / tier category ────────────────────────────────────
+        _SIZE_CATEGORIES = ["雲端", "8B", "14B", "32B"]
+        _SIZE_LABELS = {
+            "雲端": "☁️ 雲端 (Cloud)",
+            "8B":   "🏠 8B  (~6-8 GB VRAM)",
+            "14B":  "🏠 14B (~10 GB VRAM)",
+            "32B":  "🏠 32B (~20 GB VRAM)",
+        }
+        # Derive default category from the currently active model
+        _active_cat = _active_preset.get('size_category', '8B')
+        try:
+            _cat_idx = _SIZE_CATEGORIES.index(_active_cat)
+        except ValueError:
+            _cat_idx = 0
+
+        sel_cat_idx = st.selectbox(
+            "類別 / Category",
+            range(len(_SIZE_CATEGORIES)),
+            index=_cat_idx,
+            format_func=lambda i: _SIZE_LABELS[_SIZE_CATEGORIES[i]],
+            key="model_size_cat_sel",
+            disabled=_vram_busy,
         )
-        preset = config.MODEL_PRESETS[selected_idx]
+        sel_cat = _SIZE_CATEGORIES[sel_cat_idx]
+
+        # ── Step 2: model name, filtered by chosen category ──────────────────
+        filtered_presets = [p for p in config.MODEL_PRESETS
+                            if p.get('size_category') == sel_cat]
+        if not filtered_presets:
+            filtered_presets = config.MODEL_PRESETS  # fallback
+
+        # Check which Ollama models are already downloaded locally
+        _installed_ollama = set()
+        try:
+            import ollama as _ollama_lib
+            for _m in _ollama_lib.list().models:
+                _installed_ollama.add(_m.model)
+                if ':' in _m.model:
+                    _installed_ollama.add(_m.model.split(':')[0])
+        except Exception:
+            pass
+
+        def _model_label(i):
+            p = filtered_presets[i]
+            if p.get('provider') == 'ollama':
+                pid = p['id']
+                inst = pid in _installed_ollama or pid.split(':')[0] in _installed_ollama
+                icon = "✅" if inst else "⬇️"
+                return f"{icon} {p['name']}"
+            return f"☁️ {p['name']}"
+
+        filtered_ids = [p['id'] for p in filtered_presets]
+        try:
+            cur_filtered_idx = filtered_ids.index(st.session_state.active_model_id)
+        except ValueError:
+            cur_filtered_idx = 0
+
+        selected_filtered_idx = st.selectbox(
+            "模型 / Model",
+            range(len(filtered_presets)),
+            index=cur_filtered_idx,
+            format_func=_model_label,
+            key="model_name_sel",
+            disabled=_vram_busy,
+        )
+        preset = filtered_presets[selected_filtered_idx]
         new_id = preset['id']
 
         st.caption(preset.get('description', ''))
@@ -1919,6 +1979,32 @@ def _render_model_switcher():
             st.markdown(f"✅ **Pros:** {preset['pros']}")
         if preset.get('cons'):
             st.markdown(f"⚠️ **Cons:** {preset['cons']}")
+
+        # ── Ollama: not installed → show download instructions ────────────────
+        if preset.get('provider') == 'ollama':
+            _pid = preset['id']
+            _installed = _pid in _installed_ollama or _pid.split(':')[0] in _installed_ollama
+            if not _installed:
+                st.warning(f"⬇️ **{preset['name']}** 尚未下載 (not downloaded)")
+                st.code(f"ollama pull {_pid}", language="bash")
+                st.caption(
+                    "在終端執行上述指令下載模型，完成後重新整理頁面即可使用。\n"
+                    "Run the command above in your terminal, then refresh this page."
+                )
+                if st.button(f"⬇️ 背景下載 {preset['name']}",
+                             key="llm_bg_download_btn",
+                             use_container_width=True):
+                    try:
+                        import subprocess
+                        subprocess.Popen(["ollama", "pull", _pid])
+                        st.success(
+                            "✅ 下載已在背景啟動，請稍候後重新整理頁面。\n"
+                            "Download started in background — refresh once complete."
+                        )
+                    except Exception as _dl_err:
+                        st.error(f"無法啟動下載 / Could not start download: {_dl_err}")
+                # Don't switch to a model that isn't downloaded yet
+                return
 
         env_key = preset.get('env_key')
         key_ready = True  # False if cloud model selected but key missing
@@ -1948,7 +2034,7 @@ def _render_model_switcher():
                         "The model will switch once a valid key is saved."
                     )
 
-        # Auto-switch when dropdown selection differs from active model
+        # Auto-switch when dropdown selection differs from active model.
         # Block switch for cloud models until the API key is actually present.
         if new_id != st.session_state.active_model_id:
             if key_ready:
@@ -1958,7 +2044,7 @@ def _render_model_switcher():
                 prefs['active_model_id'] = new_id
                 PersistenceManager.save_prefs(prefs)
                 st.success(f"✅ Switched to **{preset['name']}**")
-            # else: key not ready — don't switch; warning already shown above
+            # else: key not ready — warning already shown above
         else:
             if key_ready:
                 st.success(f"▶ **{preset['name']}** is active")
@@ -2925,7 +3011,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
     if st.session_state.history and st.session_state.history[-1]['role'] == 'dm':
         current_choices = st.session_state.history[-1].get('choices', [])
 
-    action_taken = None
+    # Restore action deferred from previous run (VRAM lock pattern)
+    action_taken = st.session_state.pop('_vram_pending_action', None)
 
     if active_char.hp <= 0:
         st.warning(f"**{active_char.name}** {_t('char_fallen')}")
@@ -2970,13 +3057,22 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
     # Process action
     if action_taken and active_char.hp > 0:
+        # Deferred VRAM lock: on first detection set busy flag and rerun so
+        # the sidebar renders with locked controls before we occupy VRAM.
+        if not st.session_state.get('vram_busy'):
+            st.session_state['_vram_pending_action'] = action_taken
+            st.session_state.vram_busy = True
+            st.rerun()
+
+        # vram_busy is already True (second run) — proceed with processing.
         st.session_state.history.append({
             "role":        "player",
             "actor":       f"{flag} {active_char.name}" if len(party) > 1 else "",
             "content":     action_taken,
             "all_choices": list(current_choices),   # records all branch options for strikethrough
         })
-        with st.spinner(f"📖 {dm_lbl} {_t('dm_thinking')}"):
+        try:
+          with st.spinner(f"📖 {dm_lbl} {_t('dm_thinking')}"):
             state.language = st.session_state.pref_language
             response, choices, turn_data, dice_result = (
                 st.session_state.event_manager.process_turn(
@@ -3057,6 +3153,9 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                 # Notify once when generation just got auto-disabled
                 if img_gen.is_disabled():
                     st.warning(_t('img_gen_disabled_auto'))
+
+        finally:
+            st.session_state.vram_busy = False
 
         st.session_state.history.append({
             "role":            "dm",
@@ -3954,11 +4053,15 @@ def game_loop():
         ws_id_p = getattr(state, 'world_setting', None) or 'dnd5e'
         tm_p    = config.get_world_setting(ws_id_p).get('term_map', {})
         dm_lbl_p = tm_p.get('dm_title', 'GM')
-        with st.spinner(f"📖 {dm_lbl_p} {_t('writing_prologue')}"):
-            state.language = st.session_state.pref_language
-            pro_narrative, pro_choices, pro_data = (
-                st.session_state.event_manager.generate_prologue(state, party)
-            )
+        st.session_state.vram_busy = True
+        try:
+            with st.spinner(f"📖 {dm_lbl_p} {_t('writing_prologue')}"):
+                state.language = st.session_state.pref_language
+                pro_narrative, pro_choices, pro_data = (
+                    st.session_state.event_manager.generate_prologue(state, party)
+                )
+        finally:
+            st.session_state.vram_busy = False
         st.session_state.history.append({
             "role":            "dm",
             "content":         pro_narrative,
@@ -3984,11 +4087,15 @@ def game_loop():
         flag        = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else '🤖'
         personality = active_ai.get('personality', 'tactical')
         p_name      = config.AI_PERSONALITIES.get(personality, {}).get('name', personality.title())
-        with st.spinner(f"🤖 {flag} {active_char.name} ({p_name}) is deciding…"):
-            state.language = st.session_state.pref_language
-            action_text, response, choices, turn_data, dice_result = (
-                st.session_state.event_manager.run_ai_turn(state, party)
-            )
+        st.session_state.vram_busy = True
+        try:
+            with st.spinner(f"🤖 {flag} {active_char.name} ({p_name}) is deciding…"):
+                state.language = st.session_state.pref_language
+                action_text, response, choices, turn_data, dice_result = (
+                    st.session_state.event_manager.run_ai_turn(state, party)
+                )
+        finally:
+            st.session_state.vram_busy = False
         if turn_data.get('location_change'):
             _move_player_on_map(active_char, turn_data['location_change'])
         st.session_state.history.append({
