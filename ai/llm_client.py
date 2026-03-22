@@ -1,8 +1,20 @@
 import json
 import os
 import re
+import sys
+from pathlib import Path
 import ollama
 from engine.config import config
+
+# ── API 用量追蹤 ───────────────────────────────────────────────────────────────
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from api_tracker import check_quota, record_call as _record_api
+    _API_TRACKER = True
+except ImportError:
+    _API_TRACKER = False
+    def check_quota(api, **kw): return True
+    def _record_api(api): pass
 
 
 _PLACEHOLDER_RE = re.compile(
@@ -435,6 +447,8 @@ class LLMClient:
         if not conversation:
             conversation = [{'role': 'user', 'parts': ['Continue.']}]
 
+        check_quota(self.model)
+        _record_api(self.model)
         response = model.generate_content(conversation)
         return response.text
 

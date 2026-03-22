@@ -150,6 +150,8 @@ if 'save_manager' not in st.session_state:
     st.session_state.custom_img_suffix = ''             # user override suffix
     st.session_state.continent_map    = None            # PIL Image | None
     st.session_state.portraits        = {}              # {char_id: PIL Image}
+    st.session_state.ng_continent_map = None            # PIL Image | None — pre-game
+    st.session_state.ng_portraits     = {}              # {slot_idx: PIL Image} — pre-game
 
     # Load persistent user preferences
     prefs = PersistenceManager.load_prefs()
@@ -245,7 +247,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "Hard",
         "no_saves":        "No saves found.",
         "save_required":   "Player 1 Name is required.",
-        "map_hint":        "🗺️ Map and portraits are generated after starting the game.",
+        "map_hint":        "🗺️ Optionally pre-generate images below before starting.",
+        "creation_preview_hdr": "🎨 Pre-generate Images (Optional)",
+        "creation_portrait_gen": "🎨 Generate {name}'s Portrait",
+        "creation_portrait_regen": "🔄 Regenerate",
         "dup_title":       "⚠️ Save Name Conflict",
         "dup_warning":     "already exists. Choose an action:",
         "dup_overwrite":   "🗑️ Overwrite",
@@ -399,7 +404,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "困難",
         "no_saves":        "找不到存檔。",
         "save_required":   "玩家 1 名字為必填。",
-        "map_hint":        "🗺️ 大陸地圖與角色肖像在開始遊戲後生成。",
+        "map_hint":        "🗺️ 可在下方預先生成圖像，也可開始遊戲後再生成。",
+        "creation_preview_hdr": "🎨 預先生成圖像（選填）",
+        "creation_portrait_gen": "🎨 生成 {name} 肖像",
+        "creation_portrait_regen": "🔄 重新生成",
         "dup_title":       "⚠️ 存檔名稱衝突",
         "dup_warning":     "已存在。請選擇操作：",
         "dup_overwrite":   "🗑️ 覆蓋",
@@ -552,7 +560,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "難しい",
         "no_saves":        "セーブデータが見つかりません。",
         "save_required":   "プレイヤー1の名前は必須です。",
-        "map_hint":        "🗺️ マップとポートレートはゲーム開始後に生成されます。",
+        "map_hint":        "🗺️ 以下でオプションとして画像を事前生成できます。",
+        "creation_preview_hdr": "🎨 画像を事前生成（任意）",
+        "creation_portrait_gen": "🎨 {name} のポートレートを生成",
+        "creation_portrait_regen": "🔄 再生成",
         "dup_title":       "⚠️ セーブ名の競合",
         "dup_warning":     "はすでに存在します。操作を選択してください：",
         "dup_overwrite":   "🗑️ 上書き",
@@ -705,7 +716,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "Difícil",
         "no_saves":        "No hay partidas guardadas.",
         "save_required":   "El nombre del Jugador 1 es obligatorio.",
-        "map_hint":        "🗺️ El mapa y retratos se generan al iniciar el juego.",
+        "map_hint":        "🗺️ Opcionalmente genera imágenes abajo antes de comenzar.",
+        "creation_preview_hdr": "🎨 Pre-generar imágenes (opcional)",
+        "creation_portrait_gen": "🎨 Generar retrato de {name}",
+        "creation_portrait_regen": "🔄 Regenerar",
         "dup_title":       "⚠️ Conflicto de nombre",
         "dup_warning":     "ya existe. Elige una acción:",
         "dup_overwrite":   "🗑️ Sobreescribir",
@@ -859,7 +873,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "困难",
         "no_saves":        "找不到存档。",
         "save_required":   "存档名称与玩家 1 名字为必填。",
-        "map_hint":        "🗺️ 大陆地图与角色肖像在开始游戏后生成。",
+        "map_hint":        "🗺️ 可在下方预先生成图像，也可开始游戏后再生成。",
+        "creation_preview_hdr": "🎨 预先生成图像（选填）",
+        "creation_portrait_gen": "🎨 生成 {name} 肖像",
+        "creation_portrait_regen": "🔄 重新生成",
         "dup_title":       "⚠️ 存档名称冲突",
         "dup_warning":     "已存在。请选择操作：",
         "dup_overwrite":   "🗑️ 覆盖",
@@ -1012,7 +1029,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "어려움",
         "no_saves":        "저장 파일을 찾을 수 없습니다.",
         "save_required":   "저장 이름과 플레이어 1 이름은 필수입니다.",
-        "map_hint":        "🗺️ 지도와 초상화는 게임 시작 후 생성됩니다.",
+        "map_hint":        "🗺️ 아래에서 선택적으로 이미지를 미리 생성할 수 있습니다.",
+        "creation_preview_hdr": "🎨 이미지 미리 생성 (선택 사항)",
+        "creation_portrait_gen": "🎨 {name} 초상화 생성",
+        "creation_portrait_regen": "🔄 다시 생성",
         "dup_title":       "⚠️ 저장 이름 충돌",
         "dup_warning":     "이(가) 이미 존재합니다. 작업을 선택하세요:",
         "dup_overwrite":   "🗑️ 덮어쓰기",
@@ -1165,7 +1185,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "Difficile",
         "no_saves":        "Aucune sauvegarde trouvée.",
         "save_required":   "Le nom de la sauvegarde et le nom du Joueur 1 sont obligatoires.",
-        "map_hint":        "🗺️ La carte et les portraits sont générés après le début du jeu.",
+        "map_hint":        "🗺️ Générez optionnellement des images ci-dessous avant de commencer.",
+        "creation_preview_hdr": "🎨 Pré-générer des images (optionnel)",
+        "creation_portrait_gen": "🎨 Générer le portrait de {name}",
+        "creation_portrait_regen": "🔄 Régénérer",
         "dup_title":       "⚠️ Conflit de nom de sauvegarde",
         "dup_warning":     "existe déjà. Choisissez une action :",
         "dup_overwrite":   "🗑️ Écraser",
@@ -1318,7 +1341,10 @@ _UI_STRINGS = {
         "difficulty_hard":   "Schwer",
         "no_saves":        "Keine Spielstände gefunden.",
         "save_required":   "Speichername und Spieler-1-Name sind erforderlich.",
-        "map_hint":        "🗺️ Karte und Porträts werden nach dem Spielstart generiert.",
+        "map_hint":        "🗺️ Optional Bilder unten vor dem Start vorerzeugen.",
+        "creation_preview_hdr": "🎨 Bilder vorerzeugen (optional)",
+        "creation_portrait_gen": "🎨 Porträt von {name} generieren",
+        "creation_portrait_regen": "🔄 Neu generieren",
         "dup_title":       "⚠️ Speichernamenskonflikt",
         "dup_warning":     "existiert bereits. Wählen Sie eine Aktion:",
         "dup_overwrite":   "🗑️ Überschreiben",
@@ -2492,8 +2518,30 @@ def main_menu():
                         # Store image style selection for this session
                         st.session_state.image_style       = _style_keys[img_style_idx]
                         st.session_state.custom_img_suffix = custom_img_suffix.strip()
-                        st.session_state.continent_map     = None
-                        st.session_state.portraits         = {}
+                        # Carry over images pre-generated during character creation.
+                        # ng_portraits is keyed by slot index; remap to char id now that
+                        # the party has been created by create_new_game().
+                        _ng_map   = st.session_state.get('ng_continent_map')
+                        _ng_ports = st.session_state.get('ng_portraits', {})
+                        _portraits = {}
+                        for _pi, _pc in enumerate(party):
+                            if _pi in _ng_ports:
+                                _portraits[_pc.id] = _ng_ports[_pi]
+                        st.session_state.continent_map     = _ng_map
+                        st.session_state.portraits         = _portraits
+                        st.session_state.ng_continent_map  = None
+                        st.session_state.ng_portraits      = {}
+                        # Persist carried-over images to disk under the new save name
+                        try:
+                            from engine.story_saver import save_image_with_text
+                            if _ng_map:
+                                save_image_with_text(save_name, _ng_map, ws.get('name', ''), 0, 'map')
+                            for _pi, _pc in enumerate(party):
+                                if _pi in _ng_ports:
+                                    _safe = _pc.name.lower().replace(' ', '_')[:20]
+                                    save_image_with_text(save_name, _ng_ports[_pi], _pc.appearance or '', 0, f'portrait_{_safe}')
+                        except Exception as _e:
+                            print(f"[Creation] Failed to persist pre-generated images: {_e}")
 
                         # Save preferences — includes per-slot race/class/app/per
                         # (name excluded deliberately — user re-enters each session)
@@ -2552,6 +2600,8 @@ def main_menu():
                             'custom_img_suffix': custom_img_suffix.strip()
                         }
                         st.rerun()
+
+        _render_creation_image_preview(ws)
 
     with col2:
         st.header(_t("load_game"))
@@ -3931,6 +3981,114 @@ def _render_image_style_switcher():
 # ---------------------------------------------------------------------------
 # Image generation helpers
 # ---------------------------------------------------------------------------
+
+def _render_creation_image_preview(ws):
+    # Portrait + map pre-generation panel shown during character creation.
+    # Placed outside st.form() so buttons can trigger reruns independently.
+    # Generated images are stored in ng_portraits / ng_continent_map and
+    # carried into portraits / continent_map when the game starts.
+    img_gen = st.session_state.get('img_gen')
+    if not img_gen or not _img_enabled():
+        return
+
+    st.markdown("---")
+    st.markdown(f"**{_t('creation_preview_hdr')}**")
+
+    style_keys = list(IMAGE_STYLES.keys())
+    raw_idx    = st.session_state.get('ng_img_style', 0)
+    img_style  = style_keys[raw_idx] if isinstance(raw_idx, int) and raw_idx < len(style_keys) else 'fantasy_art'
+    custom_suf = st.session_state.get('new_game_custom_img', '')
+
+    # ── Continent Map ────────────────────────────────────────────────────
+    map_col, _gap = st.columns([1, 2])
+    with map_col:
+        ng_map = st.session_state.get('ng_continent_map')
+        if ng_map:
+            st.image(ng_map, use_container_width=True)
+            if st.button(_t('regen_map'), key="ng_regen_map", use_container_width=True):
+                st.session_state.ng_continent_map = None
+                st.rerun()
+        else:
+            if img_gen.can_generate_safely() and not img_gen.is_disabled():
+                if st.button(_t('gen_map'), key="ng_gen_map", use_container_width=True):
+                    with st.spinner("🎨..."):
+                        prompt = build_map_prompt(ws, img_style, custom_suf)
+                        neg    = get_map_negative_prompt(img_style)
+                        st.session_state.vram_busy = True
+                        try:
+                            _img = img_gen.generate_image(prompt, negative_prompt=neg)
+                        finally:
+                            st.session_state.vram_busy = False
+                        if _img:
+                            st.session_state.ng_continent_map = _img
+                            st.rerun()
+            else:
+                st.caption(_t('img_gen_vram_warn'))
+
+    # ── Character Portraits ──────────────────────────────────────────────
+    num_players = st.session_state.get('ng_num_players', 1)
+    for i in range(num_players):
+        is_ai = st.session_state.get(f'ng_is_ai_{i}', False)
+        if is_ai:
+            continue
+
+        _name       = st.session_state.get(f'ng_name_{i}', '').strip() or f'Hero {i+1}'
+        _race       = st.session_state.get(f'ng_race_{i}', 'Human')
+        _cls        = st.session_state.get(f'ng_class_{i}', 'Warrior')
+        _app        = st.session_state.get(f'ng_app_{i}', '')
+        _mbti_key   = st.session_state.get(f'ng_mbti_{i}', '')
+        _personality = config.MBTI_DATABASE.get(_mbti_key, {}).get('en', '') if _mbti_key else ''
+        _gender     = st.session_state.get(f'ng_gender_{i}', 'Male')
+
+        # Build a minimal char-like object for build_portrait_prompt
+        class _FC:
+            pass
+        _fc             = _FC()
+        _fc.name        = _name
+        _fc.race        = _race
+        _fc.char_class  = _cls
+        _fc.appearance  = _app
+        _fc.personality = _personality
+        _fc.gender      = _gender
+
+        st.caption(f"🎭 **{_name}** — {_race} / {_cls}")
+        _btn_col, _img_col = st.columns([1, 1])
+        _ng_ports = st.session_state.get('ng_portraits', {})
+
+        with _btn_col:
+            if _ng_ports.get(i):
+                if st.button(_t('creation_portrait_regen'), key=f"ng_regen_p_{i}",
+                             use_container_width=True):
+                    _p = dict(st.session_state.get('ng_portraits', {}))
+                    _p.pop(i, None)
+                    st.session_state.ng_portraits = _p
+                    st.rerun()
+            else:
+                if img_gen.can_generate_safely() and not img_gen.is_disabled():
+                    if st.button(
+                        _t('creation_portrait_gen').format(name=_name),
+                        key=f"ng_gen_p_{i}", use_container_width=True,
+                    ):
+                        with st.spinner(f"🎨 {_name}..."):
+                            _prompt = build_portrait_prompt(_fc, ws, img_style, custom_suf)
+                            _neg    = get_portrait_negative_prompt(img_style)
+                            st.session_state.vram_busy = True
+                            try:
+                                _img = img_gen.generate_image(_prompt, negative_prompt=_neg)
+                            finally:
+                                st.session_state.vram_busy = False
+                            if _img:
+                                _p = dict(st.session_state.get('ng_portraits', {}))
+                                _p[i] = _img
+                                st.session_state.ng_portraits = _p
+                                st.rerun()
+                else:
+                    st.caption(_t('img_gen_vram_warn'))
+
+        with _img_col:
+            if _ng_ports.get(i):
+                st.image(_ng_ports[i], use_container_width=True)
+
 
 def _generate_continent_map(ws):
     """Generate and cache the continent map for the current world setting."""

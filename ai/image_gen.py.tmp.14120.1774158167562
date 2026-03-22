@@ -89,18 +89,17 @@ class ImageGenerator:
             return
         if self.pipeline is None:
             print(f"[ImageGen] Loading {self.model_id} into VRAM…")
-            # Lazy import — use DiffusionPipeline instead of AutoPipelineForText2Image
-            # to avoid auto_pipeline.py which eagerly imports all pipelines and breaks
-            # on transformers 5.x (HunyuanDiT requires MT5Tokenizer which was removed).
-            from diffusers import DiffusionPipeline  # noqa: PLC0415
+            # Lazy import — diffusers has version-dependent logger init bugs that
+            # crash the whole app at import time; importing here keeps startup safe.
+            from diffusers import AutoPipelineForText2Image  # noqa: PLC0415
             preset = self._preset()
             # Some models don't ship a fp16 variant — fall back to standard load
             try:
-                self.pipeline = DiffusionPipeline.from_pretrained(
+                self.pipeline = AutoPipelineForText2Image.from_pretrained(
                     self.model_id, torch_dtype=torch.float16, variant="fp16"
                 )
             except Exception:
-                self.pipeline = DiffusionPipeline.from_pretrained(
+                self.pipeline = AutoPipelineForText2Image.from_pretrained(
                     self.model_id, torch_dtype=torch.float16
                 )
             self.pipeline.enable_model_cpu_offload()
