@@ -81,3 +81,57 @@ class CharacterLogic:
         if atk_mod >= 0:
             return f"{base_dice}+{atk_mod}"
         return f"{base_dice}{atk_mod}"   # atk_mod is already negative
+
+    def get_class_abilities(self):
+        """Return the ability definitions available to this character's class."""
+        from engine.combat import CLASS_ABILITIES
+        char_class = (self.model.char_class or 'warrior').lower().strip()
+        return CLASS_ABILITIES.get(char_class, {})
+
+    def can_use_ability(self, ability_key, used_abilities=None):
+        """
+        Check whether this character can use the named ability.
+        used_abilities — set of ability keys already used this encounter
+        (once_per_combat restriction).
+        """
+        from engine.combat import CLASS_ABILITIES
+        char_class = (self.model.char_class or 'warrior').lower().strip()
+        ability = CLASS_ABILITIES.get(char_class, {}).get(ability_key)
+        if ability is None:
+            return False
+        if ability.get('once_per_combat') and used_abilities and ability_key in used_abilities:
+            return False
+        if ability.get('mp_cost', 0) > self.model.mp:
+            return False
+        return True
+
+    def apply_def_bonus(self, bonus, current_state):
+        """
+        Store a temporary DEF bonus (e.g. Arcane Shield) in the player's
+        status buffer so it can be consumed on the next incoming hit.
+        """
+        known = dict(current_state.known_entities or {})
+        buffs = list(known.get('_player_buffs', []))
+        # Remove any existing arcane_shield buff before adding a fresh one
+        buffs = [b for b in buffs if b.get('key') != '_arcane_shield']
+        buffs.append({'key': '_arcane_shield', 'def_bonus': bonus, 'turns_remaining': 1})
+        known['_player_buffs'] = buffs
+        current_state.known_entities = known
+
+    def consume_def_bonus(self, current_state):
+        """
+        Pop the temporary DEF bonus (Arcane Shield) if present.
+        Returns the bonus value (0 if none).
+        """
+        known = dict(current_state.known_entities or {})
+        buffs = list(known.get('_player_buffs', []))
+        bonus = 0
+        new_buffs = []
+        for b in buffs:
+            if b.get('key') == '_arcane_shield':
+                bonus += b.get('def_bonus', 0)
+            else:
+                new_buffs.append(b)
+        known['_player_buffs'] = new_buffs
+        current_state.known_entities = known
+        return bonus

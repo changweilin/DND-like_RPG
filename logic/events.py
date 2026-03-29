@@ -12,6 +12,8 @@ from engine.intent_parser import (
     get_entity_base_stats,
     calculate_affinity_delta,
 )
+from engine.combat import CombatEngine, STATUS_EFFECTS
+from data.monsters import get_monster_by_name, get_special_ability
 
 # Rule engine constants for _calculate_mechanics()
 _MP_COST_TABLE = {
@@ -241,10 +243,13 @@ class EventManager:
     """
 
     def __init__(self, llm_client, rag_system, db_session):
-        self.llm  = llm_client
-        self.rag  = rag_system
+        self.llm     = llm_client
+        self.rag     = rag_system
         self.session = db_session
-        self.dice = DiceRoller()
+        self.dice    = DiceRoller()
+        self.combat  = CombatEngine(self.dice)
+        # Track once-per-combat ability usage per game-session (cleared on new combat)
+        self._used_abilities = set()
 
     # ------------------------------------------------------------------
     # Public API
@@ -272,6 +277,13 @@ class EventManager:
         if (current_state.turn_count or 0) == 0 and not self.rag.world_lore_seeded():
             self._seed_world_lore(current_state)
 
+        # --- Step 2.5: Tick player status effects at turn start ---
+        player_status_tick = self.combat.tick_player_status_effects(current_state)
+        if player_status_tick.get('damage', 0) > 0:
+            char_logic.take_damage(player_status_tick['damage'])
+        flag_modified(current_state, 'known_entities')
+        self.session.commit()
+
         # --- Step 3: Parse intent — rule engine first, LLM fallback ---
         # Rule engine handles clear keyword patterns (attack, magic, stealth, social …)
         # without an LLM call.  Ambiguous or complex inputs fall back to the LLM's
@@ -280,6 +292,7 @@ class EventManager:
             player_action,
             known_entities=current_state.known_entities or {},
             difficulty=current_state.difficulty or 'Normal',
+            char_class=character.char_class,
         )
         if intent is None:
             game_context_summary = (
@@ -290,6 +303,11 @@ class EventManager:
             )
             intent = self.llm.parse_intent(player_action, game_context_summary)
 
+        # Ensure class_ability key is always present (LLM path may omit it)
+        if 'class_ability' not in intent:
+            from engine.combat import detect_class_ability
+            intent['class_ability'] = detect_class_ability(player_action, character.char_class)
+
         # --- Step 4: Dynamic entity stat block (Infinite Monster Engine) ---
         target = intent.get('target', '').strip()
         if target and not self.rag.entity_stat_block_exists(target):
@@ -298,11 +316,56 @@ class EventManager:
         # --- Step 5: Combat rule engine (Section 3.3) ---
         # Fully deterministic: attack roll → hit/miss → damage roll → net damage.
         # The LLM is never asked to adjudicate combat — it only narrates the result.
-        combat_result = None
+        combat_result  = None
+        utility_result = None
+        class_ability  = intent.get('class_ability')
+
         if intent.get('action_type') == 'attack' and target:
-            combat_result = self._resolve_combat(character, char_logic, target, current_state)
+            combat_result = self.combat.resolve_attack(
+                character, char_logic, target, current_state,
+                class_ability_key=class_ability,
+            )
             if combat_result['hit'] and combat_result['net_damage'] > 0:
                 self._apply_combat_damage_to_entity(target, combat_result['net_damage'], current_state)
+            # Apply status to target if ability triggered one
+            if combat_result.get('status_applied') and combat_result['hit']:
+                self.combat.apply_status_to_entity(
+                    target.lower(), combat_result['status_applied'], current_state
+                )
+                flag_modified(current_state, 'known_entities')
+                self.session.commit()
+            # Handle AoE: apply damage to all other living enemies
+            if combat_result.get('ability_aoe'):
+                known = current_state.known_entities or {}
+                aoe_targets = []
+                for k, e in known.items():
+                    if k.startswith('_') or k == target.lower():
+                        continue
+                    if e.get('alive', True):
+                        self._apply_combat_damage_to_entity(k, combat_result['net_damage'], current_state)
+                        aoe_targets.append(k)
+                combat_result['aoe_targets'] = aoe_targets
+
+            # Consume once-per-combat abilities
+            if class_ability:
+                from engine.combat import get_ability_definition
+                adef = get_ability_definition(character.char_class, class_ability)
+                if adef and adef.get('once_per_combat'):
+                    self._used_abilities.add(class_ability)
+
+        elif intent.get('action_type') in ('magic', 'direct_action') and class_ability:
+            # Utility ability (heal, shield, turn undead, evasion, etc.)
+            from engine.combat import get_ability_definition
+            adef = get_ability_definition(character.char_class, class_ability)
+            if adef and not char_logic.can_use_ability(class_ability, self._used_abilities):
+                utility_result = {'error': 'Cannot use ability', 'ability_key': class_ability}
+            elif adef and (adef.get('heal_dice') or adef.get('def_bonus')
+                           or adef.get('affects_undead_only') or adef.get('damage_reduction')):
+                utility_result = self.combat.resolve_utility_ability(
+                    character, char_logic, target, current_state, class_ability
+                )
+                if adef.get('once_per_combat'):
+                    self._used_abilities.add(class_ability)
 
         # --- Step 6: Dice roll + rule engine for skill checks (deterministic) ---
         dice_result   = None
@@ -318,6 +381,7 @@ class EventManager:
         # damage_taken / hp_healed / mp_used are computed here, never by the LLM.
         mechanics = self._calculate_mechanics(
             intent, dice_result, combat_result, player_action, character, current_state,
+            utility_result=utility_result, char_logic=char_logic,
         )
 
         # --- Step 7: Render Narrative Event (LLM Phase 2) ---
@@ -329,22 +393,56 @@ class EventManager:
         if thought:
             outcome_parts.append(f"Action analysis: {thought}")
 
+        # Inject player status effects that ticked this turn
+        if player_status_tick.get('damage', 0) > 0:
+            active_labels = [
+                STATUS_EFFECTS.get(k, {}).get('cn_name', k)
+                for k in player_status_tick.get('active', [])
+            ]
+            outcome_parts.append(
+                f"Status effects on player: "
+                + ', '.join(active_labels or ['none'])
+                + f". Status damage this turn: {player_status_tick['damage']} HP."
+            )
+        if player_status_tick.get('expired'):
+            expired_labels = [
+                STATUS_EFFECTS.get(k, {}).get('cn_name', k)
+                for k in player_status_tick['expired']
+            ]
+            outcome_parts.append(f"Status effects expired: {', '.join(expired_labels)}.")
+
         # Inject combat hard facts so the LLM narrates from them, never invents them
         if combat_result:
+            ability_label = (
+                f" [{combat_result['class_ability']}]" if combat_result.get('class_ability') else ''
+            )
             outcome_parts.append(
-                f"Combat: {character.name} attacks {target}. "
+                f"Combat{ability_label}: {character.name} attacks {target}. "
                 f"Attack roll: {combat_result['attack_roll']} + {combat_result['atk_modifier']} "
                 f"= {combat_result['attack_total']} vs DEF {combat_result['target_def']}. "
-                f"{'HIT' if combat_result['hit'] else 'MISS'}."
+                f"{'AUTO-HIT' if combat_result.get('ability_auto_hit') else ('HIT' if combat_result['hit'] else 'MISS')}."
             )
             if combat_result['hit']:
+                bonus_note = (
+                    f" (ability bonus: +{combat_result['ability_bonus_dmg']})"
+                    if combat_result.get('ability_bonus_dmg') else ''
+                )
                 outcome_parts.append(
                     f"Damage roll: {combat_result['damage_notation']} "
-                    f"= {combat_result['raw_damage']} "
+                    f"= {combat_result['raw_damage']}{bonus_note} "
                     f"(net after DEF reduction: {combat_result['net_damage']})."
                 )
                 if combat_result.get('critical'):
                     outcome_parts.append("CRITICAL HIT — doubled dice damage!")
+                if combat_result.get('ability_aoe') and combat_result.get('aoe_targets'):
+                    outcome_parts.append(
+                        f"AoE also hits: {', '.join(combat_result['aoe_targets'])}."
+                    )
+                if combat_result.get('status_applied'):
+                    status_label = STATUS_EFFECTS.get(
+                        combat_result['status_applied'], {}
+                    ).get('cn_name', combat_result['status_applied'])
+                    outcome_parts.append(f"{target} is now {status_label}.")
                 entity_hp = combat_result.get('entity_hp_remaining')
                 if entity_hp is not None:
                     if entity_hp <= 0:
@@ -354,6 +452,26 @@ class EventManager:
             outcome_label = "CRITICAL SUCCESS" if combat_result.get('critical') else (
                 "SUCCESS" if combat_result['hit'] else "FAILURE"
             )
+
+        # Inject utility ability results
+        if utility_result and not utility_result.get('error'):
+            ab_name = utility_result.get('ability_name', class_ability)
+            if utility_result.get('hp_healed', 0) > 0:
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: heals {utility_result['hp_healed']} HP."
+                )
+            if utility_result.get('def_bonus', 0) > 0:
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: +{utility_result['def_bonus']} DEF until next hit."
+                )
+            if utility_result.get('fled_enemies'):
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: undead flee — {', '.join(utility_result['fled_enemies'])}."
+                )
+            if utility_result.get('damage_reduction', 0) > 0:
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: next incoming damage halved."
+                )
 
         if dice_result:
             outcome_parts.append(
@@ -368,11 +486,16 @@ class EventManager:
         # Inject rule-engine mechanics as hard facts for the narrator
         mech_parts = []
         if mechanics['damage_taken'] > 0:
-            mech_parts.append(f"player takes {mechanics['damage_taken']} raw damage")
+            mech_parts.append(f"player takes {mechanics['damage_taken']} damage")
         if mechanics['hp_healed'] > 0:
             mech_parts.append(f"player recovers {mechanics['hp_healed']} HP")
         if mechanics['mp_used'] > 0:
             mech_parts.append(f"player expends {mechanics['mp_used']} MP")
+        if mechanics.get('counter_status'):
+            status_label = STATUS_EFFECTS.get(
+                mechanics['counter_status'], {}
+            ).get('cn_name', mechanics['counter_status'])
+            mech_parts.append(f"player is now {status_label} from enemy counter-attack")
         if mech_parts:
             outcome_parts.append(
                 "Mechanical outcomes (hard facts — narrate these): " + "; ".join(mech_parts) + "."
@@ -530,9 +653,10 @@ class EventManager:
 
         # --- Step 8: Apply deterministic mechanics ---
         # Values come from the rule engine (Step 6.5), NOT from the LLM narrative output.
-        damage_taken = mechanics['damage_taken']
-        hp_healed    = mechanics['hp_healed']
-        mp_used      = mechanics['mp_used']
+        damage_taken   = mechanics['damage_taken']
+        hp_healed      = mechanics['hp_healed']
+        mp_used        = mechanics['mp_used']
+        counter_status = mechanics.get('counter_status')
 
         if damage_taken:
             char_logic.take_damage(damage_taken)
@@ -540,6 +664,11 @@ class EventManager:
             char_logic.heal(hp_healed)
         if mp_used:
             char_logic.use_mp(mp_used)
+        # Apply any status effect the enemy inflicted on the player via counter-attack
+        if counter_status:
+            self.combat.apply_status_to_player(counter_status, current_state)
+            flag_modified(current_state, 'known_entities')
+            self.session.commit()
         for item in (turn_data.get('items_found') or []):
             char_logic.add_item({'name': item} if isinstance(item, str) else item)
         if turn_data.get('location_change'):
@@ -723,58 +852,7 @@ class EventManager:
     # Internal helpers — combat  (Section 3.3)
     # ------------------------------------------------------------------
 
-    def _resolve_combat(self, character, char_logic, target_name, current_state):
-        """
-        Full deterministic combat resolution:
-          1. Attack roll: 1d20 + ATK modifier vs target DEF
-          2. On hit: damage roll (class weapon dice + ATK modifier)
-          3. Critical (raw 20): double the dice component
-          4. Net damage after target DEF reduction
-
-        Returns a combat_result dict with all details for narrative injection.
-        """
-        known = (current_state.known_entities or {})
-        target_entry = known.get(target_name.lower(), {})
-        target_def   = target_entry.get('def_stat', 10)
-
-        atk_modifier   = (character.atk - 10) // 2
-        attack_roll    = self.dice.roll('1d20')[2]  # raw d20 value (no modifier yet)
-        raw_d20        = attack_roll
-        attack_total   = raw_d20 + atk_modifier
-        critical       = raw_d20 == 20
-        hit            = attack_total >= target_def
-
-        damage_notation = char_logic.get_weapon_damage_notation()
-        raw_damage = 0
-        net_damage = 0
-        entity_hp_remaining = None
-
-        if hit:
-            rolls, mod, total = self.dice.roll(damage_notation)
-            if critical:
-                # Double the dice component (not the modifier) for critical hits
-                dice_sum = sum(rolls)
-                raw_damage = dice_sum * 2 + mod
-            else:
-                raw_damage = total
-            net_damage = max(0, raw_damage - (target_def // 2))
-            entity_hp_remaining = target_entry.get('hp', None)
-            if entity_hp_remaining is not None:
-                entity_hp_remaining = max(0, entity_hp_remaining - net_damage)
-
-        return {
-            'target':             target_name,
-            'target_def':         target_def,
-            'atk_modifier':       atk_modifier,
-            'attack_roll':        raw_d20,
-            'attack_total':       attack_total,
-            'critical':           critical,
-            'hit':                hit,
-            'damage_notation':    damage_notation,
-            'raw_damage':         raw_damage,
-            'net_damage':         net_damage,
-            'entity_hp_remaining': entity_hp_remaining,
-        }
+    # _resolve_combat removed — replaced by CombatEngine.resolve_attack (engine/combat.py)
 
     def _apply_combat_damage_to_entity(self, entity_name, net_damage, current_state):
         """Decrement the target's HP in known_entities; mark alive=False on death."""
@@ -1064,7 +1142,8 @@ class EventManager:
         self.session.commit()
 
     def _calculate_mechanics(self, intent, dice_result, combat_result,
-                             player_action, character, current_state):
+                             player_action, character, current_state,
+                             utility_result=None, char_logic=None):
         """
         Rule engine for damage_taken, hp_healed, mp_used.
 
@@ -1073,60 +1152,128 @@ class EventManager:
 
         Rules:
           damage_taken — enemy counter-attack after player's attack (if target alive);
-                         minor fall/trap damage on critical_failure of a physical skill.
-          hp_healed    — healing keywords or medicine skill + successful dice outcome.
-          mp_used      — any magic-type action (regardless of outcome).
+                         minor fall/trap damage on critical_failure of a physical skill;
+                         status effect damage already applied in step 2.5.
+          hp_healed    — class utility ability heal; medicine skill + successful dice outcome.
+          mp_used      — any magic-type action or class ability with mp_cost.
 
-        Returns a dict {damage_taken, hp_healed, mp_used}.
+        Returns a dict {damage_taken, hp_healed, mp_used, counter_status}.
         """
         action_type = intent.get('action_type', 'direct_action')
         skill       = intent.get('skill', '').lower()
         outcome     = dice_result['outcome'] if dice_result else None
 
-        damage_taken = 0
-        hp_healed    = 0
-        mp_used      = 0
+        damage_taken   = 0
+        hp_healed      = 0
+        mp_used        = 0
+        counter_status = None  # status effect applied to player by enemy counter
 
         # --- Enemy counter-attack (after player's attack) ---
         if combat_result:
-            target_name = combat_result.get('target', '').lower()
-            known = current_state.known_entities or {}
+            target_name  = combat_result.get('target', '').lower()
+            known        = current_state.known_entities or {}
             target_entry = known.get(target_name, {})
-            # enemy HP remaining after player's hit (None if not in known_entities)
             hp_after = combat_result.get('entity_hp_remaining')
             is_alive = target_entry.get('alive', True) and (hp_after is None or hp_after > 0)
             if is_alive:
-                enemy_atk     = target_entry.get('atk', 5)
-                enemy_atk_mod = (enemy_atk - 10) // 2
-                enemy_roll    = self.dice.roll('1d20')[2]
-                if enemy_roll == 20 or enemy_roll + enemy_atk_mod >= character.def_stat:
-                    # raw hit — CharacterLogic.take_damage() applies DEF reduction
-                    raw_hit      = self.dice.roll('1d6')[2] + max(0, enemy_atk_mod)
-                    damage_taken = max(0, raw_hit)
+                counter = self.combat.resolve_enemy_counter_attack(target_entry, character)
+                if counter.get('hit'):
+                    # Consume Arcane Shield bonus if active
+                    shield_bonus = char_logic.consume_def_bonus(current_state) if char_logic else 0
+                    # Evasion: check player buff
+                    evasion_active = any(
+                        b.get('key') == '_evasion'
+                        for b in (current_state.known_entities or {}).get('_player_buffs', [])
+                    )
+                    raw_dmg = counter.get('raw_damage', 0)
+                    if evasion_active:
+                        raw_dmg = int(raw_dmg * 0.5)
+                        # Remove evasion buff
+                        known2 = dict(current_state.known_entities or {})
+                        known2['_player_buffs'] = [
+                            b for b in known2.get('_player_buffs', [])
+                            if b.get('key') != '_evasion'
+                        ]
+                        current_state.known_entities = known2
+                    effective_def = character.def_stat + shield_bonus
+                    damage_taken = max(0, raw_dmg - (effective_def // 2))
+                    counter_status = counter.get('status_applied')
+                    # Apply lifesteal (wight / vampire_spawn)
+                    if counter.get('lifesteal', 0) > 0 and is_alive:
+                        entry2 = dict(known.get(target_name, {}))
+                        entry2['hp'] = min(
+                            entry2.get('max_hp', entry2.get('hp', 0)),
+                            entry2.get('hp', 0) + counter['lifesteal'],
+                        )
+                        known2 = dict(known)
+                        known2[target_name] = entry2
+                        current_state.known_entities = known2
+
+                    # Tick enemy status effects (e.g. poison on the enemy)
+                    enemy_tick = self.combat.tick_entity_status_effects(target_name, current_state)
+                    if enemy_tick.get('damage', 0) > 0:
+                        # Reapply damage from tick to entity
+                        self._apply_combat_damage_to_entity(
+                            target_name, enemy_tick['damage'], current_state
+                        )
+
+                    flag_modified(current_state, 'known_entities')
+                    self.session.commit()
 
         # --- Physical-skill critical failure → minor fall/hazard damage ---
         elif dice_result and skill in _PHYSICAL_SKILLS and outcome == 'critical_failure':
             damage_taken = self.dice.roll('1d4')[2]
 
-        # --- Magic action → MP cost (even on failure) ---
-        if action_type == 'magic':
-            cost    = _MP_COST_TABLE.get(skill, _MP_COST_DEFAULT)
-            mp_used = min(cost, character.mp)
+        # --- Class utility ability: healing, arcane shield, evasion, turn undead ---
+        if utility_result and not utility_result.get('error'):
+            hp_healed = utility_result.get('hp_healed', 0)
+            mp_used   = utility_result.get('mp_cost', 0)
+            # Arcane Shield — store DEF bonus in player buffs
+            def_bonus = utility_result.get('def_bonus', 0)
+            if def_bonus > 0:
+                char_logic.apply_def_bonus(def_bonus, current_state)
+                flag_modified(current_state, 'known_entities')
+                self.session.commit()
+            # Evasion — store as player buff
+            if utility_result.get('damage_reduction', 0) > 0:
+                known3 = dict(current_state.known_entities or {})
+                buffs3 = [b for b in known3.get('_player_buffs', []) if b.get('key') != '_evasion']
+                buffs3.append({'key': '_evasion', 'turns_remaining': 1})
+                known3['_player_buffs'] = buffs3
+                current_state.known_entities = known3
+            # Turn Undead — mark fled enemies as dead
+            for fled_key in utility_result.get('fled_enemies', []):
+                self._apply_combat_damage_to_entity(fled_key, 9999, current_state)
+        else:
+            # --- Magic action → MP cost (even on failure, if no utility_result) ---
+            if action_type == 'magic' and not utility_result:
+                class_ability = intent.get('class_ability')
+                if class_ability:
+                    from engine.combat import get_ability_definition
+                    adef = get_ability_definition(character.char_class, class_ability)
+                    mp_used = min(adef.get('mp_cost', _MP_COST_DEFAULT), character.mp) if adef else 0
+                else:
+                    cost    = _MP_COST_TABLE.get(skill, _MP_COST_DEFAULT)
+                    mp_used = min(cost, character.mp)
 
-        # --- Healing: medicine skill or healing keywords + successful outcome ---
-        if outcome in ('success', 'critical_success') and character.hp < character.max_hp:
-            is_healing = (
-                skill == 'medicine'
-                or _HEAL_RE.search(player_action or '')
-            )
-            if is_healing:
-                notation  = '2d4' if outcome == 'critical_success' else '1d4'
-                hp_healed = self.dice.roll(notation)[2]
-                # healing magic burns MP even if action_type wasn't flagged 'magic'
-                if mp_used == 0 and character.mp > 0:
-                    mp_used = min(2, character.mp)
+            # --- Healing: medicine skill or healing keywords + successful outcome ---
+            if outcome in ('success', 'critical_success') and character.hp < character.max_hp:
+                is_healing = (
+                    skill == 'medicine'
+                    or _HEAL_RE.search(player_action or '')
+                )
+                if is_healing:
+                    notation  = '2d4' if outcome == 'critical_success' else '1d4'
+                    hp_healed = self.dice.roll(notation)[2]
+                    if mp_used == 0 and character.mp > 0:
+                        mp_used = min(2, character.mp)
 
-        return {'damage_taken': damage_taken, 'hp_healed': hp_healed, 'mp_used': mp_used}
+        return {
+            'damage_taken':   damage_taken,
+            'hp_healed':      hp_healed,
+            'mp_used':        mp_used,
+            'counter_status': counter_status,
+        }
 
     def _build_system_prompt(self, character, current_state, party=None):
         npc_context      = self._format_npc_state(current_state)
@@ -1576,7 +1723,8 @@ class EventManager:
         action_type = intent.get('action_type', 'direct_action')
         entity_type = detect_entity_type(entity_name, action_type)
         hp, atk, def_stat = get_entity_base_stats(
-            entity_type, current_state.difficulty or 'Normal'
+            entity_type, current_state.difficulty or 'Normal',
+            entity_name=entity_name,
         )
 
         stat_block = self.llm.generate_entity_stat_block(
@@ -1604,17 +1752,26 @@ class EventManager:
         known = dict(current_state.known_entities or {})
         key = entity_name.lower()
         if key not in known:
+            # Pull damage_dice and undead flag from monster roster if available
+            roster_entry = get_monster_by_name(entity_name)
+            damage_dice  = roster_entry.get('damage_dice', '1d6') if roster_entry else '1d6'
+            is_undead    = roster_entry.get('undead', False) if roster_entry else False
+            special_key  = (stat_block.get('special_ability') or
+                            (roster_entry.get('special_ability') if roster_entry else None) or '')
             known[key] = {
                 'type':            stat_block.get('type', entity_type),
                 'hp':              stat_block.get('hp', 20),
                 'max_hp':          stat_block.get('hp', 20),
                 'atk':             stat_block.get('atk', 5),
                 'def_stat':        stat_block.get('def_stat', 5),
+                'damage_dice':     damage_dice,
+                'undead':          is_undead,
                 'skills':          stat_block.get('skills', []),
-                'special_ability': stat_block.get('special_ability', ''),
+                'special_ability': special_key,
                 'description':     stat_block.get('description', entity_name),
-                'loot':            stat_block.get('loot', []),
+                'loot':            stat_block.get('loot', roster_entry.get('loot', []) if roster_entry else []),
                 'alive':           True,
+                'status_effects':  [],
             }
             current_state.known_entities = known
             flag_modified(current_state, 'known_entities')

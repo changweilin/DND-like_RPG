@@ -1,5 +1,7 @@
 import re
 import random
+from data.monsters import get_monster_by_name, MONSTER_ROSTER
+from engine.combat import detect_class_ability
 
 # ---------------------------------------------------------------------------
 # Affinity delta table  (P3 — replaces LLM numeric affinity_delta)
@@ -73,8 +75,14 @@ _MERCHANT_RE = re.compile(r'(merchant|trader|vendor|shopkeeper|peddler|商人|�
 def detect_entity_type(entity_name, action_type):
     """
     Infer entity type from name keywords and the action that triggered the encounter.
+    Checks the monster roster first, then falls back to regex heuristics.
     Returns one of: 'boss' | 'guard' | 'merchant' | 'monster' | 'npc'
     """
+    # Check predefined roster first — most reliable signal
+    roster_entry = get_monster_by_name(entity_name)
+    if roster_entry:
+        return roster_entry.get('type', 'monster')
+
     if _BOSS_RE.search(entity_name):
         return 'boss'
     if _GUARD_RE.search(entity_name):
@@ -86,15 +94,39 @@ def detect_entity_type(entity_name, action_type):
     return 'npc'
 
 
-def get_entity_base_stats(entity_type, difficulty):
+# Difficulty multipliers relative to "normal" base stats
+_DIFF_SCALE = {
+    'easy':   0.60,
+    'normal': 1.00,
+    'hard':   1.60,
+    'deadly': 2.40,
+}
+
+
+def get_entity_base_stats(entity_type, difficulty, entity_name=None):
     """
-    Return (hp, atk, def_stat) from the lookup table with ±20 % random variance.
-    Replaces the LLM's role in deciding numeric entity stats.
+    Return (hp, atk, def_stat) for the entity.
+
+    Priority:
+      1. Named monster in MONSTER_ROSTER (scaled by difficulty).
+      2. Generic lookup table with ±20 % variance (existing behaviour).
+
+    entity_name is optional; pass it to enable roster lookup.
     """
     diff_key = (difficulty or 'normal').lower()
-    row      = _ENTITY_STAT_TABLE.get(entity_type, _ENTITY_STAT_TABLE['npc'])
-    hp, atk, def_stat = row.get(diff_key, row['normal'])
     vary = lambda v: max(1, int(v * random.uniform(0.8, 1.2)))
+
+    if entity_name:
+        roster_entry = get_monster_by_name(entity_name)
+        if roster_entry:
+            scale = _DIFF_SCALE.get(diff_key, 1.0)
+            hp       = vary(int(roster_entry['hp']       * scale))
+            atk      = vary(int(roster_entry['atk']      * scale))
+            def_stat = vary(int(roster_entry['def_stat'] * scale))
+            return hp, atk, def_stat
+
+    row = _ENTITY_STAT_TABLE.get(entity_type, _ENTITY_STAT_TABLE['npc'])
+    hp, atk, def_stat = row.get(diff_key, row['normal'])
     return vary(hp), vary(atk), vary(def_stat)
 
 
@@ -171,7 +203,8 @@ def _detect_skill(player_action):
     return ''
 
 
-def _intent(action_type, requires_roll, skill, dc, target, player_action):
+def _intent(action_type, requires_roll, skill, dc, target, player_action,
+            class_ability=None):
     return {
         'thought_process': '',   # rule engine skips chain-of-thought
         'action_type':     action_type,
@@ -180,6 +213,7 @@ def _intent(action_type, requires_roll, skill, dc, target, player_action):
         'dc':              dc,
         'target':          target,
         'summary':         player_action,
+        'class_ability':   class_ability,   # ability key or None
     }
 
 
@@ -187,7 +221,7 @@ def _intent(action_type, requires_roll, skill, dc, target, player_action):
 # Public API
 # ---------------------------------------------------------------------------
 
-def try_parse(player_action, known_entities, difficulty):
+def try_parse(player_action, known_entities, difficulty, char_class=None):
     """
     Rule-based intent parser — hybrid layer 1.
 
@@ -199,40 +233,63 @@ def try_parse(player_action, known_entities, difficulty):
       - For skill_check / social with roll: at least one skill keyword matched
 
     Keeps thought_process empty (rule engine needs no chain-of-thought).
+    char_class — optional character class string used to detect class abilities.
     """
     dc     = _DC_TABLE.get((difficulty or 'normal').lower(), 15)
     skill  = _detect_skill(player_action)
     target = _find_target(player_action, known_entities)
 
+    # --- Class ability detection (checked before generic patterns) ---
+    class_ability = None
+    if char_class:
+        class_ability = detect_class_ability(player_action, char_class)
+
     # --- Magic (checked before attack: "cast fireball" must not match attack's "fire") ---
     if _MAGIC_RE.search(player_action):
         magic_skill = skill if skill in ('arcana', 'medicine') else 'arcana'
-        return _intent('magic', True, magic_skill, dc, target, player_action)
+        return _intent('magic', True, magic_skill, dc, target, player_action,
+                       class_ability=class_ability)
 
     # --- Attack ---
     if _ATTACK_RE.search(player_action):
         # combat roll is handled by Step 5 (combat engine), so requires_roll=False here
-        return _intent('attack', False, '', 0, target, player_action)
+        return _intent('attack', False, '', 0, target, player_action,
+                       class_ability=class_ability)
+
+    # --- Utility class ability (heal, shield, turn undead, evasion) ---
+    # Routed as 'magic' action so MP cost is applied; no attack roll needed.
+    if class_ability:
+        from engine.combat import get_ability_definition
+        adef = get_ability_definition(char_class, class_ability)
+        if adef and (adef.get('heal_dice') or adef.get('def_bonus')
+                     or adef.get('affects_undead_only') or adef.get('damage_reduction')):
+            return _intent('magic', False, 'arcana', 0, target, player_action,
+                           class_ability=class_ability)
 
     # --- Stealth (before generic social/explore to take priority) ---
     if _STEALTH_RE.search(player_action):
-        return _intent('skill_check', True, 'stealth', dc, target, player_action)
+        return _intent('skill_check', True, 'stealth', dc, target, player_action,
+                       class_ability=class_ability)
 
     # --- Social with a contested skill (persuasion / intimidation) → roll ---
     if _SOCIAL_RE.search(player_action) and skill in ('persuasion', 'intimidation'):
-        return _intent('social', True, skill, dc, target, player_action)
+        return _intent('social', True, skill, dc, target, player_action,
+                       class_ability=class_ability)
 
     # --- Social without a detectable contested skill → no roll (direct action) ---
     if _SOCIAL_RE.search(player_action):
-        return _intent('social', False, '', 0, target, player_action)
+        return _intent('social', False, '', 0, target, player_action,
+                       class_ability=class_ability)
 
     # --- Physical skill checks (athletics / acrobatics) ---
     if skill in ('athletics', 'acrobatics'):
-        return _intent('skill_check', True, skill, dc, target, player_action)
+        return _intent('skill_check', True, skill, dc, target, player_action,
+                       class_ability=class_ability)
 
     # --- Healing / medicine action ---
     if skill == 'medicine':
-        return _intent('skill_check', True, 'medicine', dc, target, player_action)
+        return _intent('skill_check', True, 'medicine', dc, target, player_action,
+                       class_ability=class_ability)
 
     # --- Explore / perception check ---
     if _EXPLORE_RE.search(player_action):
@@ -244,11 +301,13 @@ def try_parse(player_action, known_entities, difficulty):
             dc if has_perception else 0,
             target,
             player_action,
+            class_ability=class_ability,
         )
 
     # --- Rest ---
     if _REST_RE.search(player_action):
-        return _intent('direct_action', False, '', 0, '', player_action)
+        return _intent('direct_action', False, '', 0, '', player_action,
+                       class_ability=class_ability)
 
     # Pattern not recognised with sufficient confidence → LLM fallback
     return None
