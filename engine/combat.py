@@ -9,6 +9,55 @@
 #     and in known_entities['_player_buffs'] for the player.
 
 # ---------------------------------------------------------------------------
+# XP & level progression (D&D 5e milestone style, scaled for short campaigns)
+# ---------------------------------------------------------------------------
+# Index = level - 1; value = total XP needed to reach that level.
+LEVEL_XP_TABLE = [
+    0,      # Lv 1 (start)
+    300,    # Lv 2
+    900,    # Lv 3
+    2700,   # Lv 4
+    6500,   # Lv 5
+    14000,  # Lv 6
+    23000,  # Lv 7
+    34000,  # Lv 8
+    48000,  # Lv 9
+    64000,  # Lv 10 (cap)
+]
+MAX_LEVEL = len(LEVEL_XP_TABLE)
+
+
+def xp_for_level(level):
+    """Return cumulative XP required to reach `level` (1-based)."""
+    idx = max(0, min(level - 1, MAX_LEVEL - 1))
+    return LEVEL_XP_TABLE[idx]
+
+
+def compute_level(total_xp):
+    """Return the level (1..MAX_LEVEL) corresponding to total_xp."""
+    level = 1
+    for i, threshold in enumerate(LEVEL_XP_TABLE):
+        if total_xp >= threshold:
+            level = i + 1
+    return min(level, MAX_LEVEL)
+
+
+def roll_loot(entity_entry, dice_roller):
+    """
+    Roll for loot from a defeated monster's loot table.
+    Returns a list of item name strings (may be empty).
+    Each item in the loot list has a 50 % drop chance.
+    """
+    loot_table = entity_entry.get('loot', [])
+    if not loot_table:
+        return []
+    dropped = []
+    for item in loot_table:
+        if dice_roller.roll('1d2')[2] == 2:   # 50 % chance per item
+            dropped.append(item)
+    return dropped
+
+# ---------------------------------------------------------------------------
 # Class combat abilities
 # ---------------------------------------------------------------------------
 # mp_cost      — MP spent when ability is used.

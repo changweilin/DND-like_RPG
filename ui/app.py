@@ -2782,6 +2782,20 @@ def _render_party_sidebar(party, state, active_char):
                 for it in char.inventory
             ]
             st.sidebar.caption("Inventory: " + ", ".join(inv_names))
+
+        # XP / level bar
+        if not is_dead:
+            _render_xp_bar(char)
+
+        # Active status effects on this character
+        if not is_dead and not is_dead:
+            player_buffs = [
+                b for b in (state.known_entities or {}).get('_player_buffs', [])
+                if b.get('turns_remaining', 0) > 0 and not b.get('key', '').startswith('_')
+            ]
+            if char.id == active_char.id:
+                _render_status_badges(player_buffs)
+
         st.sidebar.markdown("---")
 
 
@@ -2823,6 +2837,228 @@ def _affinity_bar(affinity):
     clamped = max(-100, min(100, affinity))
     filled  = round((clamped + 100) / 200 * 10)
     return '█' * filled + '░' * (10 - filled)
+
+
+# ---------------------------------------------------------------------------
+# Status-effect badge rendering
+# ---------------------------------------------------------------------------
+
+_STATUS_ICONS = {
+    'poisoned':  '☠️',  'burning':  '🔥', 'stunned': '💫',
+    'slowed':    '🐢',  'bleeding': '🩸', 'charmed': '💜',
+    'feared':    '😱',  'weakened': '💔',
+}
+_STATUS_COLORS = {
+    'poisoned':  '#4a0',  'burning':  '#e60',  'stunned':  '#88f',
+    'slowed':    '#0aa',  'bleeding': '#c00',  'charmed':  '#a0a',
+    'feared':    '#880',  'weakened': '#888',
+}
+
+def _render_status_badges(buffs, container=None):
+    """Render coloured inline badge chips for each active status effect."""
+    if not buffs:
+        return
+    try:
+        from engine.combat import STATUS_EFFECTS
+    except ImportError:
+        STATUS_EFFECTS = {}
+
+    badges = []
+    for b in buffs:
+        key  = b.get('key', '')
+        if key.startswith('_'):
+            continue
+        name = STATUS_EFFECTS.get(key, {}).get('cn_name', key)
+        icon = _STATUS_ICONS.get(key, '⚡')
+        col  = _STATUS_COLORS.get(key, '#888')
+        tr   = b.get('turns_remaining', 1)
+        badges.append(
+            f"<span style='background:{col}22;border:1px solid {col};"
+            f"border-radius:4px;padding:1px 5px;font-size:0.8em;color:{col}'>"
+            f"{icon} {name} {tr}t</span>"
+        )
+    if badges:
+        html = " ".join(badges)
+        target = container or st.sidebar
+        target.markdown(html, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Enemy HP tracker — shown in sidebar during combat
+# ---------------------------------------------------------------------------
+
+def _render_enemy_tracker(state):
+    """Sidebar: HP bars for all living enemies in known_entities."""
+    known = state.known_entities or {}
+    enemies = {
+        k: v for k, v in known.items()
+        if not k.startswith('_') and isinstance(v, dict)
+        and v.get('type') in ('monster', 'boss', 'guard')
+    }
+    if not enemies:
+        return
+    st.sidebar.markdown("---")
+    st.sidebar.write("⚔️ **敵人**")
+    for key, entry in enemies.items():
+        hp     = entry.get('hp', 0)
+        max_hp = max(entry.get('max_hp', 1) or 1, 1)
+        alive  = entry.get('alive', True)
+        name   = key.replace('_', ' ').title()
+        hp_pct = int(hp / max_hp * 100)
+        # HP bar colour: green > 60 %, yellow 30–60 %, red < 30 %
+        if not alive or hp <= 0:
+            st.sidebar.markdown(
+                f"~~{name}~~ ☠️",
+            )
+            continue
+        bar_color = '#4caf50' if hp_pct > 60 else ('#ffa500' if hp_pct > 30 else '#c0392b')
+        status_efx = entry.get('status_effects', [])
+        status_html = " ".join(
+            _STATUS_ICONS.get(e.get('key', ''), '⚡') for e in status_efx
+        )
+        special = entry.get('special_ability', '')
+        special_note = f" *({special})*" if special else ''
+        st.sidebar.markdown(
+            f"<b>{name}</b>{special_note} {status_html}  "
+            f"<span style='color:{bar_color}'>{hp}/{max_hp}</span>",
+            unsafe_allow_html=True,
+        )
+        st.sidebar.progress(hp_pct)
+
+
+# ---------------------------------------------------------------------------
+# Combat result banner
+# ---------------------------------------------------------------------------
+
+def _render_combat_banner(combat_result):
+    """Show a colour-coded combat summary above the DM narrative."""
+    if not combat_result:
+        return
+    hit      = combat_result.get('hit')
+    crit     = combat_result.get('critical')
+    target   = combat_result.get('target', '?')
+    ability  = combat_result.get('class_ability')
+    auto_hit = combat_result.get('ability_auto_hit')
+
+    if crit:
+        icon, color = '🟡', '#f1c40f'
+        label = 'CRITICAL HIT'
+    elif hit:
+        icon, color = '🟢', '#2ecc71'
+        label = 'HIT'
+    else:
+        icon, color = '🔴', '#e74c3c'
+        label = 'MISS'
+
+    ability_note = f" [{ability}]" if ability else ''
+    auto_note    = " (auto-hit)" if auto_hit else ''
+    roll_str = (
+        f"{combat_result.get('attack_roll',0)}+{combat_result.get('atk_modifier',0)}"
+        f"={combat_result.get('attack_total',0)} vs DEF {combat_result.get('target_def',0)}"
+    )
+    dmg_str = (
+        f"  ⚔️ {combat_result.get('raw_damage',0)} → net **{combat_result.get('net_damage',0)}**"
+        if hit else ''
+    )
+    status_note = ''
+    if combat_result.get('status_applied'):
+        from engine.combat import STATUS_EFFECTS
+        sname = STATUS_EFFECTS.get(combat_result['status_applied'], {}).get('cn_name', '')
+        sicon = _STATUS_ICONS.get(combat_result['status_applied'], '⚡')
+        status_note = f"  {sicon} {sname} inflicted"
+
+    st.info(
+        f"{icon} **{label}**{ability_note}{auto_note} → {target}  "
+        f"🎲 {roll_str}{dmg_str}{status_note}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Loot / XP result banner
+# ---------------------------------------------------------------------------
+
+def _render_loot_xp_banner(loot_xp):
+    """Show XP gained and loot dropped after a kill."""
+    if not loot_xp:
+        return
+    xp_gained    = loot_xp.get('xp_gained', 0)
+    loot_dropped = loot_xp.get('loot_dropped', [])
+    leveled_up   = loot_xp.get('leveled_up', False)
+    new_level    = loot_xp.get('new_level', 1)
+
+    lines = [f"✨ **+{xp_gained} XP**"]
+    if loot_dropped:
+        lines.append(f"🎁 戰利品: {', '.join(loot_dropped)}")
+    else:
+        lines.append("🎁 無戰利品掉落")
+    msg = "  ·  ".join(lines)
+
+    if leveled_up:
+        st.success(f"🆙 **升級！達到 Lv {new_level}！** HP/MP/ATK/DEF 全面提升！\n{msg}")
+    else:
+        st.info(msg)
+
+
+# ---------------------------------------------------------------------------
+# Class abilities quick-reference panel (shown when in combat)
+# ---------------------------------------------------------------------------
+
+def _render_class_abilities_panel(char, state):
+    """Show available class abilities with MP cost and description."""
+    try:
+        from engine.combat import CLASS_ABILITIES
+    except ImportError:
+        return
+
+    cls_def  = CLASS_ABILITIES.get((char.char_class or '').lower(), {})
+    if not cls_def:
+        return
+
+    in_combat = bool(getattr(state, 'in_combat', 0))
+    known     = state.known_entities or {}
+    has_enemies = any(
+        v.get('alive', True) and v.get('type') in ('monster', 'boss', 'guard')
+        for k, v in known.items()
+        if not k.startswith('_') and isinstance(v, dict)
+    )
+    if not (in_combat or has_enemies):
+        return
+
+    with st.expander(f"⚔️ {char.char_class} 職業技能", expanded=False):
+        for akey, adef in cls_def.items():
+            mp_cost  = adef.get('mp_cost', 0)
+            can_use  = char.mp >= mp_cost
+            mp_color = '#4caf50' if can_use else '#e74c3c'
+            kw_example = (adef.get('keywords_en') or [''])[0]
+            st.markdown(
+                f"**{adef.get('cn_name', akey)}** "
+                f"<span style='color:{mp_color};font-size:0.85em'>MP {mp_cost}</span>  \n"
+                f"<span style='font-size:0.85em;color:#aaa'>{adef.get('description','')}</span>  \n"
+                f"<span style='font-size:0.8em;color:#666'>輸入關鍵字: *{kw_example}*</span>",
+                unsafe_allow_html=True,
+            )
+
+
+# ---------------------------------------------------------------------------
+# XP / Level progress bar
+# ---------------------------------------------------------------------------
+
+def _render_xp_bar(char):
+    """Render an XP progress bar toward the next level."""
+    try:
+        from engine.combat import LEVEL_XP_TABLE, MAX_LEVEL
+    except ImportError:
+        return
+    level    = max(1, char.level or 1)
+    xp       = char.xp or 0
+    if level >= MAX_LEVEL:
+        st.sidebar.caption(f"Lv {level} (MAX)  XP {xp:,}")
+        return
+    xp_cur   = LEVEL_XP_TABLE[level - 1]
+    xp_next  = LEVEL_XP_TABLE[level]
+    progress = min(1.0, max(0.0, (xp - xp_cur) / max(xp_next - xp_cur, 1)))
+    st.sidebar.caption(f"Lv **{level}**  XP {xp:,} / {xp_next:,}")
+    st.sidebar.progress(int(progress * 100))
 
 # ---------------------------------------------------------------------------
 # Board tab — world map, dice roller, score board
@@ -3041,6 +3277,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             else:
                 _render_scene_label(scene_type)
             _render_dice_result(item.get('dice_result'))
+            _render_combat_banner(item.get('combat_result'))
+            _render_loot_xp_banner(item.get('loot_xp'))
             label = f"**{dm_lbl}:**" if not item.get('is_prologue') else f"**{dm_lbl} 開場白:**"
             st.markdown(f"{label} {item['content']}")
             if item.get('image'):
@@ -3055,6 +3293,9 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                 st.image(item['image'],
                          caption=item.get('cinematic_label') or "Scene",
                          use_container_width=True)
+
+    # ---- Class abilities quick-reference (only shown when enemies are present) ----
+    _render_class_abilities_panel(active_char, state)
 
     # ---- Action input ----
     current_choices = []
@@ -3213,6 +3454,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "choices":         choices,
             "scene_type":      turn_data.get('scene_type', 'exploration'),
             "dice_result":     dice_result,
+            "combat_result":   turn_data.get('_combat_result'),
+            "loot_xp":         turn_data.get('_loot_xp'),
             "image":           scene_image,
             "image_path":      scene_image_path,
             "is_cinematic":    is_cinematic,
@@ -4152,6 +4395,7 @@ def game_loop():
         f"**Turn:** {state.turn_count or 0}  "
         f"*(memory: last {config.SESSION_MEMORY_WINDOW})*"
     )
+    _render_enemy_tracker(state)
     _render_npc_tracker(state)
     _render_language_switcher()
     _render_model_switcher()
@@ -4263,13 +4507,15 @@ def game_loop():
             "all_choices": [],
         })
         st.session_state.history.append({
-            "role":        "dm",
-            "content":     response,
-            "choices":     choices,
-            "scene_type":  turn_data.get('scene_type', 'exploration'),
-            "dice_result": dice_result,
-            "image":       None,
-            "image_path":  '',
+            "role":           "dm",
+            "content":        response,
+            "choices":        choices,
+            "scene_type":     turn_data.get('scene_type', 'exploration'),
+            "dice_result":    dice_result,
+            "combat_result":  turn_data.get('_combat_result'),
+            "loot_xp":        turn_data.get('_loot_xp'),
+            "image":          None,
+            "image_path":     '',
         })
         st.rerun()
 

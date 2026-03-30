@@ -28,6 +28,11 @@ class Character(Base):
     inventory = Column(JSON, default=lambda: [])   # List of item dicts
     skills = Column(JSON, default=lambda: [])       # List of skill strings
 
+    # Progression: XP accumulated and current level (1-10).
+    # Level thresholds follow D&D 5e milestones (scaled down for short campaigns).
+    xp    = Column(Integer, default=0)
+    level = Column(Integer, default=1)
+
 class GameState(Base):
     """Stores global world state, current location, and configuration."""
     __tablename__ = 'game_state'
@@ -118,6 +123,10 @@ class GameState(Base):
     # }}
     organizations = Column(JSON, default=lambda: {})
 
+    # True while at least one living enemy is tracked in known_entities.
+    # Cleared when all enemies die or player flees.  Used by UI and combat engine.
+    in_combat = Column(Integer, default=0)   # stored as 0/1 for SQLite compat
+
 class EntityRelation(Base):
     """
     Directed edge in the entity relationship graph.
@@ -184,6 +193,9 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN allow_custom_action INTEGER DEFAULT 1",
             "ALTER TABLE game_state ADD COLUMN organizations TEXT DEFAULT '{}'",
             "ALTER TABLE characters ADD COLUMN gender VARCHAR DEFAULT ''",
+            "ALTER TABLE characters ADD COLUMN xp INTEGER DEFAULT 0",
+            "ALTER TABLE characters ADD COLUMN level INTEGER DEFAULT 1",
+            "ALTER TABLE game_state ADD COLUMN in_combat INTEGER DEFAULT 0",
         ]
         with engine.connect() as conn:
             for sql in migrations:

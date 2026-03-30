@@ -12,7 +12,7 @@ from engine.intent_parser import (
     get_entity_base_stats,
     calculate_affinity_delta,
 )
-from engine.combat import CombatEngine, STATUS_EFFECTS
+from engine.combat import CombatEngine, STATUS_EFFECTS, compute_level, xp_for_level, roll_loot
 from data.monsters import get_monster_by_name, get_special_ability
 
 # Rule engine constants for _calculate_mechanics()
@@ -28,6 +28,12 @@ _PHYSICAL_SKILLS = {'athletics', 'acrobatics'}
 # Regex for healing intent in raw player text
 _HEAL_RE = re.compile(
     r'(heal|cure|mend|restore|potion|治療|恢復|回復|藥水|復原)',
+    re.I,
+)
+
+# Regex for flee/escape intent
+_FLEE_RE = re.compile(
+    r'(flee|run away|escape|retreat|逃跑|逃走|撤退|逃離|落荒而逃|逃之夭夭)',
     re.I,
 )
 
@@ -319,6 +325,7 @@ class EventManager:
         combat_result  = None
         utility_result = None
         class_ability  = intent.get('class_ability')
+        loot_xp_result = None   # populated after combat kill (Step 5 → Step 8 boundary)
 
         if intent.get('action_type') == 'attack' and target:
             combat_result = self.combat.resolve_attack(
@@ -327,6 +334,22 @@ class EventManager:
             )
             if combat_result['hit'] and combat_result['net_damage'] > 0:
                 self._apply_combat_damage_to_entity(target, combat_result['net_damage'], current_state)
+                # Pre-compute loot/XP so it's available for narrative injection (Step 7)
+                killed_entry = (current_state.known_entities or {}).get(target.lower(), {})
+                if (not killed_entry.get('alive', True)
+                        and killed_entry.get('type') in ('monster', 'boss', 'guard')
+                        and not killed_entry.get('loot_granted')):
+                    loot_xp_result = self._grant_loot_and_xp(
+                        target.lower(), killed_entry, character, char_logic, current_state
+                    )
+                    known_mark = dict(current_state.known_entities or {})
+                    tk = target.lower()
+                    if tk in known_mark:
+                        e2 = dict(known_mark[tk]); e2['loot_granted'] = True
+                        known_mark[tk] = e2
+                        current_state.known_entities = known_mark
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
             # Apply status to target if ability triggered one
             if combat_result.get('status_applied') and combat_result['hit']:
                 self.combat.apply_status_to_entity(
@@ -500,6 +523,19 @@ class EventManager:
             outcome_parts.append(
                 "Mechanical outcomes (hard facts — narrate these): " + "; ".join(mech_parts) + "."
             )
+
+        # Loot/XP facts injected BEFORE narrative rendering so LLM can narrate them
+        if loot_xp_result:
+            loot_line = (
+                f"Loot gained: {', '.join(loot_xp_result['loot_dropped'])}"
+                if loot_xp_result['loot_dropped'] else "No loot dropped"
+            )
+            xp_line = f"XP gained: {loot_xp_result['xp_gained']}"
+            outcome_parts.append(f"{loot_line}. {xp_line}.")
+            if loot_xp_result.get('leveled_up'):
+                outcome_parts.append(
+                    f"LEVEL UP! {character.name} is now Level {loot_xp_result['new_level']}!"
+                )
 
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
 
@@ -679,6 +715,14 @@ class EventManager:
             if characters_present and npc.lower() not in present_lower:
                 continue
             world.update_relationship(npc, delta)
+
+        # --- Phase 3: Update combat state ---
+        self._update_combat_state(intent, combat_result, current_state)
+
+        # Store result refs in turn_data for UI rendering
+        turn_data['_combat_result'] = combat_result
+        if loot_xp_result:
+            turn_data['_loot_xp'] = loot_xp_result
 
         # Track contribution for balanced reward calculation
         checks_passed = 1 if (dice_result and dice_result.get('outcome') in
@@ -1176,6 +1220,10 @@ class EventManager:
             hp_after = combat_result.get('entity_hp_remaining')
             is_alive = target_entry.get('alive', True) and (hp_after is None or hp_after > 0)
             if is_alive:
+                # Phase 4: trigger monster AI specials (berserk, song, etc.)
+                target_entry = self._apply_monster_ai_triggers(
+                    target_name, target_entry, current_state
+                )
                 counter = self.combat.resolve_enemy_counter_attack(target_entry, character)
                 if counter.get('hit'):
                     # Consume Arcane Shield bonus if active
@@ -1776,3 +1824,122 @@ class EventManager:
             current_state.known_entities = known
             flag_modified(current_state, 'known_entities')
             self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Phase 2: Loot drop + XP grant
+    # ------------------------------------------------------------------
+
+    def _grant_loot_and_xp(self, entity_key, entity_entry, character, char_logic,
+                           current_state):
+        """
+        Called when an enemy is killed.  Grants:
+          - Monster XP to the character (from roster or fallback formula).
+          - Random loot items rolled from the monster's loot table (50 % each).
+          - Level-up if XP threshold crossed (stat bumps applied automatically).
+
+        Returns a dict {xp_gained, loot_dropped, leveled_up, new_level}.
+        """
+        roster   = get_monster_by_name(entity_key)
+        xp_gain  = roster.get('xp', 0) if roster else 0
+        if xp_gain == 0:
+            xp_gain = max(10, (entity_entry.get('max_hp') or 20) * 2)
+
+        old_level = character.level or 1
+        character.xp = (character.xp or 0) + xp_gain
+
+        new_level  = compute_level(character.xp)
+        leveled_up = new_level > old_level
+        if leveled_up:
+            character.level    = new_level
+            levels_gained      = new_level - old_level
+            character.max_hp   = (character.max_hp  or 100) + 5 * levels_gained
+            character.hp       = min(character.max_hp, (character.hp or 0) + 5 * levels_gained)
+            character.max_mp   = (character.max_mp  or 50)  + 5 * levels_gained
+            character.atk      = (character.atk     or 10)  + 1 * levels_gained
+            character.def_stat = (character.def_stat or 10) + 1 * levels_gained
+
+        loot_dropped = roll_loot(entity_entry, self.dice)
+        for item_name in loot_dropped:
+            char_logic.add_item({'name': item_name, 'source': entity_key})
+
+        self.session.commit()
+        return {
+            'xp_gained':    xp_gain,
+            'loot_dropped': loot_dropped,
+            'leveled_up':   leveled_up,
+            'new_level':    new_level,
+        }
+
+    # ------------------------------------------------------------------
+    # Phase 3: Combat state tracking
+    # ------------------------------------------------------------------
+
+    def _update_combat_state(self, intent, combat_result, current_state):
+        """
+        Maintain GameState.in_combat and reset once-per-combat ability cooldowns.
+        Sets in_combat=True on attack; clears when all enemies die or player flees.
+        """
+        was_in_combat = bool(current_state.in_combat)
+        action_type   = intent.get('action_type', '')
+
+        if _FLEE_RE.search(intent.get('summary', '')):
+            current_state.in_combat = 0
+            self._used_abilities.clear()
+            self.session.commit()
+            return
+
+        if action_type == 'attack' and combat_result:
+            if not was_in_combat:
+                self._used_abilities.clear()
+            current_state.in_combat = 1
+
+        if current_state.in_combat:
+            known = current_state.known_entities or {}
+            living_enemies = [
+                e for k, e in known.items()
+                if not k.startswith('_') and isinstance(e, dict)
+                and e.get('type') in ('monster', 'boss', 'guard')
+                and e.get('alive', True)
+            ]
+            if not living_enemies:
+                current_state.in_combat = 0
+                self._used_abilities.clear()
+
+        self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Phase 4: Monster active AI — HP-triggered specials & archetypes
+    # ------------------------------------------------------------------
+
+    def _apply_monster_ai_triggers(self, entity_key, entity_entry, current_state):
+        """
+        Evaluate triggered special abilities before the monster's counter-attack.
+        Returns the (possibly mutated) entity entry.
+        """
+        from data.monsters import SPECIAL_ABILITIES
+        special_key = entity_entry.get('special_ability', '')
+        defn        = SPECIAL_ABILITIES.get(special_key or '')
+        if not defn:
+            return entity_entry
+
+        known = dict(current_state.known_entities or {})
+        entry = dict(known.get(entity_key, entity_entry))
+        hp    = entry.get('hp', 0)
+        max_hp = max(entry.get('max_hp', 1) or 1, 1)
+
+        # Berserk: +ATK when below 50 % HP (one-time activation)
+        if special_key == 'berserk' and not entry.get('berserk_active'):
+            if hp / max_hp <= 0.5:
+                entry['berserk_active'] = True
+                entry['atk'] = (entry.get('atk') or 5) + defn.get('value', 3)
+
+        # Luring Song: charm attempt once per encounter
+        if special_key == 'luring_song' and not entry.get('song_used'):
+            entry['song_used'] = True
+            if self.dice.roll('1d20')[2] < defn.get('dc', 13):
+                self.combat.apply_status_to_player('charmed', current_state)
+                flag_modified(current_state, 'known_entities')
+
+        known[entity_key] = entry
+        current_state.known_entities = known
+        return entry
