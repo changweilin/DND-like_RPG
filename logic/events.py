@@ -314,9 +314,30 @@ class EventManager:
             from engine.combat import detect_class_ability
             intent['class_ability'] = detect_class_ability(player_action, character.char_class)
 
+        # --- Step 3.5: Flee mechanics (deterministic MOV check) ---
+        # Detected before Step 4/5 so we can short-circuit combat processing.
+        flee_result = None
+        if _FLEE_RE.search(player_action) and current_state.in_combat:
+            flee_result = self.combat.resolve_flee(character, current_state)
+            if flee_result['fled']:
+                current_state.in_combat = 0
+                self._used_abilities.clear()
+            else:
+                # Failed flee: apply counter-attack damage
+                if flee_result['damage_taken'] > 0:
+                    char_logic.take_damage(flee_result['damage_taken'])
+            self.session.commit()
+
         # --- Step 4: Dynamic entity stat block (Infinite Monster Engine) ---
         target = intent.get('target', '').strip()
-        if target and not self.rag.entity_stat_block_exists(target):
+        # Detect "3 goblins" / "goblin x3" patterns → spawn multiple instances
+        _spawn_count, _base_name = self._parse_multi_enemy_count(target)
+        if _spawn_count > 1:
+            spawned_keys = self._spawn_multi_enemies(_base_name, _spawn_count, intent, current_state)
+            # Redirect first-attack target to the first instance key
+            target = spawned_keys[0] if spawned_keys else target
+            intent  = dict(intent); intent['target'] = target
+        elif target and not self.rag.entity_stat_block_exists(target):
             self._generate_and_store_stat_block(target, intent, current_state)
 
         # --- Step 5: Combat rule engine (Section 3.3) ---
@@ -327,7 +348,7 @@ class EventManager:
         class_ability  = intent.get('class_ability')
         loot_xp_result = None   # populated after combat kill (Step 5 → Step 8 boundary)
 
-        if intent.get('action_type') == 'attack' and target:
+        if intent.get('action_type') == 'attack' and target and not flee_result:
             combat_result = self.combat.resolve_attack(
                 character, char_logic, target, current_state,
                 class_ability_key=class_ability,
@@ -495,6 +516,22 @@ class EventManager:
                 outcome_parts.append(
                     f"Ability [{ab_name}]: next incoming damage halved."
                 )
+
+        # Inject flee facts so the LLM narrates the exact outcome
+        if flee_result:
+            flee_sign = '+' if flee_result['mov_modifier'] >= 0 else ''
+            outcome_parts.append(
+                f"Flee attempt: 1d20{flee_sign}{flee_result['mov_modifier']} "
+                f"= {flee_result['flee_total']} vs DC {flee_result['flee_dc']}."
+            )
+            if flee_result['fled']:
+                outcome_parts.append("FLED SUCCESSFULLY — player escapes combat.")
+            else:
+                outcome_parts.append("FLEE FAILED — enemy blocks escape.")
+                if flee_result['damage_taken'] > 0:
+                    outcome_parts.append(
+                        f"Punishing counter-attack: player takes {flee_result['damage_taken']} damage."
+                    )
 
         if dice_result:
             outcome_parts.append(
@@ -700,6 +737,16 @@ class EventManager:
             char_logic.heal(hp_healed)
         if mp_used:
             char_logic.use_mp(mp_used)
+
+        # --- Game Over check: player HP reached 0 ---
+        if character.hp <= 0:
+            character.hp = 0
+            current_state.in_combat = 0
+            self.session.commit()
+            turn_data['game_over'] = True
+            turn_data['_combat_result'] = combat_result
+            return narrative, choices, turn_data, dice_result
+
         # Apply any status effect the enemy inflicted on the player via counter-attack
         if counter_status:
             self.combat.apply_status_to_player(counter_status, current_state)
@@ -717,7 +764,8 @@ class EventManager:
             world.update_relationship(npc, delta)
 
         # --- Phase 3: Update combat state ---
-        self._update_combat_state(intent, combat_result, current_state)
+        self._update_combat_state(intent, combat_result, current_state,
+                                  flee_result=flee_result)
 
         # Store result refs in turn_data for UI rendering
         turn_data['_combat_result'] = combat_result
@@ -1770,9 +1818,14 @@ class EventManager:
         """
         action_type = intent.get('action_type', 'direct_action')
         entity_type = detect_entity_type(entity_name, action_type)
+        # Fetch player level for tier-gap difficulty scaling
+        from engine.game_state import Character as _CharModel
+        _char_row = self.session.get(_CharModel, current_state.player_id)
+        _player_level = (_char_row.level or 1) if _char_row else 1
         hp, atk, def_stat = get_entity_base_stats(
             entity_type, current_state.difficulty or 'Normal',
             entity_name=entity_name,
+            player_level=_player_level,
         )
 
         stat_block = self.llm.generate_entity_stat_block(
@@ -1826,6 +1879,51 @@ class EventManager:
             self.session.commit()
 
     # ------------------------------------------------------------------
+    # Multi-enemy spawn helpers
+    # ------------------------------------------------------------------
+
+    # Regex: "3 goblins", "goblin x3", "two skeletons", "a pair of wolves"
+    _MULTI_RE = re.compile(
+        r'^(?:(\d+)\s+(.+?)|(.+?)\s+[xX×](\d+)|'
+        r'(two|three|four|five|six)\s+(.+?))s?$',
+        re.I,
+    )
+    _WORD_NUMS = {'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6}
+
+    def _parse_multi_enemy_count(self, target_str):
+        """
+        Parse a target string for a count > 1.
+        Returns (count, base_name) or (1, target_str) for singles.
+        """
+        m = self._MULTI_RE.match(target_str.strip())
+        if not m:
+            return 1, target_str
+        if m.group(1) and m.group(2):           # "3 goblins"
+            return int(m.group(1)), m.group(2).rstrip('s')
+        if m.group(3) and m.group(4):           # "goblin x3"
+            return int(m.group(4)), m.group(3).rstrip('s')
+        if m.group(5) and m.group(6):           # "two skeletons"
+            return self._WORD_NUMS[m.group(5).lower()], m.group(6).rstrip('s')
+        return 1, target_str
+
+    def _spawn_multi_enemies(self, base_name, count, intent, current_state):
+        """
+        Register `count` instances of `base_name` in known_entities.
+        Keys: base_name_1, base_name_2, … (or just base_name when count==1).
+        Returns the list of keys that were newly registered.
+        """
+        keys = []
+        for i in range(1, count + 1):
+            key = f"{base_name.lower()}_{i}" if count > 1 else base_name.lower()
+            if not (current_state.known_entities or {}).get(key):
+                # Temporarily set intent target to key so stat block is generated
+                fake_intent = dict(intent)
+                fake_intent['target'] = key
+                self._generate_and_store_stat_block(key, fake_intent, current_state)
+            keys.append(key)
+        return keys
+
+    # ------------------------------------------------------------------
     # Phase 2: Loot drop + XP grant
     # ------------------------------------------------------------------
 
@@ -1874,17 +1972,22 @@ class EventManager:
     # Phase 3: Combat state tracking
     # ------------------------------------------------------------------
 
-    def _update_combat_state(self, intent, combat_result, current_state):
+    def _update_combat_state(self, intent, combat_result, current_state,
+                             flee_result=None):
         """
         Maintain GameState.in_combat and reset once-per-combat ability cooldowns.
         Sets in_combat=True on attack; clears when all enemies die or player flees.
+
+        flee_result — already-resolved flee dict from Step 3.5 (or None).
         """
         was_in_combat = bool(current_state.in_combat)
         action_type   = intent.get('action_type', '')
 
-        if _FLEE_RE.search(intent.get('summary', '')):
-            current_state.in_combat = 0
-            self._used_abilities.clear()
+        # Flee was resolved in Step 3.5; only clear combat if it succeeded.
+        if flee_result is not None:
+            if flee_result['fled']:
+                current_state.in_combat = 0
+                self._used_abilities.clear()
             self.session.commit()
             return
 

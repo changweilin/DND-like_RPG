@@ -3024,7 +3024,7 @@ def _render_class_abilities_panel(char, state):
     if not (in_combat or has_enemies):
         return
 
-    with st.expander(f"⚔️ {char.char_class} 職業技能", expanded=False):
+    with st.expander(f"⚔️ {char.char_class} 職業技能", expanded=in_combat):
         for akey, adef in cls_def.items():
             mp_cost  = adef.get('mp_cost', 0)
             can_use  = char.mp >= mp_cost
@@ -3306,7 +3306,34 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
     action_taken = st.session_state.pop('_vram_pending_action', None)
 
     if active_char.hp <= 0:
-        st.warning(f"**{active_char.name}** {_t('char_fallen')}")
+        st.markdown(
+            "<div style='background:#1a0000;border:2px solid #7f1d1d;border-radius:10px;"
+            "padding:24px;text-align:center;margin:16px 0'>"
+            "<div style='font-size:2.5em'>💀</div>"
+            "<div style='font-size:1.6em;color:#ef4444;font-weight:bold;margin:8px 0'>"
+            f"GAME OVER</div>"
+            f"<div style='color:#fca5a5'>{active_char.name} 已陣亡。</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        go_col1, go_col2 = st.columns(2)
+        if go_col1.button("🔄 重新開始（新遊戲）", use_container_width=True):
+            for key in ('current_session', 'game_state', 'player', 'event_manager'):
+                st.session_state[key] = None
+            st.session_state.party             = []
+            st.session_state['_menu_needs_restore'] = True
+            st.session_state.history           = []
+            st.session_state.world_map         = {}
+            st.session_state.player_positions  = {}
+            st.rerun()
+        if go_col2.button("💾 讀取存檔", use_container_width=True):
+            for key in ('current_session', 'game_state', 'player', 'event_manager'):
+                st.session_state[key] = None
+            st.session_state.party             = []
+            st.session_state['_show_load_game'] = True
+            st.session_state['_menu_needs_restore'] = True
+            st.session_state.history           = []
+            st.rerun()
 
     elif current_choices:
         # Branching narrative choices — display prominently (≥3 choices, 3-col layout)
@@ -3370,6 +3397,26 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                     action_taken, state, active_char, party=party
                 )
             )
+            # --- Game Over ---
+            if turn_data.get('game_over'):
+                st.session_state.history.append({
+                    "role":        "dm",
+                    "content":     response,
+                    "choices":     [],
+                    "scene_type":  "combat",
+                    "dice_result": dice_result,
+                    "combat_result": turn_data.get('_combat_result'),
+                    "loot_xp":     None,
+                    "image":       None,
+                    "image_path":  "",
+                    "is_cinematic": False,
+                    "cinematic_label": None,
+                    "turn":        state.turn_count or 0,
+                    "game_over":   True,
+                })
+                st.session_state.vram_busy = False
+                st.rerun()
+
             # Update world map if player moved
             if turn_data.get('location_change'):
                 _move_player_on_map(active_char, turn_data['location_change'])
@@ -4396,6 +4443,13 @@ def game_loop():
         f"*(memory: last {config.SESSION_MEMORY_WINDOW})*"
     )
     _render_enemy_tracker(state)
+    if getattr(state, 'in_combat', 0):
+        st.sidebar.markdown(
+            "<div style='background:#7f1d1d;color:#fca5a5;padding:6px 10px;"
+            "border-radius:6px;font-weight:bold;text-align:center'>"
+            "⚔️ 戰鬥中</div>",
+            unsafe_allow_html=True,
+        )
     _render_npc_tracker(state)
     _render_language_switcher()
     _render_model_switcher()

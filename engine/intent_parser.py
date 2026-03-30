@@ -103,23 +103,50 @@ _DIFF_SCALE = {
 }
 
 
-def get_entity_base_stats(entity_type, difficulty, entity_name=None):
+def get_entity_base_stats(entity_type, difficulty, entity_name=None,
+                          player_level=1):
     """
     Return (hp, atk, def_stat) for the entity.
 
     Priority:
-      1. Named monster in MONSTER_ROSTER (scaled by difficulty).
+      1. Named monster in MONSTER_ROSTER (scaled by difficulty + player level).
       2. Generic lookup table with ±20 % variance (existing behaviour).
 
     entity_name is optional; pass it to enable roster lookup.
+    player_level (1–10) adds a tier-gap multiplier so monsters always feel
+    appropriately challenging:
+      Lv 1-2  → expect Tier 1  (easy)
+      Lv 3-5  → expect Tier 2  (normal)
+      Lv 6-8  → expect Tier 3  (hard)
+      Lv 9-10 → expect Tier 4  (deadly)
+    If the monster's actual tier is below the player's expected tier, stats
+    are boosted.  If above, they are slightly reduced to keep the fight
+    survivable (not replaced — player freedom is preserved).
     """
     diff_key = (difficulty or 'normal').lower()
     vary = lambda v: max(1, int(v * random.uniform(0.8, 1.2)))
+
+    # Map player level → expected tier
+    if player_level <= 2:
+        expected_tier = 1
+    elif player_level <= 5:
+        expected_tier = 2
+    elif player_level <= 8:
+        expected_tier = 3
+    else:
+        expected_tier = 4
 
     if entity_name:
         roster_entry = get_monster_by_name(entity_name)
         if roster_entry:
             scale = _DIFF_SCALE.get(diff_key, 1.0)
+            monster_tier = roster_entry.get('tier', 2)
+            # Tier gap correction: +15% per tier below expected, -10% per tier above
+            tier_gap = expected_tier - monster_tier
+            if tier_gap > 0:
+                scale *= (1.0 + 0.15 * tier_gap)   # boost weak monsters
+            elif tier_gap < 0:
+                scale *= max(0.6, 1.0 + 0.10 * tier_gap)  # soften overleveled monsters
             hp       = vary(int(roster_entry['hp']       * scale))
             atk      = vary(int(roster_entry['atk']      * scale))
             def_stat = vary(int(roster_entry['def_stat'] * scale))

@@ -503,6 +503,66 @@ class CombatEngine:
         }
 
     # ------------------------------------------------------------------
+    # Flee mechanics
+    # ------------------------------------------------------------------
+
+    def resolve_flee(self, character, current_state):
+        """
+        Resolve a player's attempt to flee from combat.
+
+        Flee roll: 1d20 + MOV modifier  vs  DC = 10 + highest living enemy MOV modifier.
+        Success → fled=True  (caller clears in_combat).
+        Failure → fled=False + enemy free counter-attack result included.
+
+        Returns:
+            {
+                'fled':         bool,
+                'flee_roll':    int,    # raw d20
+                'mov_modifier': int,
+                'flee_total':   int,
+                'flee_dc':      int,
+                'counter':      dict | None,   # enemy counter on failure
+                'damage_taken': int,           # damage from failed-flee counter
+            }
+        """
+        mov_modifier = (character.mov - 10) // 2
+        raw_roll, _, flee_total = self.dice.roll(f'1d20{"+" if mov_modifier >= 0 else ""}{mov_modifier}')
+
+        # Determine DC from the fastest (highest MOV) living enemy
+        known = current_state.known_entities or {}
+        living_entries = [
+            e for k, e in known.items()
+            if not k.startswith('_') and e.get('alive', True)
+        ]
+        if living_entries:
+            enemy_mov = max(e.get('mov', 10) for e in living_entries)
+        else:
+            enemy_mov = 10
+        flee_dc = 10 + (enemy_mov - 10) // 2
+
+        fled = flee_total >= flee_dc
+
+        counter = None
+        damage_taken = 0
+        if not fled and living_entries:
+            # Fastest enemy gets a free counter-attack on failed flee
+            punisher = max(living_entries, key=lambda e: e.get('mov', 10))
+            counter = self.resolve_enemy_counter_attack(punisher, character)
+            if counter.get('hit'):
+                raw_dmg = counter.get('raw_damage', 0)
+                damage_taken = max(0, raw_dmg - (character.def_stat // 2))
+
+        return {
+            'fled':         fled,
+            'flee_roll':    raw_roll,
+            'mov_modifier': mov_modifier,
+            'flee_total':   flee_total,
+            'flee_dc':      flee_dc,
+            'counter':      counter,
+            'damage_taken': damage_taken,
+        }
+
+    # ------------------------------------------------------------------
     # Status effect management
     # ------------------------------------------------------------------
 
