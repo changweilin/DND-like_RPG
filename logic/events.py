@@ -1246,24 +1246,24 @@ class EventManager:
                     effective_def = character.def_stat + shield_bonus
                     damage_taken = max(0, raw_dmg - (effective_def // 2))
                     counter_status = counter.get('status_applied')
-                    # Apply lifesteal (wight / vampire_spawn)
+                    # Apply lifesteal (wight / vampire_spawn) — read fresh after AI triggers
                     if counter.get('lifesteal', 0) > 0 and is_alive:
-                        entry2 = dict(known.get(target_name, {}))
+                        entry2 = dict((current_state.known_entities or {}).get(target_name, {}))
                         entry2['hp'] = min(
                             entry2.get('max_hp', entry2.get('hp', 0)),
                             entry2.get('hp', 0) + counter['lifesteal'],
                         )
-                        known2 = dict(known)
+                        known2 = dict(current_state.known_entities or {})
                         known2[target_name] = entry2
                         current_state.known_entities = known2
 
-                    # Tick enemy status effects (e.g. poison on the enemy)
-                    enemy_tick = self.combat.tick_entity_status_effects(target_name, current_state)
-                    if enemy_tick.get('damage', 0) > 0:
-                        # Reapply damage from tick to entity
-                        self._apply_combat_damage_to_entity(
-                            target_name, enemy_tick['damage'], current_state
-                        )
+                # Tick enemy status effects (e.g. poison on the enemy) — always runs while alive
+                enemy_tick = self.combat.tick_entity_status_effects(target_name, current_state)
+                if enemy_tick.get('damage', 0) > 0:
+                    # Reapply damage from tick to entity
+                    self._apply_combat_damage_to_entity(
+                        target_name, enemy_tick['damage'], current_state
+                    )
 
                     flag_modified(current_state, 'known_entities')
                     self.session.commit()
@@ -1278,7 +1278,7 @@ class EventManager:
             mp_used   = utility_result.get('mp_cost', 0)
             # Arcane Shield — store DEF bonus in player buffs
             def_bonus = utility_result.get('def_bonus', 0)
-            if def_bonus > 0:
+            if char_logic and def_bonus > 0:
                 char_logic.apply_def_bonus(def_bonus, current_state)
                 flag_modified(current_state, 'known_entities')
                 self.session.commit()

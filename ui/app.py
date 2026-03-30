@@ -2788,7 +2788,7 @@ def _render_party_sidebar(party, state, active_char):
             _render_xp_bar(char)
 
         # Active status effects on this character
-        if not is_dead and not is_dead:
+        if not is_dead:
             player_buffs = [
                 b for b in (state.known_entities or {}).get('_player_buffs', [])
                 if b.get('turns_remaining', 0) > 0 and not b.get('key', '').startswith('_')
