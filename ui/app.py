@@ -2606,6 +2606,14 @@ def main_menu():
         _render_creation_image_preview(ws)
 
     with col2:
+        _from_game_over = st.session_state.pop('_show_load_game', False)
+        if _from_game_over:
+            st.markdown(
+                "<div style='background:#1a2a1a;border:1px solid #4ade80;"
+                "border-radius:6px;padding:8px 12px;margin-bottom:10px;"
+                "color:#86efac;font-size:0.9em'>💾 選擇存檔以繼續冒險</div>",
+                unsafe_allow_html=True,
+            )
         st.header(_t("load_game"))
         saves = st.session_state.save_manager.list_saves()
         if not saves:
@@ -2779,11 +2787,25 @@ def _render_party_sidebar(party, state, active_char):
             )
 
         if char.inventory:
+            _in_combat_now = bool(getattr(state, 'in_combat', 0))
+            _is_active_char = (char.id == active_char.id)
             inv_names = [
                 it.get('name', it) if isinstance(it, dict) else it
                 for it in char.inventory
             ]
-            st.sidebar.caption("Inventory: " + ", ".join(inv_names))
+            if _in_combat_now and _is_active_char and not is_dead:
+                st.sidebar.caption("🎒 背包（點擊使用）")
+                for _iname in inv_names:
+                    if st.sidebar.button(
+                        f"🧪 {_iname}",
+                        key=f"use_item_{char.id}_{_iname}",
+                        use_container_width=True,
+                    ):
+                        st.session_state['_vram_pending_action'] = f"I use {_iname}"
+                        st.session_state.vram_busy = True
+                        st.rerun()
+            else:
+                st.sidebar.caption("Inventory: " + ", ".join(inv_names))
 
         # XP / level bar
         if not is_dead:
@@ -2972,6 +2994,38 @@ def _render_combat_banner(combat_result):
     st.info(
         f"{icon} **{label}**{ability_note}{auto_note} → {target}  "
         f"🎲 {roll_str}{dmg_str}{status_note}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Boss encounter banner
+# ---------------------------------------------------------------------------
+
+def _render_boss_encounter_banner(boss_entry):
+    """Full-width warning banner shown when a tier-4 boss first appears."""
+    if not boss_entry:
+        return
+    name       = boss_entry.get('display_name') or boss_entry.get('name', 'Unknown Boss')
+    hp         = boss_entry.get('hp', '?')
+    max_hp     = boss_entry.get('max_hp', hp)
+    special    = boss_entry.get('special_ability', '')
+    resist     = ', '.join(boss_entry.get('resistances', [])) or '—'
+    weak       = ', '.join(boss_entry.get('weaknesses',  [])) or '—'
+    st.markdown(
+        f"<div style='background:linear-gradient(135deg,#1a0a00,#3d0000);"
+        f"border:2px solid #dc2626;border-radius:10px;padding:16px;margin:12px 0'>"
+        f"<div style='font-size:1.4em;font-weight:bold;color:#fca5a5;text-align:center'>"
+        f"⚠️ BOSS 遭遇 — {name}</div>"
+        f"<div style='display:flex;justify-content:space-around;margin-top:10px;"
+        f"font-size:0.9em;color:#fecaca'>"
+        f"<span>❤️ HP: {hp}/{max_hp}</span>"
+        f"<span>🛡️ 抗性: {resist}</span>"
+        f"<span>⚡ 弱點: {weak}</span>"
+        f"</div>"
+        + (f"<div style='margin-top:6px;font-size:0.85em;color:#f87171;text-align:center'>"
+           f"特殊能力: {special}</div>" if special else "")
+        + "</div>",
+        unsafe_allow_html=True,
     )
 
 
@@ -3165,6 +3219,42 @@ def _render_score_board(party, state):
         st.caption(f"⚔ {dmg}dmg  💚 {heal}heal  🎯 {chks}chk  ↩ {turns}t  💰 {char.gold}g")
 
 
+def _render_dungeon_map(dungeon, current_location):
+    """
+    Render a simple ASCII-style dungeon map using Streamlit markdown.
+    Rooms are shown as boxes; corridors as lines.
+    Visited rooms are bright; unvisited rooms are dimmed.
+    Current location room is highlighted.
+    """
+    if not dungeon:
+        st.info("地城地圖尚未生成。")
+        return
+
+    lines = []
+    for rid, room in dungeon.items():
+        visited   = room.get('visited', False)
+        is_here   = (room.get('name', '').lower() == (current_location or '').lower())
+        icon      = "📍" if is_here else ("🟩" if visited else "⬛")
+        name      = room.get('name', rid)
+        neighbors = [dungeon[cid]['name'] for cid in room.get('connections', []) if cid in dungeon]
+        conn_str  = " → " + ", ".join(neighbors) if neighbors else ""
+        has_enemies = bool(room.get('enemies'))
+        has_loot    = bool(room.get('loot'))
+        tags = ("⚔️" if has_enemies else "") + ("💰" if has_loot else "")
+        lines.append(f"{icon} **{name}**{(' ' + tags) if tags else ''}{conn_str}")
+
+    st.markdown("\n\n".join(lines))
+
+    # Show description for current room
+    for room in dungeon.values():
+        if room.get('name', '').lower() == (current_location or '').lower():
+            st.caption(f"📜 {room.get('description', '')}")
+            adj = [dungeon[cid]['name'] for cid in room.get('connections', []) if cid in dungeon]
+            if adj:
+                st.caption("🚪 通往：" + "、".join(adj))
+            break
+
+
 def _render_game_board_tab(party, state, active_char, active_idx):
     """Tab 1 — 遊戲板: continent image + grid map + score board + dice roller."""
     flag    = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else '👤'
@@ -3233,6 +3323,26 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     st.markdown(f"#### {_t('relation_graph')}")
     _render_relation_graph(state, party)
 
+    # ── Dungeon map ────────────────────────────────────────────────────────
+    dungeon = getattr(state, 'dungeon_map', None) or {}
+    if dungeon:
+        st.divider()
+        st.markdown("#### 🗺️ 地城地圖")
+        _render_dungeon_map(dungeon, state.current_location)
+    else:
+        if st.button("🗺️ 生成地城地圖", key="gen_dungeon_btn"):
+            from engine.world import WorldManager
+            _wm = WorldManager(st.session_state.current_session, state)
+            dungeon = _wm.generate_dungeon(
+                room_count=8,
+                seed=getattr(state, 'id', None),
+            )
+            # Move player to first room
+            first_room = list(dungeon.values())[0]
+            state.current_location = first_room['name']
+            st.session_state.current_session.commit()
+            st.rerun()
+
 # ---------------------------------------------------------------------------
 # Story tab — narrative history + branching choices + action input
 # ---------------------------------------------------------------------------
@@ -3279,6 +3389,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             else:
                 _render_scene_label(scene_type)
             _render_dice_result(item.get('dice_result'))
+            _render_boss_encounter_banner(item.get('boss_encounter'))
             _render_combat_banner(item.get('combat_result'))
             _render_loot_xp_banner(item.get('loot_xp'))
             label = f"**{dm_lbl}:**" if not item.get('is_prologue') else f"**{dm_lbl} 開場白:**"
@@ -3299,6 +3410,45 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
     # ---- Class abilities quick-reference (only shown when enemies are present) ----
     _render_class_abilities_panel(active_char, state)
 
+    # ---- Combat quick-action bar (shown when in_combat=1 and enemies alive) ----
+    _combat_quick_action = None
+    if getattr(state, 'in_combat', 0) and active_char.hp > 0:
+        _known = state.known_entities or {}
+        _living = [
+            (k, v) for k, v in _known.items()
+            if not k.startswith('_') and isinstance(v, dict)
+            and v.get('alive', True)
+            and v.get('type') in ('monster', 'boss', 'guard')
+        ]
+        if _living:
+            # Pick the first living enemy as the default target
+            _primary_key = _living[0][0]
+            _primary_name = _primary_key.replace('_', ' ').title()
+            st.markdown(
+                "<div style='font-size:0.9em;color:#fca5a5;font-weight:bold;"
+                "margin-bottom:4px'>⚔️ 戰鬥快捷</div>",
+                unsafe_allow_html=True,
+            )
+            _qcols = st.columns(3)
+            if _qcols[0].button(
+                f"⚔️ 攻擊 {_primary_name}",
+                key="qaction_attack",
+                use_container_width=True,
+            ):
+                _combat_quick_action = f"I attack the {_primary_key}"
+            if _qcols[1].button(
+                "✨ 使用技能",
+                key="qaction_skill",
+                use_container_width=True,
+            ):
+                _combat_quick_action = "I use my class ability"
+            if _qcols[2].button(
+                "🏃 逃跑",
+                key="qaction_flee",
+                use_container_width=True,
+            ):
+                _combat_quick_action = "I flee from combat"
+
     # ---- Action input ----
     current_choices = []
     if st.session_state.history and st.session_state.history[-1]['role'] == 'dm':
@@ -3306,6 +3456,9 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
     # Restore action deferred from previous run (VRAM lock pattern)
     action_taken = st.session_state.pop('_vram_pending_action', None)
+    # Combat quick-action bar takes priority over free-text / choices
+    if _combat_quick_action and not action_taken:
+        action_taken = _combat_quick_action
 
     if active_char.hp <= 0:
         st.markdown(
@@ -3514,6 +3667,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "dice_result":     dice_result,
             "combat_result":   turn_data.get('_combat_result'),
             "loot_xp":         turn_data.get('_loot_xp'),
+            "boss_encounter":  turn_data.get('_boss_encounter'),
             "image":           scene_image,
             "image_path":      scene_image_path,
             "is_cinematic":    is_cinematic,
@@ -4572,6 +4726,12 @@ def game_loop():
             "content":    action_text,
             "all_choices": [],
         })
+        _ai_audio = st.session_state.audio_gen.on_scene_change(
+            scene_type=turn_data.get('scene_type', 'exploration'),
+            combat_result=turn_data.get('_combat_result'),
+            flee_result=turn_data.get('_flee_result'),
+            loot_xp=turn_data.get('_loot_xp'),
+        )
         st.session_state.history.append({
             "role":           "dm",
             "content":        response,
@@ -4580,6 +4740,8 @@ def game_loop():
             "dice_result":    dice_result,
             "combat_result":  turn_data.get('_combat_result'),
             "loot_xp":        turn_data.get('_loot_xp'),
+            "boss_encounter": turn_data.get('_boss_encounter'),
+            "audio_cues":     _ai_audio,
             "image":          None,
             "image_path":     '',
         })

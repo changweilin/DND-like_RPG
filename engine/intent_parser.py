@@ -162,8 +162,11 @@ def get_entity_base_stats(entity_type, difficulty, entity_name=None,
 # ---------------------------------------------------------------------------
 
 _ATTACK_RE = re.compile(
-    r'(攻擊|砍|刺|切|打|射|殺|衝|blast|attack|strike|hit|slash|stab|shoot|\bfire\b|'
-    r'charge|swing|smash|pummel|punch|kick|thrust|cleave)',
+    r'(攻擊|砍|刺|切|打|射|殺|衝|傷害|刺穿|揮砍|痛擊|刺殺|暗殺|重擊|踢|踹|打倒|斬|劈|'
+    r'blast|attack|strike|hit|slash|stab|shoot|\bfire\b|'
+    r'charge|swing|smash|pummel|punch|kick|thrust|cleave|'
+    r'hurt|wound|assault|maul|batter|slay|dispatch|lunge|ram|gore|shred|'
+    r'cut down|stab at|strike at|take down|beat up|beat down|tear apart)',
     re.I,
 )
 _MAGIC_RE = re.compile(
@@ -188,6 +191,16 @@ _STEALTH_RE = re.compile(
 )
 _REST_RE = re.compile(
     r'(休息|睡覺|紮營|冥想|恢復體力|rest|sleep|camp|meditate|take a break|recover)',
+    re.I,
+)
+# Item use intent — "use potion", "drink potion", "throw bomb", "喝藥水", "使用"
+_ITEM_USE_RE = re.compile(
+    r'(使用|喝|服用|吞|投擲|丟|use\s+(?:a\s+|the\s+|my\s+)?|drink\s+|consume\s+|throw\s+|toss\s+)',
+    re.I,
+)
+# Capture item name after the verb (greedy, up to end of string)
+_ITEM_NAME_RE = re.compile(
+    r'(?:使用|喝|服用|吞|投擲|丟|use(?:\s+(?:a|the|my))?|drink|consume|throw|toss)\s+(.+)',
     re.I,
 )
 
@@ -330,6 +343,13 @@ def try_parse(player_action, known_entities, difficulty, char_class=None):
             player_action,
             class_ability=class_ability,
         )
+
+    # --- Item use ---
+    if _ITEM_USE_RE.search(player_action):
+        m = _ITEM_NAME_RE.search(player_action)
+        item_name = m.group(1).strip() if m else ''
+        return _intent('item_use', False, '', 0, item_name, player_action,
+                       class_ability=class_ability)
 
     # --- Rest ---
     if _REST_RE.search(player_action):

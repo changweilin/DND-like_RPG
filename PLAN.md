@@ -118,6 +118,64 @@ python tools/gen_lora_data.py --samples 200
 
 ---
 
+## Phase 6 — 戰鬥品質與遊戲流程優化 ✅
+
+### 6-A 擴充攻擊關鍵字 ✅
+**目標**：減少不必要的 LLM fallback，提升意圖識別速度與準確率。
+
+- `engine/intent_parser.py`：`_ATTACK_RE` 補充同義詞：
+  - 中文：傷害、刺穿、揮砍、痛擊、刺殺、暗殺、重擊、踢、踹、打倒
+  - 英文：hurt、wound、assault、maul、batter、slay、dispatch、stab at、cut down、lunge、ram、gore、shred
+
+### 6-B 戰鬥自動連續模式 ✅
+**目標**：`in_combat=1` 時若玩家未輸入，自動提示「繼續攻擊 / 使用技能 / 逃跑」三個快捷按鈕，減少每回合重複輸入。
+
+- `ui/app.py`：`_render_story_tab()` 中，`in_combat=1` 且有存活敵人時，在選擇肢之前顯示戰鬥快捷列
+- 快捷按鈕動態產生：「⚔️ 繼續攻擊 {target}」、「✨ 使用技能」、「🏃 逃跑」
+- 點擊按鈕直接觸發 `action_taken`，不需要表單提交
+
+### 6-C Boss 遭遇特殊演出 ✅
+**目標**：tier=4 怪物（Lich、Ancient Dragon 等）首次出現時顯示特殊橫幅和 stat 面板。
+
+- `ui/app.py`：新增 `_render_boss_encounter_banner(entity_entry)` 函式
+- 觸發條件：`known_entities` 中新增 tier=4 且 `alive=True` 的實體
+- 顯示：特殊暗色橫幅（名稱、HP、特殊能力、弱點/抗性），配合 `⚠️` 圖示
+- `logic/events.py`：在 Step 5 後若新生成 boss 實體，在 `turn_data` 中記錄 `_boss_encounter` key
+
+### 6-D 死亡後讀取存檔修復 ✅
+**目標**：Game Over 畫面的「讀取存檔」按鈕實際跳轉到讀檔選單。
+
+- `ui/app.py`：檢查 `_show_load_game` 旗標在主流程中的路由
+- 確保 Game Over → 設旗標 → `st.rerun()` → 主選單顯示讀檔 UI
+- 若需要，在 `main()` / `menu()` 入口補上旗標檢測分支
+
+### 6-E 多人 AI 自動行動 ✅
+**目標**：Party 中的 AI 角色每輪自動行動，不需玩家手動操作。
+
+- `logic/events.py`：`_advance_active_player()` 後，若下一位是 AI 角色，自動呼叫 `AIPlayerController.decide_action()`
+- `ui/app.py`：AI 行動結果以「🤖 {name}：{action}」格式顯示在歷史紀錄中
+
+### 6-F 物品使用系統 ✅
+**目標**：在戰鬥和探索中使用 inventory 內的消耗品（藥水、投擲物）。
+
+- `engine/intent_parser.py`：新增 `_ITEM_USE_RE` 識別「喝藥水 / use potion / drink」等意圖
+- `engine/character.py`：`use_item(item_name)` → 從 inventory 移除並返回效果 dict
+- `engine/combat.py`：物品效果映射（healing_potion → hp_healed, poison_vial → apply_status）
+- `logic/events.py`：Step 5 後處理 item_use intent，套用效果並注入敘事事實
+- `ui/app.py`：側邊欄 inventory 物品可點擊（戰鬥中顯示「使用」按鈕）
+
+### 6-G 地城地圖生成 ✅
+**目標**：WorldManager 支援房間/走廊樹狀結構，讓逃跑、探索有實際地理意義。
+
+- `engine/world.py`：`generate_dungeon(room_count, seed)` → 隨機生成連接圖
+  - 每個房間：`{id, name, description, connections: [room_id], enemies: [], loot: [], visited: bool}`
+  - 演算法：隨機深度優先展開，確保連通性
+- `engine/game_state.py`：`GameState` 新增 `dungeon_map = Column(JSON, default={})`
+- `ui/app.py`：`_render_game_board_tab()` 顯示簡易 ASCII 或 Streamlit graph 地城地圖
+- `logic/events.py`：location_change 時查詢鄰接房間，逃跑成功移動到連接房間
+
+---
+
 ## 變更歷史
 
 | 日期 | 版本 | 摘要 |
@@ -125,3 +183,4 @@ python tools/gen_lora_data.py --samples 200
 | 2026-03-30 | Phase 1-3 | 怪物系統、戰鬥引擎、UI 顯示層、4 項 bug 修復 |
 | 2026-03-30 | Phase 4   | 逃跑機制、in_combat UI、多敵人生成、死亡流程、難度動態縮放 |
 | 2026-03-31 | Phase 5   | SRD seeder 工具、LoRA 資料生成器、音效管理器升級與整合 |
+| 2026-03-31 | Phase 6   | 攻擊詞擴充、戰鬥快捷列、Boss 橫幅、死亡讀檔、AI 自動行動、物品使用、地城地圖 |

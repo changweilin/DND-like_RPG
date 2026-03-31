@@ -1,3 +1,4 @@
+import random
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import and_, or_
 from engine.game_state import GameState, EntityRelation
@@ -257,3 +258,120 @@ class WorldManager:
             .order_by(EntityRelation.since_turn)
             .all()
         )
+
+    # ------------------------------------------------------------------
+    # Dungeon map generation (room / corridor tree)
+    # ------------------------------------------------------------------
+
+    # Room type templates — (name_prefix, description_template)
+    _ROOM_TYPES = [
+        ('Entrance Hall',     'A grand but crumbling entrance. Torches flicker on damp stone walls.'),
+        ('Guard Room',        'Overturned furniture and dried bloodstains hint at a recent struggle.'),
+        ('Treasure Vault',    'Iron-banded chests line the walls. Some have been pried open.'),
+        ('Altar Chamber',     'A defaced stone altar dominates the room. Dark stains mar its surface.'),
+        ('Library',           'Rotting bookshelves hold crumbling tomes and scrolls.'),
+        ('Prison Cell Block',  'Rusted iron bars separate rows of empty cells. Bones litter the floor.'),
+        ('Alchemist\'s Lab',  'Shattered vials crunch underfoot. The air smells of sulfur and rot.'),
+        ('Throne Room',       'A massive throne of black stone faces a corridor of collapsed pillars.'),
+        ('Crypt',             'Stone sarcophagi line the walls. The air is cold and utterly still.'),
+        ('Barracks',          'Crude bunks fill the room. Weapon racks stand mostly empty.'),
+        ('Kitchen',           'A massive hearth, cold now, dominates this vaulted chamber.'),
+        ('Ritual Circle',     'Strange runes are carved into the floor in a complex pattern.'),
+    ]
+
+    def generate_dungeon(self, room_count=8, seed=None):
+        """
+        Generate a random dungeon map using a depth-first spanning tree.
+
+        Each room:
+          id          — sequential string ('room_0', 'room_1', …)
+          name        — descriptive room title
+          description — short atmospheric text
+          connections — list of adjacent room ids (bidirectional)
+          enemies     — list of monster name strings (empty by default)
+          loot        — list of item name strings (empty by default)
+          visited     — bool, set True when player enters
+
+        The map is stored in GameState.dungeon_map and committed.
+        Returns the dict.
+        """
+        rng = random.Random(seed)
+        room_count = max(3, min(room_count, 20))
+
+        # Build rooms
+        types_sample = rng.sample(
+            self._ROOM_TYPES * (room_count // len(self._ROOM_TYPES) + 1),
+            room_count,
+        )
+        rooms = {}
+        for i in range(room_count):
+            rid = f'room_{i}'
+            name, desc = types_sample[i]
+            rooms[rid] = {
+                'id':          rid,
+                'name':        name,
+                'description': desc,
+                'connections': [],
+                'enemies':     [],
+                'loot':        [],
+                'visited':     False,
+            }
+
+        # Connect rooms using a random spanning tree (DFS order)
+        room_ids = list(rooms.keys())
+        connected = {room_ids[0]}
+        remaining = set(room_ids[1:])
+        while remaining:
+            src = rng.choice(list(connected))
+            tgt = rng.choice(list(remaining))
+            rooms[src]['connections'].append(tgt)
+            rooms[tgt]['connections'].append(src)
+            connected.add(tgt)
+            remaining.discard(tgt)
+
+        # Add a few extra edges (loops) for variety — ~30 % of room_count
+        extra = max(1, room_count // 3)
+        for _ in range(extra):
+            src, tgt = rng.sample(room_ids, 2)
+            if tgt not in rooms[src]['connections']:
+                rooms[src]['connections'].append(tgt)
+                rooms[tgt]['connections'].append(src)
+
+        # Mark the first room as visited (start position)
+        rooms[room_ids[0]]['visited'] = True
+
+        self.state.dungeon_map = rooms
+        flag_modified(self.state, 'dungeon_map')
+        self.session.commit()
+        return rooms
+
+    def get_adjacent_rooms(self, current_room_id=None):
+        """
+        Return list of adjacent room dicts for the given room id.
+        If current_room_id is None, use current_location as key.
+        """
+        dungeon = self.state.dungeon_map or {}
+        if not dungeon:
+            return []
+        if current_room_id is None:
+            # Try to match current_location to a room name
+            loc = (self.state.current_location or '').lower()
+            for rid, room in dungeon.items():
+                if room.get('name', '').lower() == loc:
+                    current_room_id = rid
+                    break
+        if current_room_id not in dungeon:
+            return []
+        return [dungeon[cid] for cid in dungeon[current_room_id]['connections']
+                if cid in dungeon]
+
+    def mark_room_visited(self, room_id):
+        """Mark a room as visited and commit."""
+        dungeon = dict(self.state.dungeon_map or {})
+        if room_id in dungeon:
+            room = dict(dungeon[room_id])
+            room['visited'] = True
+            dungeon[room_id] = room
+            self.state.dungeon_map = dungeon
+            flag_modified(self.state, 'dungeon_map')
+            self.session.commit()

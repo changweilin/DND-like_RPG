@@ -60,6 +60,80 @@ class CharacterLogic:
                 return True
         return False
 
+    # Item effect lookup table — name fragment → effect dict
+    _ITEM_EFFECTS = {
+        'healing potion':  {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
+        'health potion':   {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
+        'potion of healing': {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
+        '藥水':            {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
+        '治療藥水':        {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
+        'greater healing':  {'hp_healed_dice': '4d4+4', 'type': 'consumable'},
+        'antidote':        {'cures_status': 'poisoned', 'type': 'consumable'},
+        '解毒劑':          {'cures_status': 'poisoned', 'type': 'consumable'},
+        'poison vial':     {'apply_status': 'poisoned', 'type': 'throwable'},
+        'bomb':            {'damage_dice': '2d6', 'aoe': True, 'type': 'throwable'},
+        '炸彈':            {'damage_dice': '2d6', 'aoe': True, 'type': 'throwable'},
+        'torch':           {'damage_dice': '1d4', 'apply_status': 'burning', 'type': 'throwable'},
+    }
+
+    def use_item(self, item_name, dice_roller=None):
+        """
+        Attempt to use a named item from inventory.
+
+        Returns a dict:
+          {'used': bool, 'item_name': str,
+           'hp_healed': int, 'cures_status': str|None,
+           'apply_status': str|None, 'damage_dice': str|None,
+           'aoe': bool, 'type': str}
+        If item not found → {'used': False}.
+        """
+        # Find item in inventory (case-insensitive substring match)
+        item_name_lower = item_name.lower()
+        found = None
+        for item in (self.model.inventory or []):
+            if item.get('name', '').lower() == item_name_lower:
+                found = item
+                break
+        if found is None:
+            # Try substring match
+            for item in (self.model.inventory or []):
+                if item_name_lower in item.get('name', '').lower():
+                    found = item
+                    break
+        if found is None:
+            return {'used': False, 'item_name': item_name}
+
+        # Look up effect
+        effect = {}
+        name_lower = found.get('name', '').lower()
+        for fragment, eff in self._ITEM_EFFECTS.items():
+            if fragment in name_lower:
+                effect = dict(eff)
+                break
+        # Default: unknown consumable heals a small amount
+        if not effect:
+            effect = {'hp_healed_dice': '1d4', 'type': 'consumable'}
+
+        # Roll healing
+        hp_healed = 0
+        if effect.get('hp_healed_dice') and dice_roller:
+            _, _, hp_healed = dice_roller.roll(effect['hp_healed_dice'])
+            self.heal(hp_healed)
+
+        # Remove from inventory
+        self.remove_item(found['name'])
+
+        return {
+            'used':          True,
+            'item_name':     found['name'],
+            'hp_healed':     hp_healed,
+            'cures_status':  effect.get('cures_status'),
+            'apply_status':  effect.get('apply_status'),
+            'damage_dice':   effect.get('damage_dice'),
+            'aoe':           effect.get('aoe', False),
+            'item_type':     effect.get('type', 'consumable'),
+        }
+
     def get_skill_modifier(self, skill_name):
         """
         Return the integer modifier for a skill check.

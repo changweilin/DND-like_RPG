@@ -340,6 +340,26 @@ class EventManager:
         elif target and not self.rag.entity_stat_block_exists(target):
             self._generate_and_store_stat_block(target, intent, current_state)
 
+        # Detect boss first-encounter (tier=4 entity just registered, not yet seen before)
+        boss_encounter_entry = None
+        if target:
+            _tk = target.lower()
+            _entity = (current_state.known_entities or {}).get(_tk, {})
+            if (_entity.get('type') in ('boss',) and _entity.get('alive', True)
+                    and not _entity.get('boss_announced')):
+                roster_entry = get_monster_by_name(target)
+                if roster_entry and roster_entry.get('tier', 0) >= 4:
+                    boss_encounter_entry = dict(roster_entry)
+                    boss_encounter_entry['hp']     = _entity.get('hp', roster_entry['hp'])
+                    boss_encounter_entry['max_hp'] = _entity.get('max_hp', roster_entry['hp'])
+                    # Mark so we don't re-announce on subsequent turns
+                    _known_mark = dict(current_state.known_entities or {})
+                    _e2 = dict(_known_mark.get(_tk, {})); _e2['boss_announced'] = True
+                    _known_mark[_tk] = _e2
+                    current_state.known_entities = _known_mark
+                    flag_modified(current_state, 'known_entities')
+                    self.session.commit()
+
         # --- Step 5: Combat rule engine (Section 3.3) ---
         # Fully deterministic: attack roll → hit/miss → damage roll → net damage.
         # The LLM is never asked to adjudicate combat — it only narrates the result.
@@ -397,6 +417,42 @@ class EventManager:
                 if adef and adef.get('once_per_combat'):
                     self._used_abilities.add(class_ability)
 
+        elif intent.get('action_type') == 'item_use':
+            # --- Item use (consumable / throwable) ---
+            item_name   = intent.get('target', '') or intent.get('summary', '')
+            item_result = char_logic.use_item(item_name, dice_roller=self.dice)
+            if item_result.get('used'):
+                utility_result = {
+                    'ability_name':   item_result['item_name'],
+                    'ability_key':    'item_use',
+                    'mp_cost':        0,
+                    'hp_healed':      item_result.get('hp_healed', 0),
+                    'def_bonus':      0,
+                    'fled_enemies':   [],
+                    'damage_reduction': 0.0,
+                    'item_result':    item_result,
+                }
+                # Apply status cures to player
+                if item_result.get('cures_status'):
+                    known3 = dict(current_state.known_entities or {})
+                    buffs3 = [b for b in known3.get('_player_buffs', [])
+                              if b.get('key') != item_result['cures_status']]
+                    known3['_player_buffs'] = buffs3
+                    current_state.known_entities = known3
+                    flag_modified(current_state, 'known_entities')
+                    self.session.commit()
+                # Throwable damage → apply to current target
+                if item_result.get('damage_dice') and target:
+                    _, _, throw_dmg = self.dice.roll(item_result['damage_dice'])
+                    self._apply_combat_damage_to_entity(target, throw_dmg, current_state)
+                    if item_result.get('aoe'):
+                        known_aoe = current_state.known_entities or {}
+                        for k, e in known_aoe.items():
+                            if not k.startswith('_') and k != target.lower() and e.get('alive', True):
+                                self._apply_combat_damage_to_entity(k, throw_dmg, current_state)
+            else:
+                utility_result = {'error': f"No item '{item_name}' in inventory"}
+
         elif intent.get('action_type') in ('magic', 'direct_action') and class_ability:
             # Utility ability (heal, shield, turn undead, evasion, etc.)
             from engine.combat import get_ability_definition
@@ -436,6 +492,18 @@ class EventManager:
         outcome_parts = [f"Player action: {player_action}"]
         if thought:
             outcome_parts.append(f"Action analysis: {thought}")
+        # Boss first-encounter — narrator should build dramatic tension
+        if boss_encounter_entry:
+            bname = boss_encounter_entry.get('display_name', target)
+            bspec = boss_encounter_entry.get('special_ability', '')
+            outcome_parts.append(
+                f"BOSS ENCOUNTER — {bname} appears for the first time! "
+                f"HP: {boss_encounter_entry.get('hp')}, "
+                f"ATK: {boss_encounter_entry.get('atk')}, "
+                f"DEF: {boss_encounter_entry.get('def_stat')}. "
+                + (f"Special: {bspec}. " if bspec else "")
+                + "Narrate with maximum dramatic impact."
+            )
 
         # Inject player status effects that ticked this turn
         if player_status_tick.get('damage', 0) > 0:
@@ -515,6 +583,21 @@ class EventManager:
             if utility_result.get('damage_reduction', 0) > 0:
                 outcome_parts.append(
                     f"Ability [{ab_name}]: next incoming damage halved."
+                )
+            # Item use facts
+            ir = utility_result.get('item_result', {})
+            if ir.get('cures_status'):
+                outcome_parts.append(
+                    f"Item [{ab_name}] used: cures {ir['cures_status']} status."
+                )
+            if ir.get('apply_status'):
+                outcome_parts.append(
+                    f"Item [{ab_name}] used: inflicts {ir['apply_status']} on {target or 'target'}."
+                )
+            if ir.get('damage_dice') and target:
+                outcome_parts.append(
+                    f"Item [{ab_name}] thrown at {target}: {ir['damage_dice']} damage"
+                    + (" (AoE — hits all enemies)." if ir.get('aoe') else ".")
                 )
 
         # Inject flee facts so the LLM narrates the exact outcome
@@ -773,6 +856,8 @@ class EventManager:
             turn_data['_loot_xp'] = loot_xp_result
         if flee_result:
             turn_data['_flee_result'] = flee_result
+        if boss_encounter_entry:
+            turn_data['_boss_encounter'] = boss_encounter_entry
 
         # Track contribution for balanced reward calculation
         checks_passed = 1 if (dice_result and dice_result.get('outcome') in
