@@ -134,6 +134,158 @@ class CharacterLogic:
             'item_type':     effect.get('type', 'consumable'),
         }
 
+    # ── Rest ─────────────────────────────────────────────────────────────────
+
+    def short_rest(self, dice_roller):
+        """Roll 1d8 and restore that many HP (cannot exceed max_hp)."""
+        _, _, healed = dice_roller.roll('1d8')
+        self.heal(healed)
+        return healed
+
+    def long_rest(self):
+        """Fully restore HP and MP (only valid outside combat)."""
+        self.model.hp = self.model.max_hp or 100
+        self.model.mp = self.model.max_mp or 50
+        self.session.commit()
+        return {'hp_restored': self.model.hp, 'mp_restored': self.model.mp}
+
+    # ── Equipment ─────────────────────────────────────────────────────────────
+
+    def equip(self, item_name):
+        """
+        Move an item from inventory into the matching equipment slot.
+        Returns the slot name ('weapon'|'armor'|'accessory') or '' on failure.
+        """
+        from data.shop import get_shop_item
+        item_name_lower = item_name.lower()
+        found = None
+        for item in (self.model.inventory or []):
+            if item.get('name', '').lower() == item_name_lower:
+                found = item
+                break
+        if found is None:
+            for item in (self.model.inventory or []):
+                if item_name_lower in item.get('name', '').lower():
+                    found = item
+                    break
+        if found is None:
+            return ''
+
+        # Determine equipment slot from item type
+        item_type = found.get('type', '')
+        shop_entry = get_shop_item(found.get('name', ''))
+        if shop_entry:
+            item_type = shop_entry.get('type', item_type)
+
+        slot_map = {'weapon': 'weapon', 'armor': 'armor', 'accessory': 'accessory'}
+        slot = slot_map.get(item_type, '')
+        if not slot:
+            # Infer from name keywords
+            nl = found.get('name', '').lower()
+            if any(w in nl for w in ('sword', 'staff', 'bow', 'dagger', 'axe', 'mace', 'spear', '劍', '杖', '弓', '刀')):
+                slot = 'weapon'
+            elif any(w in nl for w in ('shield', 'mail', 'armor', 'robe', 'plate', '盾', '甲', '袍', '鎧')):
+                slot = 'armor'
+            else:
+                slot = 'accessory'
+
+        equipment = dict(self.model.equipment or {})
+        old_item = equipment.get(slot)
+
+        # Unequip previous item — remove its stat bonuses and return to inventory
+        if old_item:
+            old_entry = get_shop_item(old_item.get('name', ''))
+            if old_entry:
+                self._apply_equipment_stats(old_entry, sign=-1)
+            inv = list(self.model.inventory or [])
+            inv.append(old_item)
+            self.model.inventory = inv
+
+        # Apply new item's stat bonuses
+        if shop_entry:
+            self._apply_equipment_stats(shop_entry, sign=+1)
+
+        # Move from inventory to equipment slot
+        self.remove_item(found['name'])
+        equipment[slot] = found
+        self.model.equipment = equipment
+        self.session.commit()
+        return slot
+
+    def unequip(self, slot):
+        """
+        Remove the item from an equipment slot and return it to inventory.
+        Returns the item name or '' if the slot was empty.
+        """
+        from data.shop import get_shop_item
+        equipment = dict(self.model.equipment or {})
+        item = equipment.get(slot)
+        if not item:
+            return ''
+
+        shop_entry = get_shop_item(item.get('name', ''))
+        if shop_entry:
+            self._apply_equipment_stats(shop_entry, sign=-1)
+
+        inv = list(self.model.inventory or [])
+        inv.append(item)
+        self.model.inventory = inv
+        del equipment[slot]
+        self.model.equipment = equipment
+        self.session.commit()
+        return item.get('name', '')
+
+    def _apply_equipment_stats(self, shop_entry, sign):
+        """Apply or remove stat bonuses from an equipment shop entry (sign = +1 or -1)."""
+        if shop_entry.get('atk_bonus'):
+            self.model.atk = max(1, (self.model.atk or 10) + sign * shop_entry['atk_bonus'])
+        if shop_entry.get('def_bonus'):
+            self.model.def_stat = max(1, (self.model.def_stat or 10) + sign * shop_entry['def_bonus'])
+        if shop_entry.get('mov_bonus'):
+            self.model.mov = max(1, (self.model.mov or 5) + sign * shop_entry['mov_bonus'])
+        if shop_entry.get('mp_bonus'):
+            self.model.max_mp = max(10, (self.model.max_mp or 50) + sign * shop_entry['mp_bonus'])
+            self.model.mp = min(self.model.mp or 0, self.model.max_mp)
+        if shop_entry.get('hp_bonus'):
+            self.model.max_hp = max(10, (self.model.max_hp or 100) + sign * shop_entry['hp_bonus'])
+            self.model.hp = min(self.model.hp or 0, self.model.max_hp)
+
+    # ── Shop ──────────────────────────────────────────────────────────────────
+
+    def buy_item(self, item_name, price=None):
+        """
+        Deduct gold and add item to inventory.
+        Returns {'bought': bool, 'price': int, 'reason': str|None}.
+        """
+        from data.shop import get_shop_item
+        entry = get_shop_item(item_name)
+        if entry is None:
+            return {'bought': False, 'reason': 'not_found', 'price': 0}
+        actual_price = price if price is not None else entry['price']
+        if (self.model.gold or 0) < actual_price:
+            return {'bought': False, 'reason': 'insufficient_gold', 'price': actual_price}
+        self.model.gold = (self.model.gold or 0) - actual_price
+        self.add_item({'name': item_name, 'type': entry.get('type', 'item')})
+        self.session.commit()
+        return {'bought': True, 'price': actual_price, 'item_name': item_name}
+
+    def sell_item(self, item_name):
+        """
+        Remove item from inventory and add gold.
+        Returns {'sold': bool, 'gold': int, 'reason': str|None}.
+        """
+        from data.shop import sell_price
+        # Cannot sell equipped items
+        for slot, item in (self.model.equipment or {}).items():
+            if item and item.get('name', '').lower() == item_name.lower():
+                return {'sold': False, 'gold': 0, 'reason': 'equipped'}
+        if not self.remove_item(item_name):
+            return {'sold': False, 'gold': 0, 'reason': 'not_found'}
+        gold = sell_price(item_name)
+        self.model.gold = (self.model.gold or 0) + gold
+        self.session.commit()
+        return {'sold': True, 'gold': gold}
+
     def get_skill_modifier(self, skill_name):
         """
         Return the integer modifier for a skill check.

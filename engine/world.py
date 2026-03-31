@@ -375,3 +375,78 @@ class WorldManager:
             self.state.dungeon_map = dungeon
             flag_modified(self.state, 'dungeon_map')
             self.session.commit()
+
+    # ── Quest management ──────────────────────────────────────────────────────
+
+    def add_quest(self, quest_id, name, description='', objectives=None,
+                  reward_xp=0, reward_gold=0, given_turn=0):
+        """Register a new active quest. Idempotent — won't overwrite an existing entry."""
+        quests = dict(self.state.quests or {})
+        if quest_id in quests:
+            return quests[quest_id]
+        quests[quest_id] = {
+            'name':          name,
+            'description':   description,
+            'status':        'active',
+            'objectives':    objectives or [],
+            'reward_xp':     reward_xp,
+            'reward_gold':   reward_gold,
+            'given_turn':    given_turn,
+            'completed_turn': None,
+        }
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+        return quests[quest_id]
+
+    def complete_quest(self, quest_id, current_turn=0):
+        """Mark a quest as completed and return its rewards dict."""
+        quests = dict(self.state.quests or {})
+        if quest_id not in quests:
+            return {}
+        quest = dict(quests[quest_id])
+        quest['status'] = 'completed'
+        quest['completed_turn'] = current_turn
+        # Mark all objectives done
+        quest['objectives'] = [dict(o, done=True) for o in quest.get('objectives', [])]
+        quests[quest_id] = quest
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+        return {'reward_xp': quest.get('reward_xp', 0), 'reward_gold': quest.get('reward_gold', 0)}
+
+    def fail_quest(self, quest_id, current_turn=0):
+        """Mark a quest as failed."""
+        quests = dict(self.state.quests or {})
+        if quest_id not in quests:
+            return
+        quest = dict(quests[quest_id])
+        quest['status'] = 'failed'
+        quest['completed_turn'] = current_turn
+        quests[quest_id] = quest
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+
+    def complete_objective(self, quest_id, objective_index):
+        """Mark a single objective within a quest as done."""
+        quests = dict(self.state.quests or {})
+        quest = quests.get(quest_id)
+        if not quest:
+            return
+        objectives = list(quest.get('objectives', []))
+        if 0 <= objective_index < len(objectives):
+            objectives[objective_index] = dict(objectives[objective_index], done=True)
+        quest = dict(quest, objectives=objectives)
+        quests[quest_id] = quest
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+
+    def get_active_quests(self):
+        """Return list of active quest dicts with their quest_id included."""
+        result = []
+        for qid, q in (self.state.quests or {}).items():
+            if q.get('status') == 'active':
+                result.append(dict(q, quest_id=qid))
+        return result

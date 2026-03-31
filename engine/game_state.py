@@ -27,6 +27,8 @@ class Character(Base):
     gold = Column(Integer, default=0)
     inventory = Column(JSON, default=lambda: [])   # List of item dicts
     skills = Column(JSON, default=lambda: [])       # List of skill strings
+    # Equipped items by slot: {weapon, armor, accessory} → item dict or null
+    equipment = Column(JSON, default=lambda: {})
 
     # Progression: XP accumulated and current level (1-10).
     # Level thresholds follow D&D 5e milestones (scaled down for short campaigns).
@@ -131,6 +133,12 @@ class GameState(Base):
     # {room_id: {name, description, connections:[room_id], enemies:[], loot:[], visited:bool}}
     dungeon_map = Column(JSON, default=lambda: {})
 
+    # Active quest journal.
+    # {quest_id: {name, description, status: active|completed|failed,
+    #             objectives: [{text, done}], reward_xp, reward_gold,
+    #             given_turn, completed_turn}}
+    quests = Column(JSON, default=lambda: {})
+
 class EntityRelation(Base):
     """
     Directed edge in the entity relationship graph.
@@ -201,6 +209,8 @@ class DatabaseManager:
             "ALTER TABLE characters ADD COLUMN level INTEGER DEFAULT 1",
             "ALTER TABLE game_state ADD COLUMN in_combat INTEGER DEFAULT 0",
             "ALTER TABLE game_state ADD COLUMN dungeon_map TEXT DEFAULT '{}'",
+            "ALTER TABLE characters ADD COLUMN equipment TEXT DEFAULT '{}'",
+            "ALTER TABLE game_state ADD COLUMN quests TEXT DEFAULT '{}'",
         ]
         with engine.connect() as conn:
             for sql in migrations:

@@ -203,6 +203,39 @@ _ITEM_NAME_RE = re.compile(
     r'(?:使用|喝|服用|吞|投擲|丟|use(?:\s+(?:a|the|my))?|drink|consume|throw|toss)\s+(.+)',
     re.I,
 )
+# Shop buy/sell intents
+_BUY_RE = re.compile(
+    r'(購買|買|採購|buy|purchase|get\s+(?:a\s+|the\s+)?|acquire)',
+    re.I,
+)
+_SELL_RE = re.compile(
+    r'(賣|出售|販賣|sell|trade\s+(?:away)?|exchange)',
+    re.I,
+)
+# Equip / unequip intents
+_EQUIP_RE = re.compile(
+    r'(裝備|佩戴|穿上|戴上|equip|wear|put\s+on|wield)',
+    re.I,
+)
+_UNEQUIP_RE = re.compile(
+    r'(卸下|脫下|取下|unequip|remove|take\s+off|unsheathe)',
+    re.I,
+)
+# Generic item-name capture after equip/unequip verb
+_EQUIP_NAME_RE = re.compile(
+    r'(?:裝備|佩戴|穿上|戴上|卸下|脫下|取下|equip|wear|put\s+on|wield|remove|take\s+off|unequip)\s+(.+)',
+    re.I,
+)
+# Item-name capture after buy/sell verb
+_TRADE_NAME_RE = re.compile(
+    r'(?:購買|買|採購|賣|出售|販賣|buy|purchase|sell|acquire)\s+(.+)',
+    re.I,
+)
+# Spell name capture — "cast <spell>", "施展 <spell>", "use <spell> spell"
+_CAST_NAME_RE = re.compile(
+    r'(?:cast|施展|念|use\s+(?:a\s+)?|施放)\s+(.+?)(?:\s+(?:spell|術|咒)?)?$',
+    re.I,
+)
 
 # Ordered: later entries with longer patterns must not shadow earlier ones
 _SKILL_PATTERNS = [
@@ -351,9 +384,40 @@ def try_parse(player_action, known_entities, difficulty, char_class=None):
         return _intent('item_use', False, '', 0, item_name, player_action,
                        class_ability=class_ability)
 
-    # --- Rest ---
+    # --- Rest (short or long) ---
     if _REST_RE.search(player_action):
-        return _intent('direct_action', False, '', 0, '', player_action,
+        # Distinguish long rest from short rest by keyword
+        is_long = bool(re.search(r'(long\s+rest|紮營|長時間休息|完全恢復|camp\s+(?:for\s+)?(?:the\s+)?night)', player_action, re.I))
+        rest_type = 'long_rest' if is_long else 'short_rest'
+        return _intent(rest_type, False, '', 0, '', player_action,
+                       class_ability=class_ability)
+
+    # --- Buy ---
+    if _BUY_RE.search(player_action) and not _ATTACK_RE.search(player_action):
+        m = _TRADE_NAME_RE.search(player_action)
+        item_name = m.group(1).strip() if m else ''
+        return _intent('buy', False, '', 0, item_name, player_action,
+                       class_ability=class_ability)
+
+    # --- Sell ---
+    if _SELL_RE.search(player_action):
+        m = _TRADE_NAME_RE.search(player_action)
+        item_name = m.group(1).strip() if m else ''
+        return _intent('sell', False, '', 0, item_name, player_action,
+                       class_ability=class_ability)
+
+    # --- Equip ---
+    if _EQUIP_RE.search(player_action) and not _UNEQUIP_RE.search(player_action):
+        m = _EQUIP_NAME_RE.search(player_action)
+        item_name = m.group(1).strip() if m else ''
+        return _intent('equip', False, '', 0, item_name, player_action,
+                       class_ability=class_ability)
+
+    # --- Unequip ---
+    if _UNEQUIP_RE.search(player_action):
+        m = _EQUIP_NAME_RE.search(player_action)
+        item_name = m.group(1).strip() if m else ''
+        return _intent('unequip', False, '', 0, item_name, player_action,
                        class_ability=class_ability)
 
     # Pattern not recognised with sufficient confidence → LLM fallback

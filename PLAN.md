@@ -176,6 +176,50 @@ python tools/gen_lora_data.py --samples 200
 
 ---
 
+---
+
+## Phase 7 — 深度遊戲機制 ✅
+
+### 7-A 任務系統 ✅
+**目標**：追蹤進行中任務、目標、完成狀態，並顯示任務日誌。
+
+- `engine/game_state.py`：`GameState.quests` JSON 欄位 + migration
+- `engine/world.py`：`add_quest()`, `complete_quest()`, `fail_quest()`, `complete_objective()`, `get_active_quests()`
+- `ui/app.py`：`_render_quest_journal(state)` — 側邊欄任務日誌，可折疊顯示目標與獎勵
+
+### 7-B 商人/商店系統 ✅
+**目標**：讓 gold 在遊戲中有實際用途，玩家可向商人購買或賣出物品。
+
+- `data/shop.py`：50+ 商品目錄（消耗品、投擲物、武器、防具、飾品），附購買/販售價格
+- `engine/character.py`：`buy_item(item_name, price)`, `sell_item(item_name)`
+- `engine/intent_parser.py`：`_BUY_RE`, `_SELL_RE`, `_TRADE_NAME_RE` 識別購買/販售意圖
+- `logic/events.py`：`buy`/`sell` action_type 處理，敘事注入交易事實
+
+### 7-C 法術手冊 ✅
+**目標**：Mage/Cleric/Rogue/Warrior 各有確定性法術（MP 消耗 + 傷害/治療效果）。
+
+- `data/spells.py`：30+ 法術（火球、閃電、治癒、驅除不死等），含中文別名
+- `logic/events.py`：`magic` action_type → `_CAST_NAME_RE` 解析法術名稱 → 確定性效果（傷害/治療/狀態）
+- `ui/app.py`：職業技能面板新增 **✨ 法術手冊** 區塊，顯示可用法術的 MP 成本與傷害
+
+### 7-D 休息系統 ✅
+**目標**：讓玩家在戰鬥外回復 HP/MP，分短休與長休。
+
+- `engine/character.py`：`short_rest(dice_roller)` → 1d8 HP, `long_rest()` → 完全恢復
+- `engine/intent_parser.py`：`_REST_RE` 改路由為 `short_rest`/`long_rest` action_type（長休關鍵字判斷）
+- `logic/events.py`：`short_rest`/`long_rest` action_type，戰鬥中禁止休息，注入恢復事實
+
+### 7-E 裝備系統 ✅
+**目標**：武器/防具/飾品可從背包裝備，改變 ATK/DEF/MOV/maxMP 數值。
+
+- `engine/game_state.py`：`Character.equipment` JSON 欄位 (`{weapon, armor, accessory}`) + migration
+- `engine/character.py`：`equip(item_name)`, `unequip(slot)`, `_apply_equipment_stats(sign)`
+- `engine/intent_parser.py`：`_EQUIP_RE`, `_UNEQUIP_RE`, `_EQUIP_NAME_RE` 識別裝備意圖
+- `logic/events.py`：`equip`/`unequip` action_type 處理
+- `ui/app.py`：側邊欄角色面板顯示裝備槽（⚔️武器 · 🛡️防具 · 💍飾品）
+
+---
+
 ## 變更歷史
 
 | 日期 | 版本 | 摘要 |
@@ -184,3 +228,4 @@ python tools/gen_lora_data.py --samples 200
 | 2026-03-30 | Phase 4   | 逃跑機制、in_combat UI、多敵人生成、死亡流程、難度動態縮放 |
 | 2026-03-31 | Phase 5   | SRD seeder 工具、LoRA 資料生成器、音效管理器升級與整合 |
 | 2026-03-31 | Phase 6   | 攻擊詞擴充、戰鬥快捷列、Boss 橫幅、死亡讀檔、AI 自動行動、物品使用、地城地圖 |
+| 2026-03-31 | Phase 7   | 任務系統、商人商店、法術手冊、休息機制、裝備系統 |

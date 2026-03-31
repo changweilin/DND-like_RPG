@@ -467,6 +467,103 @@ class EventManager:
                 if adef.get('once_per_combat'):
                     self._used_abilities.add(class_ability)
 
+        elif intent.get('action_type') == 'magic' and not class_ability:
+            # Named spell cast — look up in spell compendium
+            from data.spells import get_spell
+            from engine.intent_parser import _CAST_NAME_RE
+            spell_name_match = _CAST_NAME_RE.search(player_action)
+            spell_name = spell_name_match.group(1).strip() if spell_name_match else ''
+            spell = get_spell(spell_name) if spell_name else None
+            if spell:
+                mp_cost = spell.get('mp_cost', 2)
+                if character.mp < mp_cost:
+                    utility_result = {'error': 'Not enough MP', 'mp_cost': mp_cost}
+                else:
+                    hp_healed_spell = 0
+                    spell_damage = 0
+                    if spell.get('heal_dice'):
+                        _, _, hp_healed_spell = self.dice.roll(spell['heal_dice'])
+                        char_logic.heal(hp_healed_spell)
+                    if spell.get('damage_dice') and target:
+                        _, _, raw_dmg = self.dice.roll(spell['damage_dice'])
+                        # Radiant/holy bonus vs undead
+                        entity_data = (current_state.known_entities or {}).get(target, {})
+                        is_undead = 'undead' in entity_data.get('description', '').lower()
+                        if spell.get('undead_only') and not is_undead:
+                            raw_dmg = max(1, raw_dmg // 2)
+                        self._apply_combat_damage_to_entity(target, raw_dmg, current_state)
+                        spell_damage = raw_dmg
+                        if spell.get('aoe'):
+                            for k, e in (current_state.known_entities or {}).items():
+                                if not k.startswith('_') and k != target and e.get('alive', True):
+                                    self._apply_combat_damage_to_entity(k, raw_dmg, current_state)
+                    if spell.get('status_apply') and target:
+                        from engine.combat import apply_status_to_entity
+                        known_sp = dict(current_state.known_entities or {})
+                        apply_status_to_entity(target, spell['status_apply'], known_sp)
+                        current_state.known_entities = known_sp
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+                    char_logic.use_mp(mp_cost)
+                    utility_result = {
+                        'ability_name': spell_name,
+                        'ability_key':  'spell',
+                        'mp_cost':      mp_cost,
+                        'hp_healed':    hp_healed_spell,
+                        'spell_damage': spell_damage,
+                        'spell':        spell,
+                    }
+
+        elif intent.get('action_type') == 'short_rest':
+            if current_state.in_combat:
+                utility_result = {'error': 'Cannot rest during combat'}
+            else:
+                healed = char_logic.short_rest(self.dice)
+                utility_result = {'rest_type': 'short', 'hp_healed': healed}
+
+        elif intent.get('action_type') == 'long_rest':
+            if current_state.in_combat:
+                utility_result = {'error': 'Cannot rest during combat'}
+            else:
+                char_logic.long_rest()
+                utility_result = {
+                    'rest_type': 'long',
+                    'hp_restored': character.max_hp,
+                    'mp_restored': character.max_mp,
+                }
+
+        elif intent.get('action_type') == 'buy':
+            item_name = intent.get('target', '')
+            buy_result = char_logic.buy_item(item_name)
+            utility_result = {'trade': 'buy', **buy_result}
+
+        elif intent.get('action_type') == 'sell':
+            item_name = intent.get('target', '')
+            sell_result = char_logic.sell_item(item_name)
+            utility_result = {'trade': 'sell', **sell_result}
+
+        elif intent.get('action_type') == 'equip':
+            item_name = intent.get('target', '')
+            slot = char_logic.equip(item_name)
+            utility_result = {'equipped': bool(slot), 'slot': slot, 'item_name': item_name}
+
+        elif intent.get('action_type') == 'unequip':
+            item_name = intent.get('target', '')
+            # Support slot name OR item name
+            slot_names = {'weapon', 'armor', 'accessory', '武器', '防具', '飾品'}
+            if item_name.lower() in slot_names:
+                removed = char_logic.unequip(item_name.lower().replace('武器', 'weapon')
+                                             .replace('防具', 'armor')
+                                             .replace('飾品', 'accessory'))
+            else:
+                # Unequip by item name: find which slot holds it
+                removed = ''
+                for sl, equipped_item in (character.equipment or {}).items():
+                    if equipped_item and equipped_item.get('name', '').lower() == item_name.lower():
+                        removed = char_logic.unequip(sl)
+                        break
+            utility_result = {'unequipped': bool(removed), 'item_name': removed or item_name}
+
         # --- Step 6: Dice roll + rule engine for skill checks (deterministic) ---
         dice_result   = None
         outcome_label = "NO_ROLL"
@@ -599,6 +696,72 @@ class EventManager:
                     f"Item [{ab_name}] thrown at {target}: {ir['damage_dice']} damage"
                     + (" (AoE — hits all enemies)." if ir.get('aoe') else ".")
                 )
+
+        # Inject spell/rest/trade/equip facts
+        if utility_result and not utility_result.get('error'):
+            atype = intent.get('action_type', '')
+            if atype in ('short_rest', 'long_rest') or utility_result.get('rest_type'):
+                rtype = utility_result.get('rest_type', 'short')
+                if rtype == 'long':
+                    outcome_parts.append(
+                        f"Long rest: character fully restores HP to {character.max_hp} "
+                        f"and MP to {character.max_mp}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Short rest: character heals {utility_result.get('hp_healed', 0)} HP."
+                    )
+            elif utility_result.get('trade') == 'buy':
+                if utility_result.get('bought'):
+                    outcome_parts.append(
+                        f"Purchased [{utility_result.get('item_name')}] for "
+                        f"{utility_result.get('price', 0)} gold. "
+                        f"Gold remaining: {character.gold}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Cannot buy [{intent.get('target', '')}]: "
+                        f"{utility_result.get('reason', 'unknown error')}."
+                    )
+            elif utility_result.get('trade') == 'sell':
+                if utility_result.get('sold'):
+                    outcome_parts.append(
+                        f"Sold [{intent.get('target', '')}] for "
+                        f"{utility_result.get('gold', 0)} gold. "
+                        f"Gold total: {character.gold}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Cannot sell [{intent.get('target', '')}]: "
+                        f"{utility_result.get('reason', 'unknown error')}."
+                    )
+            elif utility_result.get('equipped'):
+                outcome_parts.append(
+                    f"Equipped [{utility_result.get('item_name')}] in "
+                    f"{utility_result.get('slot', '?')} slot."
+                )
+            elif 'unequipped' in utility_result:
+                if utility_result.get('unequipped'):
+                    outcome_parts.append(
+                        f"Unequipped [{utility_result.get('item_name')}] — returned to inventory."
+                    )
+            elif utility_result.get('spell'):
+                sp = utility_result['spell']
+                outcome_parts.append(
+                    f"Spell [{utility_result.get('ability_name')}] cast. "
+                    f"MP cost: {utility_result.get('mp_cost', 0)}."
+                )
+                if utility_result.get('spell_damage', 0) > 0:
+                    outcome_parts.append(
+                        f"Spell deals {utility_result['spell_damage']} {sp.get('element', '')} damage"
+                        + (" (AoE — hits all enemies)." if sp.get('aoe') else f" to {target}.")
+                    )
+                if utility_result.get('hp_healed', 0) > 0:
+                    outcome_parts.append(
+                        f"Spell heals {utility_result['hp_healed']} HP."
+                    )
+        elif utility_result and utility_result.get('error'):
+            outcome_parts.append(f"Action failed: {utility_result['error']}")
 
         # Inject flee facts so the LLM narrates the exact outcome
         if flee_result:

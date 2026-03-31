@@ -2786,6 +2786,18 @@ def _render_party_sidebar(party, state, active_char):
                 f"{tm.get('gold_name','gold')}: {char.gold}"
             )
 
+        # Equipment slots
+        equipment = getattr(char, 'equipment', None) or {}
+        if equipment:
+            slot_icons = {'weapon': '⚔️', 'armor': '🛡️', 'accessory': '💍'}
+            equip_parts = []
+            for sl, item in equipment.items():
+                if item:
+                    icon = slot_icons.get(sl, '📦')
+                    equip_parts.append(f"{icon} {item.get('name', sl)}")
+            if equip_parts:
+                st.sidebar.caption("裝備: " + " · ".join(equip_parts))
+
         if char.inventory:
             _in_combat_now = bool(getattr(state, 'in_combat', 0))
             _is_active_char = (char.id == active_char.id)
@@ -2855,6 +2867,40 @@ def _render_npc_tracker(state):
             st.sidebar.caption(f"  ▶ {action}")
         if goal:
             st.sidebar.caption(f"  ◎ {goal}")
+
+
+def _render_quest_journal(state):
+    """Sidebar panel showing active and recently completed quests."""
+    quests = getattr(state, 'quests', None) or {}
+    if not quests:
+        return
+    active = [(qid, q) for qid, q in quests.items() if q.get('status') == 'active']
+    completed = [(qid, q) for qid, q in quests.items() if q.get('status') == 'completed']
+    if not active and not completed:
+        return
+    st.sidebar.markdown("---")
+    st.sidebar.write("**📜 任務日誌**")
+    if active:
+        for qid, q in active:
+            with st.sidebar.expander(f"🔹 {q.get('name', qid)}", expanded=False):
+                if q.get('description'):
+                    st.write(q['description'])
+                objectives = q.get('objectives', [])
+                for obj in objectives:
+                    if isinstance(obj, dict):
+                        icon = '✅' if obj.get('done') else '⬜'
+                        st.write(f"{icon} {obj.get('text', '')}")
+                    else:
+                        st.write(f"⬜ {obj}")
+                rw_parts = []
+                if q.get('reward_xp'):
+                    rw_parts.append(f"{q['reward_xp']} XP")
+                if q.get('reward_gold'):
+                    rw_parts.append(f"{q['reward_gold']} 金幣")
+                if rw_parts:
+                    st.caption("獎勵: " + " + ".join(rw_parts))
+    if completed:
+        st.sidebar.caption(f"✅ 已完成 {len(completed)} 個任務")
 
 
 def _affinity_bar(affinity):
@@ -3093,6 +3139,30 @@ def _render_class_abilities_panel(char, state):
                 f"<span style='font-size:0.8em;color:#666'>輸入關鍵字: *{kw_example}*</span>",
                 unsafe_allow_html=True,
             )
+        # Spell compendium for this class
+        try:
+            from data.spells import CLASS_SPELLS, SPELL_COMPENDIUM
+            spell_list = CLASS_SPELLS.get((char.char_class or '').lower(), [])
+            if spell_list:
+                st.markdown("---")
+                st.markdown("**✨ 法術手冊**")
+                for sname in spell_list:
+                    sdata = SPELL_COMPENDIUM.get(sname, {})
+                    mp_cost = sdata.get('mp_cost', 0)
+                    can_cast = char.mp >= mp_cost
+                    mp_clr = '#4caf50' if can_cast else '#e74c3c'
+                    dmg_txt = f" · {sdata['damage_dice']}" if sdata.get('damage_dice') else ''
+                    heal_txt = f" · 回復{sdata['heal_dice']}" if sdata.get('heal_dice') else ''
+                    aoe_txt = " (AoE)" if sdata.get('aoe') else ''
+                    st.markdown(
+                        f"**{sname}**{aoe_txt} "
+                        f"<span style='color:{mp_clr};font-size:0.85em'>MP {mp_cost}</span>"
+                        f"{dmg_txt}{heal_txt}  \n"
+                        f"<span style='font-size:0.8em;color:#666'>輸入: *cast {sname}*</span>",
+                        unsafe_allow_html=True,
+                    )
+        except ImportError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -4617,6 +4687,7 @@ def game_loop():
             unsafe_allow_html=True,
         )
     _render_npc_tracker(state)
+    _render_quest_journal(state)
     _render_language_switcher()
     _render_model_switcher()
     _render_image_model_selector()
