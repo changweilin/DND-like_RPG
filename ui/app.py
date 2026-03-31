@@ -114,6 +114,7 @@ from engine.image_prompts import (
 from ai.llm_client import LLMClient
 from ai.image_gen import ImageGenerator, _PROVIDER_DIFFUSERS, _PROVIDER_OPENAI, _PROVIDER_STABILITY
 from ai.rag_system import RAGSystem
+from ai.audio_gen import AudioGenerator
 from logic.events import EventManager
 
 st.set_page_config(page_title="AI RPG Engine", layout="wide")
@@ -127,6 +128,7 @@ if 'save_manager' not in st.session_state:
         on_vram_acquire=lambda: st.session_state.llm.unload_from_vram(),
         on_vram_release=lambda: st.session_state.llm.preload_to_vram(),
     )
+    st.session_state.audio_gen       = AudioGenerator()
 
     st.session_state.current_session = None
     st.session_state.game_state      = None
@@ -3399,6 +3401,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             )
             # --- Game Over ---
             if turn_data.get('game_over'):
+                st.session_state.audio_gen.play_cue('game_over')
                 st.session_state.history.append({
                     "role":        "dm",
                     "content":     response,
@@ -3495,6 +3498,14 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
         finally:
             st.session_state.vram_busy = False
 
+        # Audio cues for this turn (stub — logs intent, plays when backend wired)
+        _audio_cues = st.session_state.audio_gen.on_scene_change(
+            scene_type=turn_data.get('scene_type', 'exploration'),
+            combat_result=turn_data.get('_combat_result'),
+            flee_result=turn_data.get('_flee_result'),
+            loot_xp=turn_data.get('_loot_xp'),
+        )
+
         st.session_state.history.append({
             "role":            "dm",
             "content":         response,
@@ -3508,6 +3519,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "is_cinematic":    is_cinematic,
             "cinematic_label": cinematic_label,
             "turn":            state.turn_count or 0,
+            "audio_cues":      _audio_cues,
         })
 
         # Persist compressed story log after every turn

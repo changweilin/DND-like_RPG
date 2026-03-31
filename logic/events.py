@@ -771,6 +771,8 @@ class EventManager:
         turn_data['_combat_result'] = combat_result
         if loot_xp_result:
             turn_data['_loot_xp'] = loot_xp_result
+        if flee_result:
+            turn_data['_flee_result'] = flee_result
 
         # Track contribution for balanced reward calculation
         checks_passed = 1 if (dice_result and dice_result.get('outcome') in

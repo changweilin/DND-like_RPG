@@ -90,22 +90,31 @@
 
 ---
 
-## Phase 5 — 資料與訓練（低優先）
+## Phase 5 — 資料與訓練（低優先）✅
 
-### 5-1 D&D 5e SRD 資料植入 ⬜
+### 5-1 D&D 5e SRD 資料植入 ✅
+工具 `tools/seed_srd.py` 已完整實作，`data/srd/` 目錄已建立。
+執行方式（需先下載 JSON 文件）：
 ```bash
 git clone https://github.com/soryy708/dnd5-srd /tmp/dnd5-srd
 cp /tmp/dnd5-srd/src/5e-SRD-*.json data/srd/
 python tools/seed_srd.py
 ```
 
-### 5-2 LoRA 訓練資料生成 ⬜
+### 5-2 LoRA 訓練資料生成 ✅
+工具 `tools/gen_lora_data.py` 已完整實作，支援 Alpaca / ChatML 格式。
 ```bash
 python tools/gen_lora_data.py --samples 200
 ```
 
-### 5-3 音效存根實作 ⬜
-- `ai/audio_gen.py`：接入 Bark / Coqui TTS，戰鬥/勝利/死亡各一段音效
+### 5-3 音效管理器 ✅
+`ai/audio_gen.py` 已升級為場景感知 stub：
+- `_SCENE_BGM` 對映表：combat → battle_intense、social → tavern_ambient 等
+- `_EVENT_SFX` 對映表：hit/crit/miss/flee/loot/level_up/game_over 等
+- `on_scene_change(scene_type, combat_result, flee_result, loot_xp)` — 每回合呼叫
+- `play_cue(event_key)` — 單次音效（如死亡、升級）
+- 整合至 `ui/app.py`：session_state 初始化、每回合 on_scene_change、game_over 觸發
+- 後端接入路徑：HTML5 `<audio>` via `st.html()` 或 MusicGen / Bark TTS
 
 ---
 
@@ -115,3 +124,4 @@ python tools/gen_lora_data.py --samples 200
 |---|---|---|
 | 2026-03-30 | Phase 1-3 | 怪物系統、戰鬥引擎、UI 顯示層、4 項 bug 修復 |
 | 2026-03-30 | Phase 4   | 逃跑機制、in_combat UI、多敵人生成、死亡流程、難度動態縮放 |
+| 2026-03-31 | Phase 5   | SRD seeder 工具、LoRA 資料生成器、音效管理器升級與整合 |
