@@ -450,3 +450,41 @@ class WorldManager:
             if q.get('status') == 'active':
                 result.append(dict(q, quest_id=qid))
         return result
+
+    # ── Faction reputation & shop pricing ────────────────────────────────────
+
+    # Affinity → price multiplier tiers
+    _REP_PRICE_TIERS = [
+        (-100, -50, 1.30),   # Hostile     : +30% prices
+        (-50,  -10, 1.15),   # Unfriendly  : +15%
+        (-10,   30, 1.00),   # Neutral     : no change
+        ( 30,   70, 0.90),   # Friendly    : -10%
+        ( 70,  101, 0.80),   # Exalted     : -20%
+    ]
+
+    def get_faction_price_modifier(self, faction_name):
+        """
+        Return a price multiplier (float) for a merchant belonging to faction_name.
+        Looks up the faction's affinity in organizations first, then relationships.
+        """
+        if not faction_name:
+            return 1.0
+        fl = faction_name.lower()
+        # Check organizations dict
+        for key, org in (self.state.organizations or {}).items():
+            if key == fl or (org.get('name') or '').lower() == fl:
+                affinity = org.get('affinity', 0)
+                return self._affinity_to_price_multiplier(affinity)
+        # Fallback: check NPC relationships
+        for name, data in (self.state.relationships or {}).items():
+            if name.lower() == fl:
+                if isinstance(data, dict):
+                    affinity = data.get('affinity', 0)
+                    return self._affinity_to_price_multiplier(affinity)
+        return 1.0
+
+    def _affinity_to_price_multiplier(self, affinity):
+        for low, high, mult in self._REP_PRICE_TIERS:
+            if low <= affinity < high:
+                return mult
+        return 1.0

@@ -2615,33 +2615,44 @@ def main_menu():
                 unsafe_allow_html=True,
             )
         st.header(_t("load_game"))
-        saves = st.session_state.save_manager.list_saves()
+        all_saves = st.session_state.save_manager.list_saves()
+        # Split regular saves from snapshots
+        saves      = [s for s in all_saves if not s.get('is_snapshot')]
+        snapshots  = [s for s in all_saves if s.get('is_snapshot')]
         if not saves:
             st.info(_t("no_saves"))
         else:
-            save_labels = [
-                f"{s['save_name']} — {s['location']} ({s['party_size']}p · turn {s['turns']})"
-                for s in saves
-            ]
+            def _save_label(s):
+                chars = ", ".join(s.get('char_summaries') or []) or f"{s['party_size']}p"
+                diff  = s.get('difficulty', 'Normal')
+                return (
+                    f"**{s['save_name']}**  \n"
+                    f"📍 {s['location']}  ·  Turn {s['turns']}  ·  {diff}  \n"
+                    f"👤 {chars}"
+                )
             save_names   = [s['save_name'] for s in saves]
-            selected_idx = st.selectbox(
-                "Select Save", range(len(saves)),
-                format_func=lambda i: save_labels[i],
+            selected_idx = st.radio(
+                "選擇存檔",
+                range(len(saves)),
+                format_func=lambda i: (
+                    f"{saves[i]['save_name']}  |  {saves[i]['location']}"
+                    f"  |  Turn {saves[i]['turns']}"
+                    + (f"  |  {', '.join(saves[i].get('char_summaries') or [])}" if saves[i].get('char_summaries') else "")
+                ),
                 key="load_select",
             )
-            
-            l_col, d_col = st.columns(2)
-            if l_col.button("Load", use_container_width=True):
+            if saves[selected_idx].get('char_summaries'):
+                st.caption("👤 " + " · ".join(saves[selected_idx]['char_summaries']))
+
+            l_col, snap_col, d_col = st.columns(3)
+            if l_col.button("▶ 讀取", use_container_width=True):
                 selected_save = save_names[selected_idx]
                 party, game_state, session = st.session_state.save_manager.load_game(selected_save)
                 if party and game_state and session:
                     active_idx  = game_state.active_player_index or 0
                     active_char = party[active_idx % len(party)]
-                    # Restore last 2 story pages as history so the player
-                    # can immediately see where the session left off
                     prior_log  = load_story_log(selected_save)
                     prior_hist = restore_history_from_log(prior_log, n=2)
-
                     st.session_state.current_session = session
                     st.session_state.game_state      = game_state
                     st.session_state.party           = party
@@ -2650,13 +2661,11 @@ def main_menu():
                     st.session_state.event_manager   = EventManager(
                         st.session_state.llm, st.session_state.rag, session
                     )
-                    # Reset board state for fresh session
                     st.session_state.world_map        = {}
                     st.session_state.player_positions = {}
                     st.session_state.manual_dice      = {}
                     st.session_state.continent_map    = None
                     st.session_state.portraits        = {}
-                    # Open book at last page on load
                     st.session_state.book_page_idx   = max(0, len(prior_log) - 1)
                     names = ", ".join(c.name for c in party)
                     st.success(_t('loaded_party').format(names=names))
@@ -2664,13 +2673,46 @@ def main_menu():
                 else:
                     st.error(_t('load_failed'))
 
-            if d_col.button("🗑️ Delete", use_container_width=True):
+            if snap_col.button("📸 快照", use_container_width=True, help="建立當前進度快照"):
+                selected_save = save_names[selected_idx]
+                # Need a session to snapshot — load one temporarily
+                _snap_party, _snap_gs, _snap_sess = st.session_state.save_manager.load_game(selected_save)
+                if _snap_sess:
+                    snap = st.session_state.save_manager.create_snapshot(selected_save, _snap_sess)
+                    if snap:
+                        st.success(f"快照已建立: {snap}")
+                    else:
+                        st.info("快照已存在（本回合）")
+                    st.rerun()
+
+            if d_col.button("🗑️ 刪除", use_container_width=True):
                 selected_save = save_names[selected_idx]
                 if st.session_state.save_manager.delete_game(selected_save):
                     st.success(_t('deleted_save').format(save=selected_save))
                     st.rerun()
                 else:
                     st.error(_t('delete_failed').format(save=selected_save))
+
+            # Show snapshots in a collapsible section
+            if snapshots:
+                with st.expander(f"📸 快照 ({len(snapshots)})", expanded=False):
+                    for snap in snapshots:
+                        sc1, sc2 = st.columns([3, 1])
+                        sc1.write(f"**{snap['save_name']}**  — Turn {snap['turns']}")
+                        if sc2.button("讀取", key=f"load_snap_{snap['save_name']}"):
+                            party, game_state, session = st.session_state.save_manager.load_game(snap['save_name'])
+                            if party and game_state and session:
+                                active_idx = game_state.active_player_index or 0
+                                active_char = party[active_idx % len(party)]
+                                st.session_state.current_session = session
+                                st.session_state.game_state      = game_state
+                                st.session_state.party           = party
+                                st.session_state.player          = active_char
+                                st.session_state.history         = []
+                                st.session_state.event_manager   = EventManager(
+                                    st.session_state.llm, st.session_state.rag, session
+                                )
+                                st.rerun()
 
     # ---- Duplicate Save Dialog (popup modal) ----
     if st.session_state.duplicate_save_pending:
@@ -3096,9 +3138,41 @@ def _render_loot_xp_banner(loot_xp):
     msg = "  ·  ".join(lines)
 
     if leveled_up:
-        st.success(f"🆙 **升級！達到 Lv {new_level}！** HP/MP/ATK/DEF 全面提升！\n{msg}")
+        st.success(f"🆙 **升級！達到 Lv {new_level}！** +5 HP · +3 MP · 獲得 2 點屬性點！\n{msg}")
     else:
         st.info(msg)
+
+
+def _render_levelup_panel(char, session):
+    """
+    Inline stat-point allocation panel shown when character has pending_stat_points > 0.
+    Player clicks a stat button to spend one point; panel disappears when all points spent.
+    """
+    pending = getattr(char, 'pending_stat_points', 0) or 0
+    if pending <= 0:
+        return
+    st.markdown(
+        f"<div style='background:linear-gradient(135deg,#1a2040,#2a3060);"
+        f"border:2px solid #6c8ebf;border-radius:8px;padding:12px;"
+        f"margin:8px 0;text-align:center'>"
+        f"<span style='color:#a0c4ff;font-size:1.1em;font-weight:bold'>"
+        f"🆙 升級！剩餘屬性點：{pending}</span></div>",
+        unsafe_allow_html=True,
+    )
+    from engine.character import CharacterLogic
+    char_logic = CharacterLogic(session, char)
+    btn_defs = [
+        ('max_hp',   f'❤️ +10 最大HP (現 {char.max_hp})'),
+        ('max_mp',   f'💙 +10 最大MP (現 {char.max_mp})'),
+        ('atk',      f'⚔️ +2 攻擊力 (現 {char.atk})'),
+        ('def_stat', f'🛡️ +2 防禦力 (現 {char.def_stat})'),
+        ('mov',      f'👟 +1 移動速度 (現 {char.mov})'),
+    ]
+    cols = st.columns(len(btn_defs))
+    for col, (stat_key, label) in zip(cols, btn_defs):
+        if col.button(label, key=f"spend_stat_{char.id}_{stat_key}", use_container_width=True):
+            char_logic.spend_stat_point(stat_key)
+            st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -3476,6 +3550,11 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                 st.image(item['image'],
                          caption=item.get('cinematic_label') or "Scene",
                          use_container_width=True)
+
+    # ---- Level-up stat allocation panel ----
+    _cur_session = st.session_state.get('current_session')
+    if _cur_session:
+        _render_levelup_panel(active_char, _cur_session)
 
     # ---- Class abilities quick-reference (only shown when enemies are present) ----
     _render_class_abilities_panel(active_char, state)
@@ -4688,6 +4767,18 @@ def game_loop():
         )
     _render_npc_tracker(state)
     _render_quest_journal(state)
+    # ── Save indicator + quick snapshot ────────────────────────────────────
+    st.sidebar.markdown("---")
+    _turn_now = getattr(state, 'turn_count', 0) or 0
+    st.sidebar.caption(f"💾 Turn {_turn_now} 已自動儲存")
+    if st.sidebar.button("📸 建立快照", key="sidebar_snapshot", use_container_width=True,
+                          help="將目前進度儲存為可回溯的快照"):
+        _snap_sess = st.session_state.get('current_session')
+        _snap_name = getattr(state, 'save_name', None)
+        if _snap_sess and _snap_name:
+            snap = st.session_state.save_manager.create_snapshot(_snap_name, _snap_sess)
+            if snap:
+                st.sidebar.success(f"快照: {snap}")
     _render_language_switcher()
     _render_model_switcher()
     _render_image_model_selector()

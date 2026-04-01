@@ -29,6 +29,16 @@ class GameConfig:
     # Set to 0 to disable milestone images (only explicit cinematic events will trigger).
     IMAGE_GEN_MILESTONE_TURNS = 5
 
+    # Auto-save interval: snapshot the game state every N turns.
+    # The DB is always committed after each turn; this controls how often a named
+    # snapshot entry is written so the player can roll back to a specific point.
+    # Set to 0 to disable named snapshots (manual "Create Snapshot" still works).
+    AUTO_SAVE_INTERVAL = 10
+
+    # Random encounter chance (0.0–1.0) when the player travels or explores.
+    # Applied once per travel/explore action via a 1d20 roll: trigger if roll <= threshold×20.
+    RANDOM_ENCOUNTER_CHANCE = 0.20
+
     # --- Memory & context window ---
     # Target context window in tokens — should match your deployed model's context limit
     # At 8K context: RAG chunks + session memory + system prompt consume ~4–5K tokens.

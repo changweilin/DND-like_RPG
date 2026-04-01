@@ -34,6 +34,9 @@ class Character(Base):
     # Level thresholds follow D&D 5e milestones (scaled down for short campaigns).
     xp    = Column(Integer, default=0)
     level = Column(Integer, default=1)
+    # Unspent stat points from level-up events.
+    # Each level grants 2 points; player distributes them via the level-up UI.
+    pending_stat_points = Column(Integer, default=0)
 
 class GameState(Base):
     """Stores global world state, current location, and configuration."""
@@ -211,6 +214,7 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN dungeon_map TEXT DEFAULT '{}'",
             "ALTER TABLE characters ADD COLUMN equipment TEXT DEFAULT '{}'",
             "ALTER TABLE game_state ADD COLUMN quests TEXT DEFAULT '{}'",
+            "ALTER TABLE characters ADD COLUMN pending_stat_points INTEGER DEFAULT 0",
         ]
         with engine.connect() as conn:
             for sql in migrations:

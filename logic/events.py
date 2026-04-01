@@ -328,6 +328,35 @@ class EventManager:
                     char_logic.take_damage(flee_result['damage_taken'])
             self.session.commit()
 
+        # --- Step 3.6: Random encounter on travel actions ---
+        random_encounter_entry = None
+        if intent.get('action_type') == 'travel' and not current_state.in_combat:
+            encounter_chance = config.RANDOM_ENCOUNTER_CHANCE
+            roll_val, _, _ = self.dice.roll('1d20')
+            if roll_val <= int(encounter_chance * 20):
+                # Pick a tier-appropriate random monster
+                from data.monsters import MONSTER_ROSTER
+                player_lvl = character.level or 1
+                if player_lvl <= 2:
+                    tiers = [1, 2]
+                elif player_lvl <= 5:
+                    tiers = [2, 3]
+                else:
+                    tiers = [3, 4]
+                candidates = [m for m in MONSTER_ROSTER if m.get('tier') in tiers]
+                if candidates:
+                    monster = random.choice(candidates)
+                    enc_name = monster['name'].lower()
+                    if enc_name not in (current_state.known_entities or {}):
+                        self._generate_and_store_stat_block(
+                            monster['name'], {'action_type': 'attack'}, current_state
+                        )
+                    random_encounter_entry = monster
+                    # Inject as attack intent so combat begins
+                    intent = dict(intent)
+                    intent['action_type'] = 'attack'
+                    intent['target']      = monster['name'].lower()
+
         # --- Step 4: Dynamic entity stat block (Infinite Monster Engine) ---
         target = intent.get('target', '').strip()
         # Detect "3 goblins" / "goblin x3" patterns → spawn multiple instances
@@ -534,7 +563,21 @@ class EventManager:
 
         elif intent.get('action_type') == 'buy':
             item_name = intent.get('target', '')
-            buy_result = char_logic.buy_item(item_name)
+            # Apply faction reputation price modifier from any merchant NPC present
+            faction_mult = 1.0
+            for npc_name in (characters_present or []):
+                # Detect merchant NPCs by entity type
+                known_ent = (current_state.known_entities or {}).get(npc_name.lower(), {})
+                if known_ent.get('type') == 'merchant':
+                    faction_mult = world.get_faction_price_modifier(npc_name)
+                    break
+            from data.shop import get_shop_item
+            shop_entry = get_shop_item(item_name)
+            adj_price = None
+            if shop_entry and faction_mult != 1.0:
+                adj_price = max(1, int(shop_entry['price'] * faction_mult))
+            buy_result = char_logic.buy_item(item_name, price=adj_price)
+            buy_result['faction_mult'] = faction_mult
             utility_result = {'trade': 'buy', **buy_result}
 
         elif intent.get('action_type') == 'sell':
@@ -589,6 +632,15 @@ class EventManager:
         outcome_parts = [f"Player action: {player_action}"]
         if thought:
             outcome_parts.append(f"Action analysis: {thought}")
+        # Random encounter during travel
+        if random_encounter_entry:
+            enc_name = random_encounter_entry.get('name', 'unknown creature')
+            enc_spec = random_encounter_entry.get('special_ability', '')
+            outcome_parts.append(
+                f"RANDOM ENCOUNTER — while travelling, {enc_name} ambushes the party! "
+                + (f"Special: {enc_spec}. " if enc_spec else "")
+                + "Describe the sudden ambush dramatically."
+            )
         # Boss first-encounter — narrator should build dramatic tension
         if boss_encounter_entry:
             bname = boss_encounter_entry.get('display_name', target)
@@ -1021,6 +1073,8 @@ class EventManager:
             turn_data['_flee_result'] = flee_result
         if boss_encounter_entry:
             turn_data['_boss_encounter'] = boss_encounter_entry
+        if random_encounter_entry:
+            turn_data['_random_encounter'] = random_encounter_entry
 
         # Track contribution for balanced reward calculation
         checks_passed = 1 if (dice_result and dice_result.get('outcome') in
@@ -2198,13 +2252,16 @@ class EventManager:
         new_level  = compute_level(character.xp)
         leveled_up = new_level > old_level
         if leveled_up:
-            character.level    = new_level
-            levels_gained      = new_level - old_level
-            character.max_hp   = (character.max_hp  or 100) + 5 * levels_gained
-            character.hp       = min(character.max_hp, (character.hp or 0) + 5 * levels_gained)
-            character.max_mp   = (character.max_mp  or 50)  + 5 * levels_gained
-            character.atk      = (character.atk     or 10)  + 1 * levels_gained
-            character.def_stat = (character.def_stat or 10) + 1 * levels_gained
+            character.level = new_level
+            levels_gained   = new_level - old_level
+            # Baseline auto-bump: +5 HP and +3 MP per level (survival minimum)
+            character.max_hp = (character.max_hp or 100) + 5 * levels_gained
+            character.hp     = min(character.max_hp, (character.hp or 0) + 5 * levels_gained)
+            character.max_mp = (character.max_mp or 50)  + 3 * levels_gained
+            # Grant 2 free stat points per level for player-directed allocation
+            character.pending_stat_points = (
+                (character.pending_stat_points or 0) + 2 * levels_gained
+            )
 
         loot_dropped = roll_loot(entity_entry, self.dice)
         for item_name in loot_dropped:

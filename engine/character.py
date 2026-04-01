@@ -286,6 +286,40 @@ class CharacterLogic:
         self.session.commit()
         return {'sold': True, 'gold': gold}
 
+    # ── Level-up stat allocation ──────────────────────────────────────────────
+
+    # Stat-point allocation: maps choice key → (attribute_name, increment)
+    _STAT_POINT_MAP = {
+        'max_hp':    ('max_hp',    10),
+        'max_mp':    ('max_mp',    10),
+        'atk':       ('atk',        2),
+        'def_stat':  ('def_stat',   2),
+        'mov':       ('mov',        1),
+    }
+
+    def spend_stat_point(self, stat_key):
+        """
+        Spend one pending stat point on the chosen stat.
+        Returns True on success, False if no points remain or key is invalid.
+        """
+        pending = self.model.pending_stat_points or 0
+        if pending <= 0:
+            return False
+        entry = self._STAT_POINT_MAP.get(stat_key)
+        if entry is None:
+            return False
+        attr, increment = entry
+        current = getattr(self.model, attr, 0) or 0
+        setattr(self.model, attr, current + increment)
+        # Also restore current HP/MP if max was raised
+        if attr == 'max_hp':
+            self.model.hp = min(self.model.hp or 0 + increment, self.model.max_hp)
+        if attr == 'max_mp':
+            self.model.mp = min(self.model.mp or 0 + increment, self.model.max_mp)
+        self.model.pending_stat_points = pending - 1
+        self.session.commit()
+        return True
+
     def get_skill_modifier(self, skill_name):
         """
         Return the integer modifier for a skill check.

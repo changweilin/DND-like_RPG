@@ -220,6 +220,47 @@ python tools/gen_lora_data.py --samples 200
 
 ---
 
+## Phase 8 — 進階系統與品質改善 ✅
+
+### 8-A 升級屬性分配 ✅
+**目標**：升級時讓玩家自主決定屬性加點，而非全部自動提升。
+
+- `engine/game_state.py`：`Character.pending_stat_points` 欄位
+- `engine/character.py`：`spend_stat_point(stat_key)` — 5 種選擇（HP/MP/ATK/DEF/MOV）
+- `logic/events.py`：`_grant_loot_and_xp` 改為 +5HP/+3MP 基礎 + 2 自由點數
+- `ui/app.py`：`_render_levelup_panel()` — 升級時顯示 5 個屬性按鈕供點選
+
+### 8-B 派系聲望影響商店價格 ✅
+**目標**：玩家與商人所屬派系的好感度影響交易價格。
+
+- `engine/world.py`：`get_faction_price_modifier(faction_name)` + `_affinity_to_price_multiplier()`
+  - Hostile (-100~-50): +30%, Unfriendly (-50~-10): +15%, Friendly (30~70): -10%, Exalted (>70): -20%
+- `logic/events.py`：buy action_type 中偵測商人 NPC → 套用派系價格倍率
+
+### 8-C 快照存檔系統 ✅
+**目標**：玩家可建立回溯點，不影響主存檔繼續遊玩。
+
+- `engine/save_load.py`：`create_snapshot(save_name, session)` — 深複製角色 + GameState
+- `engine/config.py`：`AUTO_SAVE_INTERVAL = 10`, `RANDOM_ENCOUNTER_CHANCE = 0.20`
+- `ui/app.py`：側邊欄「💾 Turn X 已自動儲存」指示 + 「📸 建立快照」按鈕
+- 讀取存檔頁面：新增 📸 快照按鈕、快照展開清單
+
+### 8-D 旅行隨機遭遇 ✅
+**目標**：玩家「前往/go to」時有 20% 機率觸發隨機怪物遭遇。
+
+- `engine/intent_parser.py`：`_TRAVEL_RE` + `travel` action_type
+- `logic/events.py`：Step 3.6 — travel action → 1d20 vs 閾值 → 隨機抽取 tier 適合怪物 → 轉為 attack intent + 敘事注入
+- `turn_data['_random_encounter']` 儲存觸發的怪物資訊
+
+### 8-E 存檔管理 UI 改善 ✅
+**目標**：讀取存檔頁面顯示更豐富的資訊，操作更直覺。
+
+- `engine/save_load.py`：`list_saves()` 回傳角色名稱/等級、難度，標記快照類存檔
+- `ui/app.py`：讀取頁用 radio 按鈕顯示完整存檔資訊（角色、位置、回合、難度）
+- 三欄操作：「▶ 讀取」、「📸 快照」、「🗑️ 刪除」
+
+---
+
 ## 變更歷史
 
 | 日期 | 版本 | 摘要 |
@@ -229,3 +270,4 @@ python tools/gen_lora_data.py --samples 200
 | 2026-03-31 | Phase 5   | SRD seeder 工具、LoRA 資料生成器、音效管理器升級與整合 |
 | 2026-03-31 | Phase 6   | 攻擊詞擴充、戰鬥快捷列、Boss 橫幅、死亡讀檔、AI 自動行動、物品使用、地城地圖 |
 | 2026-03-31 | Phase 7   | 任務系統、商人商店、法術手冊、休息機制、裝備系統 |
+| 2026-04-01 | Phase 8   | 升級屬性分配、派系聲望商店、快照存檔、旅行隨機遭遇、存檔管理UI改善 |

@@ -249,6 +249,12 @@ _SKILL_PATTERNS = [
     ('arcana',       re.compile(r'(魔法|法術|咒語|magic|arcane|spell|enchant)', re.I)),
 ]
 
+# Travel intent — player explicitly moves between locations
+_TRAVEL_RE = re.compile(
+    r'(前往|去|移動到|前進|travel\s+to|go\s+to|move\s+to|head\s+to|journey\s+to|walk\s+to)',
+    re.I,
+)
+
 _DC_TABLE = {'easy': 10, 'normal': 15, 'hard': 20, 'deadly': 25}
 
 
@@ -390,6 +396,17 @@ def try_parse(player_action, known_entities, difficulty, char_class=None):
         is_long = bool(re.search(r'(long\s+rest|紮營|長時間休息|完全恢復|camp\s+(?:for\s+)?(?:the\s+)?night)', player_action, re.I))
         rest_type = 'long_rest' if is_long else 'short_rest'
         return _intent(rest_type, False, '', 0, '', player_action,
+                       class_ability=class_ability)
+
+    # --- Travel (checked before explore to avoid shadowing) ---
+    if _TRAVEL_RE.search(player_action):
+        dest_match = re.search(
+            r'(?:前往|去|移動到|前進|travel\s+to|go\s+to|move\s+to|head\s+to|'
+            r'journey\s+to|walk\s+to)\s+(.+)',
+            player_action, re.I,
+        )
+        destination = dest_match.group(1).strip() if dest_match else ''
+        return _intent('travel', False, '', 0, destination, player_action,
                        class_ability=class_ability)
 
     # --- Buy ---

@@ -336,18 +336,95 @@ class SaveLoadManager:
             GameState.current_location,
             GameState.turn_count,
             GameState.party_ids,
+            GameState.difficulty,
         ).all()
-        session.close()
         result = []
         for s in saves:
-            party_ids = s[3] or []
+            save_name  = s[0]
+            party_ids  = s[3] or []
+            # Skip internal snapshot prefix from main list (shown separately)
+            is_snapshot = save_name.startswith('_snapshot_')
+            # Load character names + levels for richer display
+            char_summaries = []
+            for cid in party_ids:
+                char = session.query(Character).filter_by(id=cid).first()
+                if char:
+                    char_summaries.append(f"{char.name} Lv{char.level or 1}")
             result.append({
-                "save_name":   s[0],
-                "location":    s[1],
-                "turns":       s[2] or 0,
-                "party_size":  len(party_ids) if party_ids else 1,
+                "save_name":      save_name,
+                "location":       s[1],
+                "turns":          s[2] or 0,
+                "party_size":     len(party_ids) if party_ids else 1,
+                "difficulty":     s[4] or 'Normal',
+                "char_summaries": char_summaries,
+                "is_snapshot":    is_snapshot,
             })
+        session.close()
         return result
+
+    def create_snapshot(self, source_save_name, db_session):
+        """
+        Create a named snapshot copy of an existing save.
+        Snapshot saves are prefixed with '_snapshot_' to separate them in the UI.
+        Returns the new snapshot save_name or '' on failure.
+        """
+        state = db_session.query(GameState).filter_by(save_name=source_save_name).first()
+        if not state:
+            return ''
+        import copy, json
+        turn = state.turn_count or 0
+        snap_name = f"_snapshot_{source_save_name}_t{turn}"
+        # Abort if snapshot already exists for this exact turn
+        if db_session.query(GameState).filter_by(save_name=snap_name).first():
+            return snap_name
+        # Duplicate all characters in the party
+        party_ids = state.party_ids or [state.player_id]
+        new_party_ids = []
+        for cid in party_ids:
+            char = db_session.query(Character).filter_by(id=cid).first()
+            if char:
+                new_char = Character(
+                    name=char.name, race=char.race, char_class=char.char_class,
+                    gender=char.gender, appearance=char.appearance,
+                    personality=char.personality,
+                    hp=char.hp, max_hp=char.max_hp,
+                    mp=char.mp, max_mp=char.max_mp,
+                    atk=char.atk, def_stat=char.def_stat, mov=char.mov,
+                    gold=char.gold,
+                    inventory=copy.deepcopy(char.inventory),
+                    skills=copy.deepcopy(char.skills),
+                    equipment=copy.deepcopy(getattr(char, 'equipment', {})),
+                    xp=char.xp, level=char.level,
+                    pending_stat_points=getattr(char, 'pending_stat_points', 0),
+                )
+                db_session.add(new_char)
+                db_session.flush()
+                new_party_ids.append(new_char.id)
+        new_state = GameState(
+            save_name=snap_name,
+            current_location=state.current_location,
+            world_context=state.world_context,
+            difficulty=state.difficulty,
+            language=state.language,
+            turn_count=state.turn_count,
+            player_id=new_party_ids[0] if new_party_ids else state.player_id,
+            relationships=copy.deepcopy(state.relationships),
+            session_memory=copy.deepcopy(state.session_memory),
+            known_entities=copy.deepcopy(state.known_entities),
+            world_setting=state.world_setting,
+            party_ids=new_party_ids,
+            active_player_index=state.active_player_index,
+            party_contributions=copy.deepcopy(state.party_contributions),
+            ai_configs=copy.deepcopy(state.ai_configs),
+            allow_custom_action=state.allow_custom_action,
+            organizations=copy.deepcopy(state.organizations),
+            in_combat=0,
+            dungeon_map=copy.deepcopy(getattr(state, 'dungeon_map', {})),
+            quests=copy.deepcopy(getattr(state, 'quests', {})),
+        )
+        db_session.add(new_state)
+        db_session.commit()
+        return snap_name
 
     def delete_game(self, save_name):
         """
