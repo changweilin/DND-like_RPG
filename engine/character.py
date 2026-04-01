@@ -269,16 +269,17 @@ class CharacterLogic:
         self.session.commit()
         return {'bought': True, 'price': actual_price, 'item_name': item_name}
 
-    def sell_item(self, item_name):
+    def sell_item(self, item_name, price_mult=1.0):
         """
         Remove item from inventory and add gold.
-        Returns {'sold': bool, 'gold': int, 'reason': str|None}.
+        price_mult — faction reputation modifier (e.g. 0.9 = merchant pays 10% more).
+        Returns {'sold': bool, 'gold': int, 'base_gold': int, 'reason': str|None}.
         """
         from data.shop import sell_price
         # Cannot sell equipped items
         for slot, item in (self.model.equipment or {}).items():
             if item and item.get('name', '').lower() == item_name.lower():
-                return {'sold': False, 'gold': 0, 'reason': 'equipped'}
+                return {'sold': False, 'gold': 0, 'base_gold': 0, 'reason': 'equipped'}
         # Verify item exists before touching gold
         item_name_lower = item_name.lower()
         found = any(
@@ -286,12 +287,14 @@ class CharacterLogic:
             for it in (self.model.inventory or [])
         )
         if not found:
-            return {'sold': False, 'gold': 0, 'reason': 'not_found'}
+            return {'sold': False, 'gold': 0, 'base_gold': 0, 'reason': 'not_found'}
+        # Apply faction modifier to sell price (friendly merchants buy at better rates)
+        base_gold = sell_price(item_name)
+        gold = max(1, int(base_gold * price_mult))
         # Add gold first so both mutations commit together inside remove_item()
-        gold = sell_price(item_name)
         self.model.gold = (self.model.gold or 0) + gold
         self.remove_item(item_name)   # commits gold + inventory removal atomically
-        return {'sold': True, 'gold': gold}
+        return {'sold': True, 'gold': gold, 'base_gold': base_gold}
 
     # ── Level-up stat allocation ──────────────────────────────────────────────
 

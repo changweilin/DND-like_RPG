@@ -2945,6 +2945,99 @@ def _render_quest_journal(state):
         st.sidebar.caption(f"✅ 已完成 {len(completed)} 個任務")
 
 
+def _render_shop_panel(state, char):
+    """
+    Sidebar shop panel — shows the full catalogue with current prices.
+    Always visible (player can browse even without a merchant nearby).
+    Prices reflect any faction modifier for merchants in the current scene.
+    """
+    from data.shop import SHOP_CATALOGUE, sell_price as base_sell_price
+
+    # Check if a merchant is present to apply faction modifier
+    known_ents  = getattr(state, 'known_entities', None) or {}
+    faction_buy = 1.0
+    faction_sell = 1.0
+    merchant_name = None
+    for key, ent in known_ents.items():
+        if isinstance(ent, dict) and ent.get('type') == 'merchant' and ent.get('alive', True):
+            merchant_name = ent.get('name', key.replace('_', ' ').title())
+            break
+
+    st.sidebar.markdown("---")
+    header = f"🏪 **商店**" + (f" — {merchant_name}" if merchant_name else " （瀏覽）")
+    with st.sidebar.expander(header, expanded=False):
+        if merchant_name:
+            st.caption(f"✅ {merchant_name} 在場 — 聲望修正生效")
+        else:
+            st.caption("商人不在場時可瀏覽價格，但無法交易")
+
+        # Group items by type
+        _TYPE_LABELS = {
+            'consumable': '🧪 消耗品',
+            'throwable':  '💣 投擲物',
+            'weapon':     '⚔️ 武器',
+            'armor':      '🛡️ 防具',
+            'accessory':  '💍 飾品',
+        }
+        groups = {}
+        for name, entry in SHOP_CATALOGUE.items():
+            t = entry.get('type', 'other')
+            groups.setdefault(t, []).append((name, entry))
+
+        for type_key, label in _TYPE_LABELS.items():
+            items_in_group = groups.get(type_key, [])
+            if not items_in_group:
+                continue
+            st.markdown(f"**{label}**")
+            for name, entry in items_in_group:
+                # Skip Chinese aliases (duplicate entries)
+                if any(ord(c) > 127 for c in name):
+                    continue
+                price = entry['price']
+                desc  = entry.get('description', '')
+                bonuses = []
+                if entry.get('atk_bonus'):
+                    bonuses.append(f"+{entry['atk_bonus']} ATK")
+                if entry.get('def_bonus'):
+                    bonuses.append(f"+{entry['def_bonus']} DEF")
+                if entry.get('hp_bonus'):
+                    bonuses.append(f"+{entry['hp_bonus']} HP")
+                if entry.get('mp_bonus'):
+                    bonuses.append(f"+{entry['mp_bonus']} MP")
+                if entry.get('mov_bonus'):
+                    bonuses.append(f"+{entry['mov_bonus']} MOV")
+                bonus_str = f"  *({', '.join(bonuses)})*" if bonuses else ''
+                can_afford = (char.gold or 0) >= price
+                price_color = '#4ade80' if can_afford else '#f87171'
+                st.markdown(
+                    f"<div style='display:flex;justify-content:space-between;"
+                    f"padding:2px 0;font-size:0.88em'>"
+                    f"<span>{name}{bonus_str}</span>"
+                    f"<span style='color:{price_color};font-weight:bold'>{price}g</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                if desc:
+                    st.caption(desc)
+
+        # Sell section — show inventory items with sell prices
+        inventory = list(char.inventory or [])
+        if inventory:
+            st.markdown("---")
+            st.markdown("**💰 可出售物品**")
+            for it in inventory:
+                iname = it.get('name', it) if isinstance(it, dict) else str(it)
+                sp = base_sell_price(iname)
+                st.markdown(
+                    f"<div style='display:flex;justify-content:space-between;"
+                    f"padding:2px 0;font-size:0.88em'>"
+                    f"<span>{iname}</span>"
+                    f"<span style='color:#fbbf24'>{sp}g</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+
 def _affinity_bar(affinity):
     clamped = max(-100, min(100, affinity))
     filled  = round((clamped + 100) / 200 * 10)
@@ -3122,11 +3215,12 @@ def _render_boss_encounter_banner(boss_entry):
 # ---------------------------------------------------------------------------
 
 def _render_loot_xp_banner(loot_xp):
-    """Show XP gained and loot dropped after a kill."""
+    """Show XP gained, gold dropped, and loot items after a kill."""
     if not loot_xp:
         return
     xp_gained    = loot_xp.get('xp_gained', 0)
     loot_dropped = loot_xp.get('loot_dropped', [])
+    gold_gained  = loot_xp.get('gold_gained', 0)
     leveled_up   = loot_xp.get('leveled_up', False)
     new_level    = loot_xp.get('new_level', 1)
     xp_mult      = loot_xp.get('xp_mult', 1.0)
@@ -3136,10 +3230,11 @@ def _render_loot_xp_banner(loot_xp):
         color = '#4ade80' if xp_mult > 1.0 else '#f87171'
         mult_tag = f" <span style='color:{color};font-size:0.85em'>(×{xp_mult:.2g})</span>"
 
-    xp_line  = f"✨ <b>+{xp_gained} XP</b>{mult_tag}"
-    loot_line = (f"🎁 戰利品: {', '.join(loot_dropped)}" if loot_dropped
-                 else "🎁 無戰利品掉落")
-    content  = f"{xp_line}　·　{loot_line}"
+    xp_line   = f"✨ <b>+{xp_gained} XP</b>{mult_tag}"
+    loot_line = (f"🎁 {', '.join(loot_dropped)}" if loot_dropped else "🎁 無戰利品")
+    gold_tag  = (f"　·　💰 <b style='color:#fbbf24'>+{gold_gained}g</b>" if gold_gained > 0
+                 else "")
+    content   = f"{xp_line}　·　{loot_line}{gold_tag}"
 
     if leveled_up:
         st.markdown(
@@ -3153,6 +3248,100 @@ def _render_loot_xp_banner(loot_xp):
         st.markdown(
             f"<div style='background:#0c1a2e;border:1px solid #1e40af;border-radius:6px;"
             f"padding:8px 14px;margin:6px 0'>{content}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_trade_banner(utility_result):
+    """Show a visual indicator for buy/sell trade results."""
+    if not utility_result or utility_result.get('trade') not in ('buy', 'sell'):
+        return
+    trade = utility_result['trade']
+    if trade == 'buy':
+        if utility_result.get('bought'):
+            price = utility_result.get('price', 0)
+            item  = utility_result.get('item_name', '')
+            faction_mult = utility_result.get('faction_mult', 1.0)
+            mod_tag = ''
+            if abs(faction_mult - 1.0) >= 0.01:
+                pct = int(abs(faction_mult - 1.0) * 100)
+                if faction_mult < 1.0:
+                    mod_tag = (f" <span style='color:#4ade80;font-size:0.82em'>"
+                               f"(-{pct}% 聲望折扣)</span>")
+                else:
+                    mod_tag = (f" <span style='color:#f87171;font-size:0.82em'>"
+                               f"(+{pct}% 聲望溢價)</span>")
+            st.markdown(
+                f"<div style='background:#0c2310;border:1px solid #16a34a;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"🛒 購入 <b>{item}</b>"
+                f" — <b style='color:#f87171'>-{price}g</b>{mod_tag}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            item   = utility_result.get('item_name', utility_result.get('target', ''))
+            price  = utility_result.get('price', 0)
+            if reason == 'insufficient_gold':
+                msg = f"金幣不足！<b>{item}</b> 需要 {price}g"
+            elif reason == 'not_found':
+                msg = f"商店沒有 <b>{item}</b>"
+            else:
+                msg = f"購買失敗: {item}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>❌ {msg}</div>",
+                unsafe_allow_html=True,
+            )
+    elif trade == 'sell':
+        if utility_result.get('sold'):
+            gold      = utility_result.get('gold', 0)
+            base_gold = utility_result.get('base_gold', gold)
+            item      = utility_result.get('item_name', '')
+            bonus_tag = ''
+            if gold != base_gold:
+                diff = gold - base_gold
+                sign = '+' if diff > 0 else ''
+                bonus_tag = (f" <span style='color:#4ade80;font-size:0.82em'>"
+                             f"({sign}{diff}g 聲望加成)</span>")
+            st.markdown(
+                f"<div style='background:#0c1020;border:1px solid #3b82f6;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"💰 售出 <b>{item}</b>"
+                f" — <b style='color:#fbbf24'>+{gold}g</b>{bonus_tag}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            item   = utility_result.get('item_name', '')
+            if reason == 'not_found':
+                msg = f"背包裡沒有 <b>{item}</b>"
+            elif reason == 'equipped':
+                msg = f"<b>{item}</b> 正在裝備中，請先卸下"
+            else:
+                msg = f"出售失敗: {item}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>❌ {msg}</div>",
+                unsafe_allow_html=True,
+            )
+
+
+def _render_quest_reward_banner(quest_rewards):
+    """Show inline banner for completed quest rewards."""
+    if not quest_rewards:
+        return
+    for rw in quest_rewards:
+        parts = []
+        if rw.get('xp'):
+            parts.append(f"✨ +{rw['xp']} XP")
+        if rw.get('gold'):
+            parts.append(f"💰 +{rw['gold']}g")
+        reward_str = "　·　".join(parts) if parts else "完成！"
+        st.markdown(
+            f"<div style='background:#1a1505;border:1px solid #d97706;"
+            f"border-radius:6px;padding:8px 14px;margin:4px 0'>"
+            f"📜 <b>任務完成：{rw.get('quest_name', '?')}</b>　{reward_str}</div>",
             unsafe_allow_html=True,
         )
 
@@ -3550,6 +3739,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             _render_boss_encounter_banner(item.get('boss_encounter'))
             _render_combat_banner(item.get('combat_result'))
             _render_loot_xp_banner(item.get('loot_xp'))
+            _render_trade_banner(item.get('_utility_result'))
+            _render_quest_reward_banner(item.get('_quest_rewards'))
             label = f"**{dm_lbl}:**" if not item.get('is_prologue') else f"**{dm_lbl} 開場白:**"
             st.markdown(f"{label} {item['content']}")
             if item.get('image'):
@@ -3857,6 +4048,8 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "loot_xp":         turn_data.get('_loot_xp'),
             "boss_encounter":  turn_data.get('_boss_encounter'),
             "_death_penalty":  turn_data.get('_death_penalty'),
+            "_utility_result": turn_data.get('_utility_result'),
+            "_quest_rewards":  turn_data.get('_quest_rewards'),
             "image":           scene_image,
             "image_path":      scene_image_path,
             "is_cinematic":    is_cinematic,
@@ -4807,6 +5000,7 @@ def game_loop():
         )
     _render_npc_tracker(state)
     _render_quest_journal(state)
+    _render_shop_panel(state, active_char)
     # ── Save indicator + quick snapshot ────────────────────────────────────
     st.sidebar.markdown("---")
     _turn_now = getattr(state, 'turn_count', 0) or 0
@@ -4942,8 +5136,10 @@ def game_loop():
             "dice_result":    dice_result,
             "combat_result":  turn_data.get('_combat_result'),
             "loot_xp":        turn_data.get('_loot_xp'),
-            "boss_encounter": turn_data.get('_boss_encounter'),
-            "_death_penalty": turn_data.get('_death_penalty'),
+            "boss_encounter":  turn_data.get('_boss_encounter'),
+            "_death_penalty":  turn_data.get('_death_penalty'),
+            "_utility_result": turn_data.get('_utility_result'),
+            "_quest_rewards":  turn_data.get('_quest_rewards'),
             "audio_cues":     _ai_audio,
             "image":          None,
             "image_path":     '',

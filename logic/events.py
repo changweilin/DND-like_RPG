@@ -13,7 +13,8 @@ from engine.intent_parser import (
     calculate_affinity_delta,
 )
 from engine.combat import (CombatEngine, STATUS_EFFECTS, compute_level, xp_for_level,
-                           roll_loot, DIFFICULTY_REWARD, DIFFICULTY_DEATH_PENALTY)
+                           roll_loot, roll_combat_gold,
+                           DIFFICULTY_REWARD, DIFFICULTY_DEATH_PENALTY)
 from data.monsters import get_monster_by_name, get_special_ability
 
 # Rule engine constants for _calculate_mechanics()
@@ -582,7 +583,18 @@ class EventManager:
 
         elif intent.get('action_type') == 'sell':
             item_name = intent.get('target', '')
-            sell_result = char_logic.sell_item(item_name)
+            # Apply faction reputation modifier: friendly merchants pay more
+            faction_mult = 1.0
+            for npc_name in (characters_present or []):
+                known_ent = (current_state.known_entities or {}).get(npc_name.lower(), {})
+                if known_ent.get('type') == 'merchant':
+                    raw_mult = world.get_faction_price_modifier(npc_name)
+                    # Invert: if merchant charges less (0.9), they also pay more (1.1)
+                    faction_mult = max(0.5, min(1.5, 2.0 - raw_mult))
+                    break
+            sell_result = char_logic.sell_item(item_name, price_mult=faction_mult)
+            sell_result['faction_mult'] = faction_mult
+            sell_result['item_name']    = item_name
             utility_result = {'trade': 'sell', **sell_result}
 
         elif intent.get('action_type') == 'equip':
@@ -777,9 +789,12 @@ class EventManager:
                     )
             elif utility_result.get('trade') == 'sell':
                 if utility_result.get('sold'):
+                    faction_mult = utility_result.get('faction_mult', 1.0)
+                    mult_note = (f" (faction modifier ×{faction_mult:.2f})"
+                                 if abs(faction_mult - 1.0) >= 0.01 else "")
                     outcome_parts.append(
                         f"Sold [{intent.get('target', '')}] for "
-                        f"{utility_result.get('gold', 0)} gold. "
+                        f"{utility_result.get('gold', 0)} gold{mult_note}. "
                         f"Gold total: {character.gold}."
                     )
                 else:
@@ -1068,6 +1083,29 @@ class EventManager:
         self._update_combat_state(intent, combat_result, current_state,
                                   flee_result=flee_result)
 
+        # Apply quest completion rewards from narrative
+        for quest_name in (turn_data.get('quest_completed') or []):
+            if not quest_name:
+                continue
+            for q in world.get_active_quests():
+                if q.get('name', '').lower() == str(quest_name).lower():
+                    rewards = world.complete_quest(q['quest_id'],
+                                                   current_state.turn_count)
+                    if rewards.get('reward_xp'):
+                        character.xp = (character.xp or 0) + rewards['reward_xp']
+                        new_lvl = compute_level(character.xp)
+                        if new_lvl > (character.level or 1):
+                            character.level = new_lvl
+                    if rewards.get('reward_gold'):
+                        character.gold = (character.gold or 0) + rewards['reward_gold']
+                    self.session.commit()
+                    turn_data.setdefault('_quest_rewards', []).append({
+                        'quest_name': q['name'],
+                        'xp':         rewards.get('reward_xp', 0),
+                        'gold':       rewards.get('reward_gold', 0),
+                    })
+                    break
+
         # Store result refs in turn_data for UI rendering
         turn_data['_combat_result'] = combat_result
         if loot_xp_result:
@@ -1078,6 +1116,8 @@ class EventManager:
             turn_data['_boss_encounter'] = boss_encounter_entry
         if random_encounter_entry:
             turn_data['_random_encounter'] = random_encounter_entry
+        if utility_result:
+            turn_data['_utility_result'] = utility_result
 
         # Track contribution for balanced reward calculation
         checks_passed = 1 if (dice_result and dice_result.get('outcome') in
@@ -1709,7 +1749,8 @@ class EventManager:
             f"Active player this turn: {character.name} ({character.race} {character.char_class}).\n"
             f"{hp_lbl}: {character.hp}/{character.max_hp}  "
             f"{mp_lbl}: {character.mp}/{character.max_mp}  "
-            f"ATK: {character.atk}  DEF: {character.def_stat}.\n"
+            f"ATK: {character.atk}  DEF: {character.def_stat}  "
+            f"Gold: {character.gold or 0}.\n"
             f"Location: {current_state.current_location}.\n"
             f"World lore: {current_state.world_context}\n"
             f"Difficulty: {current_state.difficulty}\n"
@@ -2276,11 +2317,19 @@ class EventManager:
         for item_name in loot_dropped:
             char_logic.add_item({'name': item_name, 'source': entity_key})
 
+        # Roll direct gold drop from the defeated enemy
+        gold_source  = roster if roster else entity_entry
+        gold_gained  = roll_combat_gold(gold_source, self.dice,
+                                        difficulty=current_state.difficulty or 'normal')
+        if gold_gained > 0:
+            character.gold = (character.gold or 0) + gold_gained
+
         self.session.commit()
         return {
             'xp_gained':    xp_gain,
             'xp_mult':      xp_mult,
             'loot_dropped': loot_dropped,
+            'gold_gained':  gold_gained,
             'leveled_up':   leveled_up,
             'new_level':    new_level,
         }

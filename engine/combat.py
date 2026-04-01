@@ -68,6 +68,36 @@ DIFFICULTY_DEATH_PENALTY = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Per-tier gold drop ranges (min, max) — difficulty multiplier applied on top
+# ---------------------------------------------------------------------------
+_TIER_GOLD_RANGES = {
+    1: (2,  12),   # Easy:   scraps from lesser foes
+    2: (8,  30),   # Normal: worthwhile spoils
+    3: (25, 80),   # Hard:   significant treasure
+    4: (80, 300),  # Deadly: fragment of a boss hoard
+}
+
+
+def roll_combat_gold(entity_entry, dice_roller, difficulty='normal'):
+    """
+    Roll a gold drop for a defeated enemy.
+    Constructs (golems, animated objects) carry no coin.
+    Amount is tier-based and scaled by the difficulty XP multiplier.
+    Returns an integer >= 0.
+    """
+    if entity_entry.get('construct'):
+        return 0
+    tier      = entity_entry.get('tier', 1)
+    gold_min, gold_max = _TIER_GOLD_RANGES.get(tier, (2, 12))
+    spread    = max(1, gold_max - gold_min)
+    rolled    = dice_roller.roll(f'1d{spread}')[2]   # 1 .. spread
+    base      = gold_min - 1 + rolled                # gold_min .. gold_max
+    diff_key  = (difficulty or 'normal').lower()
+    xp_mult   = DIFFICULTY_REWARD.get(diff_key, DIFFICULTY_REWARD['normal'])['xp_mult']
+    return max(0, int(base * xp_mult))
+
+
 def roll_loot(entity_entry, dice_roller, difficulty='normal'):
     """
     Roll for loot from a defeated monster's loot table.
