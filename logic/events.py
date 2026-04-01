@@ -12,7 +12,8 @@ from engine.intent_parser import (
     get_entity_base_stats,
     calculate_affinity_delta,
 )
-from engine.combat import CombatEngine, STATUS_EFFECTS, compute_level, xp_for_level, roll_loot
+from engine.combat import (CombatEngine, STATUS_EFFECTS, compute_level, xp_for_level,
+                           roll_loot, DIFFICULTY_REWARD, DIFFICULTY_DEATH_PENALTY)
 from data.monsters import get_monster_by_name, get_special_ability
 
 # Rule engine constants for _calculate_mechanics()
@@ -1039,9 +1040,12 @@ class EventManager:
         if character.hp <= 0:
             character.hp = 0
             current_state.in_combat = 0
+            # Apply difficulty-based death penalty before saving
+            death_penalty = self._apply_death_penalty(character, char_logic, current_state)
             self.session.commit()
             turn_data['game_over'] = True
             turn_data['_combat_result'] = combat_result
+            turn_data['_death_penalty'] = death_penalty
             return narrative, choices, turn_data, dice_result
 
         # Apply any status effect the enemy inflicted on the player via counter-attack
@@ -2245,6 +2249,11 @@ class EventManager:
         if xp_gain == 0:
             xp_gain = max(10, (entity_entry.get('max_hp') or 20) * 2)
 
+        # Scale XP by difficulty multiplier
+        diff_key = (current_state.difficulty or 'normal').lower()
+        xp_mult  = DIFFICULTY_REWARD.get(diff_key, DIFFICULTY_REWARD['normal'])['xp_mult']
+        xp_gain  = max(1, int(xp_gain * xp_mult))
+
         old_level = character.level or 1
         character.xp = (character.xp or 0) + xp_gain
 
@@ -2262,16 +2271,62 @@ class EventManager:
                 (character.pending_stat_points or 0) + 2 * levels_gained
             )
 
-        loot_dropped = roll_loot(entity_entry, self.dice)
+        loot_dropped = roll_loot(entity_entry, self.dice,
+                                 difficulty=current_state.difficulty or 'normal')
         for item_name in loot_dropped:
             char_logic.add_item({'name': item_name, 'source': entity_key})
 
         self.session.commit()
         return {
             'xp_gained':    xp_gain,
+            'xp_mult':      xp_mult,
             'loot_dropped': loot_dropped,
             'leveled_up':   leveled_up,
             'new_level':    new_level,
+        }
+
+    def _apply_death_penalty(self, character, char_logic, current_state):
+        """
+        Apply difficulty-scaled penalties when the player character dies (HP → 0).
+
+        Returns a summary dict for UI display:
+          {gold_lost, xp_lost, item_dropped, difficulty}
+        """
+        diff_key = (current_state.difficulty or 'normal').lower()
+        penalty  = DIFFICULTY_DEATH_PENALTY.get(diff_key,
+                                                DIFFICULTY_DEATH_PENALTY['normal'])
+        gold_lost    = 0
+        xp_lost      = 0
+        item_dropped = None
+
+        # Gold loss
+        if penalty['gold_loss_pct'] > 0 and (character.gold or 0) > 0:
+            gold_lost = max(1, int((character.gold or 0) * penalty['gold_loss_pct']))
+            character.gold = max(0, (character.gold or 0) - gold_lost)
+
+        # XP loss — only removes XP earned above the current level floor
+        # so the player can never be pushed below their current level.
+        if penalty['xp_loss_pct'] > 0 and (character.xp or 0) > 0:
+            current_level  = character.level or 1
+            level_floor_xp = xp_for_level(current_level)   # XP needed for this level
+            xp_above_floor = max(0, (character.xp or 0) - level_floor_xp)
+            xp_lost = max(0, int(xp_above_floor * penalty['xp_loss_pct']))
+            character.xp = max(level_floor_xp, (character.xp or 0) - xp_lost)
+
+        # Item drop — one random inventory item lost (Deadly only)
+        if penalty['drop_item'] and char_logic.model.inventory:
+            inv = list(char_logic.model.inventory)
+            drop_idx  = self.dice.roll(f'1d{len(inv)}')[2] - 1
+            drop_idx  = max(0, min(drop_idx, len(inv) - 1))
+            dropped   = inv[drop_idx]
+            item_dropped = dropped.get('name', str(dropped)) if isinstance(dropped, dict) else str(dropped)
+            char_logic.remove_item(item_dropped)
+
+        return {
+            'difficulty':    diff_key,
+            'gold_lost':     gold_lost,
+            'xp_lost':       xp_lost,
+            'item_dropped':  item_dropped,
         }
 
     # ------------------------------------------------------------------

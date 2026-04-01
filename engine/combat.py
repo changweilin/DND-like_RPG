@@ -42,18 +42,48 @@ def compute_level(total_xp):
     return min(level, MAX_LEVEL)
 
 
-def roll_loot(entity_entry, dice_roller):
+# ---------------------------------------------------------------------------
+# Difficulty reward/penalty tables
+# ---------------------------------------------------------------------------
+
+# Per-difficulty multipliers and thresholds used by _grant_loot_and_xp()
+# and _apply_death_penalty() in logic/events.py.
+DIFFICULTY_REWARD = {
+    'easy':   {'xp_mult': 0.75, 'loot_chance': 0.35},
+    'normal': {'xp_mult': 1.00, 'loot_chance': 0.50},
+    'hard':   {'xp_mult': 1.50, 'loot_chance': 0.65},
+    'deadly': {'xp_mult': 2.00, 'loot_chance': 0.80},
+}
+
+# Death penalties applied when character.hp <= 0.
+# gold_loss_pct  — fraction of current gold lost (0.0 = none)
+# xp_loss_pct   — fraction of XP above the current level floor lost (0.0 = none)
+#                 capped so the player can never lose a level
+# drop_item      — if True, one random inventory item is dropped
+DIFFICULTY_DEATH_PENALTY = {
+    'easy':   {'gold_loss_pct': 0.00, 'xp_loss_pct': 0.00, 'drop_item': False},
+    'normal': {'gold_loss_pct': 0.10, 'xp_loss_pct': 0.00, 'drop_item': False},
+    'hard':   {'gold_loss_pct': 0.25, 'xp_loss_pct': 0.05, 'drop_item': False},
+    'deadly': {'gold_loss_pct': 0.50, 'xp_loss_pct': 0.10, 'drop_item': True},
+}
+
+
+def roll_loot(entity_entry, dice_roller, difficulty='normal'):
     """
     Roll for loot from a defeated monster's loot table.
     Returns a list of item name strings (may be empty).
-    Each item in the loot list has a 50 % drop chance.
+    Drop chance per item scales with difficulty (35 % easy … 80 % deadly).
     """
     loot_table = entity_entry.get('loot', [])
     if not loot_table:
         return []
+    diff_key = (difficulty or 'normal').lower()
+    chance   = DIFFICULTY_REWARD.get(diff_key, DIFFICULTY_REWARD['normal'])['loot_chance']
+    # Convert chance to a 1d100 threshold (e.g. 0.65 → roll ≤ 65)
+    threshold = int(chance * 100)
     dropped = []
     for item in loot_table:
-        if dice_roller.roll('1d2')[2] == 2:   # 50 % chance per item
+        if dice_roller.roll('1d100')[2] <= threshold:
             dropped.append(item)
     return dropped
 

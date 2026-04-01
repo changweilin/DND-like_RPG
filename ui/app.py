@@ -3129,18 +3129,32 @@ def _render_loot_xp_banner(loot_xp):
     loot_dropped = loot_xp.get('loot_dropped', [])
     leveled_up   = loot_xp.get('leveled_up', False)
     new_level    = loot_xp.get('new_level', 1)
+    xp_mult      = loot_xp.get('xp_mult', 1.0)
 
-    lines = [f"✨ **+{xp_gained} XP**"]
-    if loot_dropped:
-        lines.append(f"🎁 戰利品: {', '.join(loot_dropped)}")
-    else:
-        lines.append("🎁 無戰利品掉落")
-    msg = "  ·  ".join(lines)
+    mult_tag = ''
+    if xp_mult != 1.0:
+        color = '#4ade80' if xp_mult > 1.0 else '#f87171'
+        mult_tag = f" <span style='color:{color};font-size:0.85em'>(×{xp_mult:.2g})</span>"
+
+    xp_line  = f"✨ <b>+{xp_gained} XP</b>{mult_tag}"
+    loot_line = (f"🎁 戰利品: {', '.join(loot_dropped)}" if loot_dropped
+                 else "🎁 無戰利品掉落")
+    content  = f"{xp_line}　·　{loot_line}"
 
     if leveled_up:
-        st.success(f"🆙 **升級！達到 Lv {new_level}！** +5 HP · +3 MP · 獲得 2 點屬性點！\n{msg}")
+        st.markdown(
+            f"<div style='background:#052e16;border:1px solid #16a34a;border-radius:6px;"
+            f"padding:10px 14px;margin:6px 0'>"
+            f"🆙 <b>升級！達到 Lv {new_level}！</b> +5 HP · +3 MP · 獲得 2 點屬性點！<br>"
+            f"{content}</div>",
+            unsafe_allow_html=True,
+        )
     else:
-        st.info(msg)
+        st.markdown(
+            f"<div style='background:#0c1a2e;border:1px solid #1e40af;border-radius:6px;"
+            f"padding:8px 14px;margin:6px 0'>{content}</div>",
+            unsafe_allow_html=True,
+        )
 
 
 def _render_levelup_panel(char, session):
@@ -3610,6 +3624,30 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
         action_taken = _combat_quick_action
 
     if active_char.hp <= 0:
+        # Gather death-penalty info from the last history entry if available
+        _dp = None
+        for _hi in reversed(st.session_state.get('history', [])):
+            if _hi.get('role') == 'dm' and _hi.get('_death_penalty'):
+                _dp = _hi['_death_penalty']
+                break
+        _penalty_lines = []
+        if _dp:
+            _diff_label = {'easy': 'Easy', 'normal': 'Normal',
+                           'hard': 'Hard', 'deadly': 'Deadly'}.get(
+                _dp.get('difficulty', 'normal'), 'Normal')
+            if _dp.get('gold_lost', 0) > 0:
+                _penalty_lines.append(f"💰 損失 {_dp['gold_lost']} 金幣")
+            if _dp.get('xp_lost', 0) > 0:
+                _penalty_lines.append(f"✨ 損失 {_dp['xp_lost']} XP")
+            if _dp.get('item_dropped'):
+                _penalty_lines.append(f"🎒 掉落：{_dp['item_dropped']}")
+            if not _penalty_lines:
+                _penalty_lines.append("無懲罰（Easy 模式）")
+        _penalty_html = (
+            "<div style='margin-top:10px;font-size:0.9em;color:#fca5a5'>"
+            + "　".join(_penalty_lines)
+            + "</div>"
+        ) if _penalty_lines else ""
         st.markdown(
             "<div style='background:#1a0000;border:2px solid #7f1d1d;border-radius:10px;"
             "padding:24px;text-align:center;margin:16px 0'>"
@@ -3617,6 +3655,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "<div style='font-size:1.6em;color:#ef4444;font-weight:bold;margin:8px 0'>"
             f"GAME OVER</div>"
             f"<div style='color:#fca5a5'>{active_char.name} 已陣亡。</div>"
+            f"{_penalty_html}"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -3817,6 +3856,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             "combat_result":   turn_data.get('_combat_result'),
             "loot_xp":         turn_data.get('_loot_xp'),
             "boss_encounter":  turn_data.get('_boss_encounter'),
+            "_death_penalty":  turn_data.get('_death_penalty'),
             "image":           scene_image,
             "image_path":      scene_image_path,
             "is_cinematic":    is_cinematic,
@@ -4903,6 +4943,7 @@ def game_loop():
             "combat_result":  turn_data.get('_combat_result'),
             "loot_xp":        turn_data.get('_loot_xp'),
             "boss_encounter": turn_data.get('_boss_encounter'),
+            "_death_penalty": turn_data.get('_death_penalty'),
             "audio_cues":     _ai_audio,
             "image":          None,
             "image_path":     '',
