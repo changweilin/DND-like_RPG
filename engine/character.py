@@ -279,11 +279,18 @@ class CharacterLogic:
         for slot, item in (self.model.equipment or {}).items():
             if item and item.get('name', '').lower() == item_name.lower():
                 return {'sold': False, 'gold': 0, 'reason': 'equipped'}
-        if not self.remove_item(item_name):
+        # Verify item exists before touching gold
+        item_name_lower = item_name.lower()
+        found = any(
+            (it.get('name', '') if isinstance(it, dict) else str(it)).lower() == item_name_lower
+            for it in (self.model.inventory or [])
+        )
+        if not found:
             return {'sold': False, 'gold': 0, 'reason': 'not_found'}
+        # Add gold first so both mutations commit together inside remove_item()
         gold = sell_price(item_name)
         self.model.gold = (self.model.gold or 0) + gold
-        self.session.commit()
+        self.remove_item(item_name)   # commits gold + inventory removal atomically
         return {'sold': True, 'gold': gold}
 
     # ── Level-up stat allocation ──────────────────────────────────────────────
@@ -311,11 +318,11 @@ class CharacterLogic:
         attr, increment = entry
         current = getattr(self.model, attr, 0) or 0
         setattr(self.model, attr, current + increment)
-        # Also restore current HP/MP if max was raised
+        # Also raise current HP/MP to reflect the new maximum
         if attr == 'max_hp':
-            self.model.hp = min(self.model.hp or 0 + increment, self.model.max_hp)
+            self.model.hp = min((self.model.hp or 0) + increment, self.model.max_hp)
         if attr == 'max_mp':
-            self.model.mp = min(self.model.mp or 0 + increment, self.model.max_mp)
+            self.model.mp = min((self.model.mp or 0) + increment, self.model.max_mp)
         self.model.pending_stat_points = pending - 1
         self.session.commit()
         return True

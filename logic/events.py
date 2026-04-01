@@ -527,10 +527,9 @@ class EventManager:
                                 if not k.startswith('_') and k != target and e.get('alive', True):
                                     self._apply_combat_damage_to_entity(k, raw_dmg, current_state)
                     if spell.get('status_apply') and target:
-                        from engine.combat import apply_status_to_entity
-                        known_sp = dict(current_state.known_entities or {})
-                        apply_status_to_entity(target, spell['status_apply'], known_sp)
-                        current_state.known_entities = known_sp
+                        self.combat.apply_status_to_entity(
+                            target, spell['status_apply'], current_state
+                        )
                         flag_modified(current_state, 'known_entities')
                         self.session.commit()
                     char_logic.use_mp(mp_cost)
