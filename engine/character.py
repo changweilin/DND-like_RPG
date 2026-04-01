@@ -36,8 +36,8 @@ class CharacterLogic:
         self.session.commit()
 
     def use_mp(self, amount):
-        if self.model.mp >= amount:
-            self.model.mp -= amount
+        if (self.model.mp or 0) >= amount:
+            self.model.mp = (self.model.mp or 0) - amount
             self.session.commit()
             return True
         return False

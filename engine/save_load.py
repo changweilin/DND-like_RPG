@@ -318,7 +318,7 @@ class SaveLoadManager:
 
         party = []
         for cid in party_ids:
-            char = session.query(Character).filter_by(id=cid).first()
+            char = session.query(Character).filter_by(id=int(cid)).first()
             if char:
                 party.append(char)
 
@@ -347,7 +347,7 @@ class SaveLoadManager:
             # Load character names + levels for richer display
             char_summaries = []
             for cid in party_ids:
-                char = session.query(Character).filter_by(id=cid).first()
+                char = session.query(Character).filter_by(id=int(cid)).first()
                 if char:
                     char_summaries.append(f"{char.name} Lv{char.level or 1}")
             result.append({
@@ -381,7 +381,7 @@ class SaveLoadManager:
         party_ids = state.party_ids or [state.player_id]
         new_party_ids = []
         for cid in party_ids:
-            char = db_session.query(Character).filter_by(id=cid).first()
+            char = db_session.query(Character).filter_by(id=int(cid)).first()
             if char:
                 new_char = Character(
                     name=char.name, race=char.race, char_class=char.char_class,
@@ -441,7 +441,7 @@ class SaveLoadManager:
                     party_ids = [game_state.player_id]
                 
                 for cid in party_ids:
-                    char = session.query(Character).filter_by(id=cid).first()
+                    char = session.query(Character).filter_by(id=int(cid)).first()
                     if char:
                         session.delete(char)
                 
