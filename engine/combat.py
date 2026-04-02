@@ -566,11 +566,12 @@ class CombatEngine:
     # Flee mechanics
     # ------------------------------------------------------------------
 
-    def resolve_flee(self, character, current_state):
+    def resolve_flee(self, character, current_state, smoke_bonus=0):
         """
         Resolve a player's attempt to flee from combat.
 
         Flee roll: 1d20 + MOV modifier  vs  DC = 10 + highest living enemy MOV modifier.
+        smoke_bonus — reduces flee DC (e.g. 4 when a smoke bomb was used this turn).
         Success → fled=True  (caller clears in_combat).
         Failure → fled=False + enemy free counter-attack result included.
 
@@ -581,6 +582,7 @@ class CombatEngine:
                 'mov_modifier': int,
                 'flee_total':   int,
                 'flee_dc':      int,
+                'smoke_bonus':  int,
                 'counter':      dict | None,   # enemy counter on failure
                 'damage_taken': int,           # damage from failed-flee counter
             }
@@ -598,7 +600,7 @@ class CombatEngine:
             enemy_mov = max(e.get('mov', 10) for e in living_entries)
         else:
             enemy_mov = 10
-        flee_dc = 10 + (enemy_mov - 10) // 2
+        flee_dc = max(5, 10 + (enemy_mov - 10) // 2 - smoke_bonus)
 
         fled = flee_total >= flee_dc
 
@@ -618,6 +620,7 @@ class CombatEngine:
             'mov_modifier': mov_modifier,
             'flee_total':   flee_total,
             'flee_dc':      flee_dc,
+            'smoke_bonus':  smoke_bonus,
             'counter':      counter,
             'damage_taken': damage_taken,
         }

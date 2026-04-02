@@ -45,6 +45,28 @@ def _char_similarity(a, b):
         return 0.0
     return len(set(a) & set(b)) / min(len(a), len(b))
 
+def _fmt_inventory_block(character):
+    """
+    Build a compact inventory + equipment string for the LLM system prompt.
+    Keeps the prompt short: max 10 inventory items, single line each.
+    Returns an empty string when both inventory and equipment are empty.
+    """
+    lines = []
+    equip = character.equipment or {}
+    equip_parts = []
+    for slot, item in equip.items():
+        if item:
+            equip_parts.append(f"{item.get('name', slot)}")
+    if equip_parts:
+        lines.append(f"Equipped: {', '.join(equip_parts)}.")
+    inv = list(character.inventory or [])
+    if inv:
+        names = [it.get('name', it) if isinstance(it, dict) else str(it) for it in inv[:10]]
+        suffix = f' (+{len(inv) - 10} more)' if len(inv) > 10 else ''
+        lines.append(f"Inventory: {', '.join(names)}{suffix}.")
+    return '\n'.join(lines) + '\n' if lines else ''
+
+
 # Human-readable labels for the rule engine's outcome codes
 _OUTCOME_LABELS = {
     'critical_success': 'CRITICAL SUCCESS',
@@ -320,7 +342,14 @@ class EventManager:
         # Detected before Step 4/5 so we can short-circuit combat processing.
         flee_result = None
         if _FLEE_RE.search(player_action) and current_state.in_combat:
-            flee_result = self.combat.resolve_flee(character, current_state)
+            # Check if player used a smoke bomb this turn — reduces flee DC by 4
+            known_ents_now = dict(current_state.known_entities or {})
+            smoke_bonus = 4 if known_ents_now.pop('_smoke_active', False) else 0
+            if smoke_bonus:
+                current_state.known_entities = known_ents_now
+                flag_modified(current_state, 'known_entities')
+            flee_result = self.combat.resolve_flee(character, current_state,
+                                                   smoke_bonus=smoke_bonus)
             if flee_result['fled']:
                 current_state.in_combat = 0
                 self._used_abilities.clear()
@@ -516,15 +545,28 @@ class EventManager:
                             _smoke_active=True,
                         )
                         flag_modified(current_state, 'known_entities')
-                    # Throwable damage → apply to current target
-                    if item_result.get('damage_dice') and target:
-                        _, _, throw_dmg = self.dice.roll(item_result['damage_dice'])
-                        self._apply_combat_damage_to_entity(target, throw_dmg, current_state)
+                    # Throwable: apply damage and/or status to target(s)
+                    if (item_result.get('damage_dice') or item_result.get('apply_status')) and target:
+                        throw_dmg = 0
+                        if item_result.get('damage_dice'):
+                            _, _, throw_dmg = self.dice.roll(item_result['damage_dice'])
+                            self._apply_combat_damage_to_entity(target, throw_dmg, current_state)
+                        if item_result.get('apply_status'):
+                            self.combat.apply_status_to_entity(
+                                target.lower(), item_result['apply_status'], current_state
+                            )
                         if item_result.get('aoe'):
                             known_aoe = current_state.known_entities or {}
-                            for k, e in known_aoe.items():
+                            for k, e in list(known_aoe.items()):
                                 if not k.startswith('_') and k != target.lower() and e.get('alive', True):
-                                    self._apply_combat_damage_to_entity(k, throw_dmg, current_state)
+                                    if throw_dmg:
+                                        self._apply_combat_damage_to_entity(k, throw_dmg, current_state)
+                                    if item_result.get('apply_status'):
+                                        self.combat.apply_status_to_entity(
+                                            k, item_result['apply_status'], current_state
+                                        )
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
             else:
                 utility_result = {'error': f"No item '{item_name}' in inventory"}
 
@@ -844,6 +886,11 @@ class EventManager:
                 )
             # Item use facts
             ir = utility_result.get('item_result', {})
+            if utility_result.get('mp_restored', 0) > 0:
+                outcome_parts.append(
+                    f"Item [{ab_name}] used: restores {utility_result['mp_restored']} MP. "
+                    f"MP now: {character.mp}/{character.max_mp}."
+                )
             if ir.get('cures_status'):
                 outcome_parts.append(
                     f"Item [{ab_name}] used: cures {ir['cures_status']} status."
@@ -856,6 +903,10 @@ class EventManager:
                 outcome_parts.append(
                     f"Item [{ab_name}] thrown at {target}: {ir['damage_dice']} damage"
                     + (" (AoE — hits all enemies)." if ir.get('aoe') else ".")
+                )
+            if ir.get('smoke_escape'):
+                outcome_parts.append(
+                    "Smoke bomb deployed — flee DC reduced by 4 on next flee attempt this turn."
                 )
 
         # Inject spell/rest/trade/equip facts
@@ -967,9 +1018,11 @@ class EventManager:
         # Inject flee facts so the LLM narrates the exact outcome
         if flee_result:
             flee_sign = '+' if flee_result['mov_modifier'] >= 0 else ''
+            smoke_note = (f" (smoke −{flee_result['smoke_bonus']})"
+                          if flee_result.get('smoke_bonus') else '')
             outcome_parts.append(
                 f"Flee attempt: 1d20{flee_sign}{flee_result['mov_modifier']} "
-                f"= {flee_result['flee_total']} vs DC {flee_result['flee_dc']}."
+                f"= {flee_result['flee_total']} vs DC {flee_result['flee_dc']}{smoke_note}."
             )
             if flee_result['fled']:
                 outcome_parts.append("FLED SUCCESSFULLY — player escapes combat.")
@@ -1885,7 +1938,8 @@ class EventManager:
             f"{mp_lbl}: {character.mp}/{character.max_mp}  "
             f"ATK: {character.atk}  DEF: {character.def_stat}  "
             f"Gold: {character.gold or 0}.\n"
-            f"Location: {current_state.current_location}.\n"
+            + _fmt_inventory_block(character)
+            + f"Location: {current_state.current_location}.\n"
             f"World lore: {current_state.world_context}\n"
             f"Difficulty: {current_state.difficulty}\n"
             f"{npc_context}"

@@ -418,17 +418,44 @@ class CharacterLogic:
         self.session.commit()
         return True
 
+    # Tool/item bonuses applied to skill checks when item is in inventory or equipped.
+    # Key = item name fragment (lowercase), value = {skill_name: bonus_int}
+    _TOOL_SKILL_BONUSES = {
+        'lockpicks':        {'stealth': 2},
+        'thieves tools':    {'stealth': 3, 'acrobatics': 1},
+        'disguise kit':     {'persuasion': 2, 'intimidation': 1},
+        'spyglass':         {'perception': 3},
+        'lantern':          {'perception': 1},
+        'rope':             {'athletics': 2},
+        'cloak of shadows': {'stealth': 2, 'acrobatics': 1},
+    }
+
     def get_skill_modifier(self, skill_name):
         """
         Return the integer modifier for a skill check.
+        Combines base stat modifier (D&D-style) with bonuses from tools in inventory.
         The rule engine passes this to DiceRoller so the LLM never touches dice math.
-        Returns 0 for unrecognised skills (no modifier applied).
         """
-        stat_name = self._SKILL_STAT_MAP.get(skill_name.lower().strip())
-        if stat_name is None:
-            return 0
-        stat_val = getattr(self.model, stat_name, 10) or 10
-        return (stat_val - 10) // 2
+        skill_lower = skill_name.lower().strip()
+        stat_name = self._SKILL_STAT_MAP.get(skill_lower)
+        base_mod = 0
+        if stat_name:
+            stat_val = getattr(self.model, stat_name, 10) or 10
+            base_mod = (stat_val - 10) // 2
+
+        # Sum bonuses from all tools currently in inventory or equipment slots
+        tool_bonus = 0
+        all_items = list(self.model.inventory or [])
+        for slot_item in (self.model.equipment or {}).values():
+            if slot_item:
+                all_items.append(slot_item)
+        for item in all_items:
+            item_name = (item.get('name', '') if isinstance(item, dict) else str(item)).lower()
+            for tool_key, bonuses in self._TOOL_SKILL_BONUSES.items():
+                if tool_key in item_name:
+                    tool_bonus += bonuses.get(skill_lower, 0)
+
+        return base_mod + tool_bonus
 
     def get_weapon_damage_notation(self):
         # Return the damage notation string for this character's class.
