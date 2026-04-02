@@ -231,6 +231,21 @@ _TRADE_NAME_RE = re.compile(
     r'(?:購買|買|採購|賣|出售|販賣|buy|purchase|sell|acquire)\s+(.+)',
     re.I,
 )
+# Bribe intent — player offers gold to improve NPC relationship
+_BRIBE_RE = re.compile(
+    r'(賄賂|行賄|收買|贈送.*好處|bribe|pay\s+off|buy\s+off|grease\s+(?:the\s+)?palm)',
+    re.I,
+)
+_BRIBE_AMOUNT_RE = re.compile(r'(\d+)\s*(?:gold|g(?:old)?|金幣|金|錢)', re.I)
+_BRIBE_TARGET_RE = re.compile(
+    r'(?:賄賂|bribe|行賄|收買|pay\s+off|buy\s+off)\s+(?:the\s+|a\s+)?(.+?)(?:\s+(?:with|用)\s*\d+|\s+\d+|$)',
+    re.I,
+)
+# Upgrade/enhance equipment intent
+_UPGRADE_RE = re.compile(
+    r'(升級|強化|改良|鍛造|enhance|upgrade|reinforce|temper|improve)\s+(?:my\s+|the\s+)?(.+)',
+    re.I,
+)
 # Spell name capture — "cast <spell>", "施展 <spell>", "use <spell> spell"
 _CAST_NAME_RE = re.compile(
     r'(?:cast|施展|念|use\s+(?:a\s+)?|施放)\s+(.+?)(?:\s+(?:spell|術|咒)?)?$',
@@ -407,6 +422,24 @@ def try_parse(player_action, known_entities, difficulty, char_class=None):
         )
         destination = dest_match.group(1).strip() if dest_match else ''
         return _intent('travel', False, '', 0, destination, player_action,
+                       class_ability=class_ability)
+
+    # --- Bribe ---
+    if _BRIBE_RE.search(player_action):
+        m_tgt = _BRIBE_TARGET_RE.search(player_action)
+        target = m_tgt.group(1).strip() if m_tgt else ''
+        m_amt  = _BRIBE_AMOUNT_RE.search(player_action)
+        bribe_amount = int(m_amt.group(1)) if m_amt else 0
+        intent_d = _intent('bribe', False, '', 0, target, player_action,
+                            class_ability=class_ability)
+        intent_d['bribe_amount'] = bribe_amount
+        return intent_d
+
+    # --- Upgrade ---
+    if _UPGRADE_RE.search(player_action):
+        m = _UPGRADE_RE.search(player_action)
+        item_target = m.group(2).strip() if m else ''
+        return _intent('upgrade', False, '', 0, item_target, player_action,
                        class_ability=class_ability)
 
     # --- Buy ---

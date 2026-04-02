@@ -449,38 +449,82 @@ class EventManager:
                     self._used_abilities.add(class_ability)
 
         elif intent.get('action_type') == 'item_use':
-            # --- Item use (consumable / throwable) ---
+            # --- Item use (consumable / throwable / scroll) ---
             item_name   = intent.get('target', '') or intent.get('summary', '')
             item_result = char_logic.use_item(item_name, dice_roller=self.dice)
             if item_result.get('used'):
-                utility_result = {
-                    'ability_name':   item_result['item_name'],
-                    'ability_key':    'item_use',
-                    'mp_cost':        0,
-                    'hp_healed':      item_result.get('hp_healed', 0),
-                    'def_bonus':      0,
-                    'fled_enemies':   [],
-                    'damage_reduction': 0.0,
-                    'item_result':    item_result,
-                }
-                # Apply status cures to player
-                if item_result.get('cures_status'):
-                    known3 = dict(current_state.known_entities or {})
-                    buffs3 = [b for b in known3.get('_player_buffs', [])
-                              if b.get('key') != item_result['cures_status']]
-                    known3['_player_buffs'] = buffs3
-                    current_state.known_entities = known3
-                    flag_modified(current_state, 'known_entities')
-                    self.session.commit()
-                # Throwable damage → apply to current target
-                if item_result.get('damage_dice') and target:
-                    _, _, throw_dmg = self.dice.roll(item_result['damage_dice'])
-                    self._apply_combat_damage_to_entity(target, throw_dmg, current_state)
-                    if item_result.get('aoe'):
-                        known_aoe = current_state.known_entities or {}
-                        for k, e in known_aoe.items():
-                            if not k.startswith('_') and k != target.lower() and e.get('alive', True):
-                                self._apply_combat_damage_to_entity(k, throw_dmg, current_state)
+                # Spell scroll — resolve via spell compendium (no MP cost)
+                if item_result.get('item_type') == 'scroll' and item_result.get('spell_key'):
+                    from data.spells import get_spell
+                    spell = get_spell(item_result['spell_key'])
+                    spell_dmg = 0; hp_healed_scroll = 0; status_key = None
+                    if spell:
+                        if spell.get('damage_dice') and target:
+                            _, _, spell_dmg = self.dice.roll(spell['damage_dice'])
+                            self._apply_combat_damage_to_entity(target, spell_dmg, current_state)
+                            if spell.get('aoe'):
+                                for k, e in (current_state.known_entities or {}).items():
+                                    if not k.startswith('_') and k != target.lower() and e.get('alive', True):
+                                        self._apply_combat_damage_to_entity(k, spell_dmg, current_state)
+                        if spell.get('heal_dice'):
+                            _, _, hp_healed_scroll = self.dice.roll(spell['heal_dice'])
+                            char_logic.heal(hp_healed_scroll)
+                        if spell.get('status_apply') and target:
+                            status_key = spell['status_apply']
+                            self.combat.apply_status_to_entity(target, status_key, current_state)
+                        # lesser_restoration clears all player status effects
+                        if item_result['spell_key'] == 'lesser_restoration':
+                            known_buffs = dict(current_state.known_entities or {})
+                            known_buffs['_player_buffs'] = []
+                            current_state.known_entities = known_buffs
+                            flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+                    utility_result = {
+                        'ability_name': item_result['item_name'],
+                        'ability_key':  'scroll',
+                        'mp_cost':      0,
+                        'hp_healed':    hp_healed_scroll,
+                        'spell_damage': spell_dmg,
+                        'spell_key':    item_result['spell_key'],
+                        'item_result':  item_result,
+                    }
+                else:
+                    utility_result = {
+                        'ability_name':   item_result['item_name'],
+                        'ability_key':    'item_use',
+                        'mp_cost':        0,
+                        'hp_healed':      item_result.get('hp_healed', 0),
+                        'mp_restored':    item_result.get('mp_restored', 0),
+                        'def_bonus':      0,
+                        'fled_enemies':   [],
+                        'damage_reduction': 0.0,
+                        'item_result':    item_result,
+                    }
+                    # Apply status cures to player
+                    if item_result.get('cures_status'):
+                        known3 = dict(current_state.known_entities or {})
+                        buffs3 = [b for b in known3.get('_player_buffs', [])
+                                  if b.get('key') != item_result['cures_status']]
+                        known3['_player_buffs'] = buffs3
+                        current_state.known_entities = known3
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+                    # Smoke bomb boosts flee DC this turn
+                    if item_result.get('smoke_escape'):
+                        current_state.known_entities = dict(
+                            current_state.known_entities or {},
+                            _smoke_active=True,
+                        )
+                        flag_modified(current_state, 'known_entities')
+                    # Throwable damage → apply to current target
+                    if item_result.get('damage_dice') and target:
+                        _, _, throw_dmg = self.dice.roll(item_result['damage_dice'])
+                        self._apply_combat_damage_to_entity(target, throw_dmg, current_state)
+                        if item_result.get('aoe'):
+                            known_aoe = current_state.known_entities or {}
+                            for k, e in known_aoe.items():
+                                if not k.startswith('_') and k != target.lower() and e.get('alive', True):
+                                    self._apply_combat_damage_to_entity(k, throw_dmg, current_state)
             else:
                 utility_result = {'error': f"No item '{item_name}' in inventory"}
 
@@ -596,6 +640,59 @@ class EventManager:
             sell_result['faction_mult'] = faction_mult
             sell_result['item_name']    = item_name
             utility_result = {'trade': 'sell', **sell_result}
+
+        elif intent.get('action_type') == 'bribe':
+            target_npc   = intent.get('target', '')
+            bribe_amount = int(intent.get('bribe_amount') or 0)
+            # Default: 10% of current gold (min 20g, max current gold)
+            if bribe_amount <= 0:
+                bribe_amount = max(20, int((character.gold or 0) * 0.10))
+            bribe_amount = min(bribe_amount, character.gold or 0)
+            if (character.gold or 0) < bribe_amount or bribe_amount <= 0:
+                utility_result = {
+                    'bribe': True, 'success': False,
+                    'reason': 'insufficient_gold',
+                    'target': target_npc, 'amount': bribe_amount,
+                }
+            else:
+                character.gold = (character.gold or 0) - bribe_amount
+                # Affinity delta: every 10g ≈ +1 affinity, capped at +15 per bribe
+                affinity_delta = min(15, max(1, bribe_amount // 10))
+                bribe_targets = []
+                if target_npc:
+                    world.update_relationship(target_npc, affinity_delta)
+                    bribe_targets.append(target_npc)
+                else:
+                    # No named target — apply to first present NPC
+                    for npc in (characters_present or []):
+                        world.update_relationship(npc, affinity_delta)
+                        bribe_targets.append(npc)
+                        break
+                self.session.commit()
+                utility_result = {
+                    'bribe': True, 'success': True,
+                    'target': ', '.join(bribe_targets) or target_npc,
+                    'amount': bribe_amount,
+                    'affinity_delta': affinity_delta,
+                }
+
+        elif intent.get('action_type') == 'upgrade':
+            item_target = (intent.get('target') or '').lower()
+            # Infer which kit to use from the target description
+            _WEAPON_WORDS = {'weapon', 'sword', 'staff', 'bow', 'mace', 'blade', 'dagger',
+                              '武器', '劍', '杖', '弓', '錘'}
+            _ARMOR_WORDS  = {'armor', 'armour', 'shield', 'mail', 'plate', 'leather',
+                              '防具', '甲', '盾', '鎧'}
+            _MAGIC_WORDS  = {'enchant', 'magic', 'arcane', '附魔', '魔法', 'rune', '符文'}
+            if any(w in item_target for w in _MAGIC_WORDS):
+                # Let the player specify; default weapon enchant
+                kit_name = 'enchanting stone' if any(w in item_target for w in _WEAPON_WORDS) else 'reinforcement rune'
+            elif any(w in item_target for w in _ARMOR_WORDS):
+                kit_name = 'armor repair kit'
+            else:
+                kit_name = 'weapon upgrade kit'   # default
+            result = char_logic.apply_upgrade(kit_name)
+            utility_result = {'upgrade': True, 'kit': kit_name, **result}
 
         elif intent.get('action_type') == 'equip':
             item_name = intent.get('target', '')
@@ -801,6 +898,43 @@ class EventManager:
                     outcome_parts.append(
                         f"Cannot sell [{intent.get('target', '')}]: "
                         f"{utility_result.get('reason', 'unknown error')}."
+                    )
+            elif utility_result.get('bribe'):
+                if utility_result.get('success'):
+                    outcome_parts.append(
+                        f"Bribed [{utility_result.get('target', '?')}] with "
+                        f"{utility_result.get('amount', 0)} gold. "
+                        f"Relationship improved by +{utility_result.get('affinity_delta', 0)}. "
+                        f"Gold remaining: {character.gold}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Bribe failed: {utility_result.get('reason', 'insufficient gold')}."
+                    )
+            elif utility_result.get('upgrade'):
+                if utility_result.get('upgraded'):
+                    stat = utility_result.get('stat', '')
+                    bonus = utility_result.get('bonus', 0)
+                    outcome_parts.append(
+                        f"Equipment upgraded using [{utility_result.get('kit', '?')}]. "
+                        f"Permanently +{bonus} {stat.upper()}. "
+                        f"New {stat}: {getattr(character, stat, '?')}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Upgrade failed: {utility_result.get('reason', 'no kit in inventory')}. "
+                        f"Need a weapon upgrade kit or armor repair kit."
+                    )
+            elif utility_result.get('ability_key') == 'scroll':
+                outcome_parts.append(
+                    f"Scroll [{utility_result.get('ability_name')}] used. "
+                    f"Spell key: {utility_result.get('spell_key', '')}."
+                )
+                if utility_result.get('hp_healed', 0) > 0:
+                    outcome_parts.append(f"Scroll heals {utility_result['hp_healed']} HP.")
+                if utility_result.get('spell_damage', 0) > 0:
+                    outcome_parts.append(
+                        f"Scroll deals {utility_result['spell_damage']} damage to {target}."
                     )
             elif utility_result.get('equipped'):
                 outcome_parts.append(

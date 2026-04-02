@@ -68,12 +68,34 @@ class CharacterLogic:
         '藥水':            {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
         '治療藥水':        {'hp_healed_dice': '2d4+2', 'type': 'consumable'},
         'greater healing':  {'hp_healed_dice': '4d4+4', 'type': 'consumable'},
+        '大治療':          {'hp_healed_dice': '4d4+4', 'type': 'consumable'},
         'antidote':        {'cures_status': 'poisoned', 'type': 'consumable'},
         '解毒劑':          {'cures_status': 'poisoned', 'type': 'consumable'},
+        'mana potion':     {'mp_restored': 20, 'type': 'consumable'},
+        '法力藥水':        {'mp_restored': 20, 'type': 'consumable'},
+        'stamina elixir':  {'mp_restored': 30, 'cures_status': 'stunned', 'type': 'consumable'},
+        '體力精華':        {'mp_restored': 30, 'cures_status': 'stunned', 'type': 'consumable'},
+        'rations':         {'hp_healed_dice': '1d4', 'type': 'consumable'},
+        '乾糧':            {'hp_healed_dice': '1d4', 'type': 'consumable'},
+        'smelling salts':  {'cures_status': 'stunned', 'type': 'consumable'},
+        'bandages':        {'cures_status': 'bleeding', 'type': 'consumable'},
+        '繃帶':            {'cures_status': 'bleeding', 'type': 'consumable'},
         'poison vial':     {'apply_status': 'poisoned', 'type': 'throwable'},
         'bomb':            {'damage_dice': '2d6', 'aoe': True, 'type': 'throwable'},
         '炸彈':            {'damage_dice': '2d6', 'aoe': True, 'type': 'throwable'},
         'torch':           {'damage_dice': '1d4', 'apply_status': 'burning', 'type': 'throwable'},
+        'flash powder':    {'apply_status': 'stunned', 'aoe': True, 'type': 'throwable'},
+        'smoke bomb':      {'smoke_escape': True, 'type': 'throwable'},
+        # Spell scrolls — spell_key is resolved in events.py via data/spells.py
+        'scroll of healing':    {'spell_key': 'healing_word', 'type': 'scroll'},
+        '治療捲軸':             {'spell_key': 'healing_word', 'type': 'scroll'},
+        'scroll of fireball':   {'spell_key': 'fireball',     'type': 'scroll'},
+        '火球捲軸':             {'spell_key': 'fireball',     'type': 'scroll'},
+        'scroll of protection': {'spell_key': 'shield_of_faith', 'type': 'scroll'},
+        '防護捲軸':             {'spell_key': 'shield_of_faith', 'type': 'scroll'},
+        'scroll of restoration':{'spell_key': 'lesser_restoration', 'type': 'scroll'},
+        '淨化捲軸':             {'spell_key': 'lesser_restoration', 'type': 'scroll'},
+        'scroll of lightning':  {'spell_key': 'lightning_bolt', 'type': 'scroll'},
     }
 
     def use_item(self, item_name, dice_roller=None):
@@ -114,11 +136,31 @@ class CharacterLogic:
         if not effect:
             effect = {'hp_healed_dice': '1d4', 'type': 'consumable'}
 
-        # Roll healing
+        # Scrolls are dispatched back to events.py (need spells.py + combat engine)
+        if effect.get('type') == 'scroll' and effect.get('spell_key'):
+            self.remove_item(found['name'])
+            return {
+                'used':      True,
+                'item_name': found['name'],
+                'item_type': 'scroll',
+                'spell_key': effect['spell_key'],
+                'hp_healed': 0,
+            }
+
+        # Roll HP healing
         hp_healed = 0
         if effect.get('hp_healed_dice') and dice_roller:
             _, _, hp_healed = dice_roller.roll(effect['hp_healed_dice'])
             self.heal(hp_healed)
+
+        # Restore MP
+        mp_restored = 0
+        if effect.get('mp_restored'):
+            mp_restored = effect['mp_restored']
+            self.model.mp = min(
+                self.model.max_mp or 50,
+                (self.model.mp or 0) + mp_restored,
+            )
 
         # Remove from inventory
         self.remove_item(found['name'])
@@ -127,12 +169,58 @@ class CharacterLogic:
             'used':          True,
             'item_name':     found['name'],
             'hp_healed':     hp_healed,
+            'mp_restored':   mp_restored,
             'cures_status':  effect.get('cures_status'),
             'apply_status':  effect.get('apply_status'),
             'damage_dice':   effect.get('damage_dice'),
+            'smoke_escape':  effect.get('smoke_escape', False),
             'aoe':           effect.get('aoe', False),
             'item_type':     effect.get('type', 'consumable'),
         }
+
+    # ── Equipment upgrade ─────────────────────────────────────────────────────
+
+    # Maps upgrade kit name/key → (stat_attr, bonus_increment)
+    _UPGRADE_KIT_MAP = {
+        'weapon upgrade kit': ('atk',      1),
+        'armor repair kit':   ('def_stat', 1),
+        'enchanting stone':   ('atk',      2),
+        'reinforcement rune': ('def_stat', 2),
+        'weapon_upgrade':     ('atk',      1),
+        'armor_upgrade':      ('def_stat', 1),
+        '武器升級套件':       ('atk',      1),
+        '裝甲修復套件':       ('def_stat', 1),
+        '附魔石':             ('atk',      2),
+        '強化符文':           ('def_stat', 2),
+    }
+
+    def apply_upgrade(self, kit_name):
+        """
+        Consume an upgrade kit from inventory and permanently raise a character stat.
+        kit_name — the item name or an alias key like 'weapon_upgrade'.
+        Returns {'upgraded': bool, 'stat': str, 'bonus': int, 'reason': str|None}.
+        """
+        mapping = self._UPGRADE_KIT_MAP.get(kit_name.lower())
+        if mapping is None:
+            return {'upgraded': False, 'stat': '', 'bonus': 0, 'reason': 'unknown_kit'}
+        stat_attr, bonus = mapping
+
+        # Resolve the actual inventory item name
+        kit_name_lower = kit_name.lower()
+        found_name = None
+        for it in (self.model.inventory or []):
+            n = (it.get('name', '') if isinstance(it, dict) else str(it)).lower()
+            if n == kit_name_lower or self._UPGRADE_KIT_MAP.get(n) == mapping:
+                found_name = it.get('name', it) if isinstance(it, dict) else str(it)
+                break
+        if found_name is None:
+            return {'upgraded': False, 'stat': stat_attr, 'bonus': bonus, 'reason': 'not_in_inventory'}
+
+        # Apply permanent stat increase
+        current = getattr(self.model, stat_attr, 0) or 0
+        setattr(self.model, stat_attr, current + bonus)
+        self.remove_item(found_name)   # commits stat change + inventory removal atomically
+        return {'upgraded': True, 'stat': stat_attr, 'bonus': bonus, 'reason': None}
 
     # ── Rest ─────────────────────────────────────────────────────────────────
 

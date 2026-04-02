@@ -2975,6 +2975,9 @@ def _render_shop_panel(state, char):
         _TYPE_LABELS = {
             'consumable': '🧪 消耗品',
             'throwable':  '💣 投擲物',
+            'tool':       '🔧 工具',
+            'scroll':     '📜 法術捲軸',
+            'upgrade':    '🔨 升級套件',
             'weapon':     '⚔️ 武器',
             'armor':      '🛡️ 防具',
             'accessory':  '💍 飾品',
@@ -2984,11 +2987,21 @@ def _render_shop_panel(state, char):
             t = entry.get('type', 'other')
             groups.setdefault(t, []).append((name, entry))
 
+        # Usage hints per item type
+        _TYPE_HINTS = {
+            'tool':    '輸入「使用 {name}」或在對話中描述使用情境',
+            'scroll':  '輸入「使用 {name}」即可施放',
+            'upgrade': '輸入「升級武器」或「升級防具」來消耗套件',
+        }
+
         for type_key, label in _TYPE_LABELS.items():
             items_in_group = groups.get(type_key, [])
             if not items_in_group:
                 continue
             st.markdown(f"**{label}**")
+            if type_key in _TYPE_HINTS:
+                st.caption(_TYPE_HINTS[type_key].replace('{name}', items_in_group[0][0]
+                                                         if items_in_group else '?'))
             for name, entry in items_in_group:
                 # Skip Chinese aliases (duplicate entries)
                 if any(ord(c) > 127 for c in name):
@@ -3006,6 +3019,9 @@ def _render_shop_panel(state, char):
                     bonuses.append(f"+{entry['mp_bonus']} MP")
                 if entry.get('mov_bonus'):
                     bonuses.append(f"+{entry['mov_bonus']} MOV")
+                if entry.get('upgrade_stat') and entry.get('upgrade_bonus'):
+                    stat_lbl = {'atk': 'ATK', 'def_stat': 'DEF'}.get(entry['upgrade_stat'], '')
+                    bonuses.append(f"永久 +{entry['upgrade_bonus']} {stat_lbl}")
                 bonus_str = f"  *({', '.join(bonuses)})*" if bonuses else ''
                 can_afford = (char.gold or 0) >= price
                 price_color = '#4ade80' if can_afford else '#f87171'
@@ -3020,10 +3036,15 @@ def _render_shop_panel(state, char):
                 if desc:
                     st.caption(desc)
 
+        # Bribe hint
+        st.markdown("---")
+        st.caption("💡 **其他金幣用途：**  \n"
+                   "• `賄賂 [NPC名稱] [金額]` — 提升關係  \n"
+                   "• `升級武器` / `升級防具` — 消耗升級套件永久強化")
+
         # Sell section — show inventory items with sell prices
         inventory = list(char.inventory or [])
         if inventory:
-            st.markdown("---")
             st.markdown("**💰 可出售物品**")
             for it in inventory:
                 iname = it.get('name', it) if isinstance(it, dict) else str(it)
@@ -3344,6 +3365,56 @@ def _render_quest_reward_banner(quest_rewards):
             f"📜 <b>任務完成：{rw.get('quest_name', '?')}</b>　{reward_str}</div>",
             unsafe_allow_html=True,
         )
+
+
+def _render_bribe_upgrade_banner(utility_result):
+    """Show inline banners for bribe and upgrade actions."""
+    if not utility_result:
+        return
+    if utility_result.get('bribe'):
+        if utility_result.get('success'):
+            tgt    = utility_result.get('target', '?')
+            amount = utility_result.get('amount', 0)
+            delta  = utility_result.get('affinity_delta', 0)
+            st.markdown(
+                f"<div style='background:#0a1a10;border:1px solid #22c55e;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"🤝 賄賂 <b>{tgt}</b> — "
+                f"<b style='color:#f87171'>-{amount}g</b>　"
+                f"<b style='color:#4ade80'>關係 +{delta}</b></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            msg = "金幣不足" if reason == 'insufficient_gold' else f"失敗: {reason}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>❌ 賄賂失敗：{msg}</div>",
+                unsafe_allow_html=True,
+            )
+    elif utility_result.get('upgrade'):
+        if utility_result.get('upgraded'):
+            stat  = utility_result.get('stat', '')
+            bonus = utility_result.get('bonus', 0)
+            kit   = utility_result.get('kit', '?')
+            stat_label = {'atk': '⚔️ ATK', 'def_stat': '🛡️ DEF'}.get(stat, stat.upper())
+            st.markdown(
+                f"<div style='background:#0d1a2a;border:1px solid #3b82f6;"
+                f"border-radius:6px;padding:8px 14px;margin:4px 0'>"
+                f"🔨 使用 <b>{kit}</b> 升級裝備 — "
+                f"<b style='color:#60a5fa'>{stat_label} +{bonus} 永久</b></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            kit    = utility_result.get('kit', '?')
+            msg = "背包中沒有升級套件" if 'inventory' in reason else f"失敗: {reason}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"❌ 升級失敗：{msg}（需要 {kit}）</div>",
+                unsafe_allow_html=True,
+            )
 
 
 def _render_levelup_panel(char, session):
@@ -3740,6 +3811,7 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             _render_combat_banner(item.get('combat_result'))
             _render_loot_xp_banner(item.get('loot_xp'))
             _render_trade_banner(item.get('_utility_result'))
+            _render_bribe_upgrade_banner(item.get('_utility_result'))
             _render_quest_reward_banner(item.get('_quest_rewards'))
             label = f"**{dm_lbl}:**" if not item.get('is_prologue') else f"**{dm_lbl} 開場白:**"
             st.markdown(f"{label} {item['content']}")
