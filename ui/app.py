@@ -967,6 +967,15 @@ _UI_STRINGS = {
         "appearance_label":  "外观",
         "personality_label": "性格",
         "relations_expander":"🔗 关系",
+        # Equipment panel
+        "equip_panel_hdr":   "装备栏位",
+        "equip_slot_weapon":  "武器",
+        "equip_slot_armor":   "防具",
+        "equip_slot_accessory": "饰品",
+        "equip_slot_empty":  "（空）",
+        "equip_btn":         "装备",
+        "unequip_btn":       "卸下",
+        "equip_backpack_hdr": "背包 — 可装备物品",
         # Relations / NPC tab
         "no_relations":      "尚无关系资料。随着故事发展，角色与组织的关系将自动记录于此。",
         "no_known_relations":"无已知关系",
@@ -1453,6 +1462,15 @@ _UI_STRINGS = {
         "appearance_label":  "Aussehen",
         "personality_label": "Persönlichkeit",
         "relations_expander":"🔗 Beziehungen",
+        # Equipment panel
+        "equip_panel_hdr":   "Ausrüstungsplätze",
+        "equip_slot_weapon":  "Waffe",
+        "equip_slot_armor":   "Rüstung",
+        "equip_slot_accessory": "Zubehör",
+        "equip_slot_empty":  "(leer)",
+        "equip_btn":         "Ausrüsten",
+        "unequip_btn":       "Ablegen",
+        "equip_backpack_hdr": "Rucksack — ausrüstbare Gegenstände",
         # Relations / NPC tab
         "no_relations":      "Noch keine Beziehungsdaten. Im Laufe der Geschichte werden die Beziehungen zwischen Charakteren und Organisationen automatisch aufgezeichnet.",
         "no_known_relations":"Keine bekannten Beziehungen",
@@ -4366,11 +4384,14 @@ def _render_characters_tab(party, state, active_char):
                         st.caption(_t('equip_slot_empty'))
 
             # Backpack — equippable items with Equip button
+            # Check shop catalogue first; fall back to the type stored on the item itself
             _equippable_types = {'weapon', 'armor', 'accessory'}
             _equippable_inv   = [
                 it for it in (char.inventory or [])
                 if isinstance(it, dict) and
-                (get_shop_item(it.get('name', '')) or {}).get('type') in _equippable_types
+                (
+                    (get_shop_item(it.get('name', '')) or {}).get('type', it.get('type', ''))
+                ) in _equippable_types
             ]
             if _equippable_inv:
                 st.caption(f"**{_t('equip_backpack_hdr')}**")
