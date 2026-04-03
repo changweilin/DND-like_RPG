@@ -4322,6 +4322,83 @@ def _render_characters_tab(party, state, active_char):
                     if char.personality:
                         st.caption(f"{_t('personality_label')}: {char.personality}")
 
+            # ── Equipment panel ──────────────────────────────────────────────
+            st.divider()
+            st.markdown(f"**{_t('equip_panel_hdr')}**")
+            _db_eq   = st.session_state.save_manager.db
+            _sess_eq = _db_eq.get_session()
+            from engine.character import CharacterLogic
+            from data.shop import get_shop_item
+            _char_logic = CharacterLogic(_sess_eq, char)
+            _equipment  = dict(char.equipment or {})
+            _slot_meta  = [
+                ('weapon',    '⚔️',  _t('equip_slot_weapon')),
+                ('armor',     '🛡️', _t('equip_slot_armor')),
+                ('accessory', '💍',  _t('equip_slot_accessory')),
+            ]
+            eq_cols = st.columns(3)
+            for col_idx, (slot, icon, label) in enumerate(_slot_meta):
+                with eq_cols[col_idx]:
+                    equipped_item = _equipment.get(slot)
+                    st.markdown(f"**{icon} {label}**")
+                    if equipped_item:
+                        item_nm = equipped_item.get('name', slot)
+                        entry   = get_shop_item(item_nm) or {}
+                        bonus_parts = []
+                        if entry.get('atk_bonus'):
+                            bonus_parts.append(f"+{entry['atk_bonus']} ATK")
+                        if entry.get('def_bonus'):
+                            bonus_parts.append(f"+{entry['def_bonus']} DEF")
+                        if entry.get('mp_bonus'):
+                            bonus_parts.append(f"+{entry['mp_bonus']} MP")
+                        if entry.get('mov_bonus'):
+                            bonus_parts.append(f"+{entry['mov_bonus']} MOV")
+                        if entry.get('hp_bonus'):
+                            bonus_parts.append(f"+{entry['hp_bonus']} HP")
+                        st.write(item_nm)
+                        if bonus_parts:
+                            st.caption(", ".join(bonus_parts))
+                        if st.button(_t('unequip_btn'), key=f"unequip_{char.id}_{slot}",
+                                     use_container_width=True):
+                            _char_logic.unequip(slot)
+                            st.rerun()
+                    else:
+                        st.caption(_t('equip_slot_empty'))
+
+            # Backpack — equippable items with Equip button
+            _equippable_types = {'weapon', 'armor', 'accessory'}
+            _equippable_inv   = [
+                it for it in (char.inventory or [])
+                if isinstance(it, dict) and
+                (get_shop_item(it.get('name', '')) or {}).get('type') in _equippable_types
+            ]
+            if _equippable_inv:
+                st.caption(f"**{_t('equip_backpack_hdr')}**")
+                for it in _equippable_inv:
+                    item_nm   = it.get('name', '')
+                    entry     = get_shop_item(item_nm) or {}
+                    b_parts   = []
+                    if entry.get('atk_bonus'):
+                        b_parts.append(f"+{entry['atk_bonus']} ATK")
+                    if entry.get('def_bonus'):
+                        b_parts.append(f"+{entry['def_bonus']} DEF")
+                    if entry.get('mp_bonus'):
+                        b_parts.append(f"+{entry['mp_bonus']} MP")
+                    if entry.get('mov_bonus'):
+                        b_parts.append(f"+{entry['mov_bonus']} MOV")
+                    if entry.get('hp_bonus'):
+                        b_parts.append(f"+{entry['hp_bonus']} HP")
+                    bonus_str = f"  ({', '.join(b_parts)})" if b_parts else ''
+                    ic, ib = st.columns([4, 1])
+                    with ic:
+                        st.write(f"• {item_nm}{bonus_str}")
+                    with ib:
+                        if st.button(_t('equip_btn'),
+                                     key=f"equip_{char.id}_{item_nm}",
+                                     use_container_width=True):
+                            _char_logic.equip(item_nm)
+                            st.rerun()
+
             # ── Relations for this character ─────────────────────────────
             try:
                 _db      = st.session_state.save_manager.db
