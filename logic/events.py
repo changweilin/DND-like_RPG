@@ -372,6 +372,8 @@ class EventManager:
             if flee_result['fled']:
                 current_state.in_combat = 0
                 self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
             else:
                 # Failed flee: apply counter-attack damage
                 if flee_result['damage_taken'] > 0:
@@ -2692,12 +2694,16 @@ class EventManager:
             if flee_result['fled']:
                 current_state.in_combat = 0
                 self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
             self.session.commit()
             return
 
         if action_type == 'attack' and combat_result:
             if not was_in_combat:
                 self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
             current_state.in_combat = 1
 
         if current_state.in_combat:
@@ -2711,6 +2717,8 @@ class EventManager:
             if not living_enemies:
                 current_state.in_combat = 0
                 self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
 
         self.session.commit()
 

@@ -42,7 +42,7 @@ def _coerce_choice(c):
     return str(c)
 
 
-_MIN_CHOICE_LEN = 8
+_MIN_CHOICE_LEN = 3
 
 def _is_valid_choice(c):
     """A choice is valid if it's non-empty, non-placeholder, and > 8 characters."""
