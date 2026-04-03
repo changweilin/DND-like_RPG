@@ -12,6 +12,21 @@ class CharacterLogic:
         'medicine':   'def_stat',
     }
 
+    # Maps item type → equipment slot key (9-slot system).
+    _TYPE_TO_SLOT = {
+        'weapon':     'main_hand',
+        'two_handed': 'main_hand',
+        'shield':     'off_hand',
+        'off_hand':   'off_hand',
+        'helmet':     'head',
+        'armor':      'body',
+        'gloves':     'hands',
+        'boots':      'feet',
+        'necklace':   'necklace',
+        'ring':       'ring',
+        'earring':    'earring',
+    }
+
     # Weapon damage dice by class (Section 3.3: deterministic damage roll).
     # ATK modifier = (atk - 10) // 2 is added on top.
     _CLASS_DAMAGE_MAP = {
@@ -321,11 +336,13 @@ class CharacterLogic:
     # ── Equipment ─────────────────────────────────────────────────────────────
 
     def equip(self, item_name):
-        """
-        Move an item from inventory into the matching equipment slot.
-        Returns the slot name ('weapon'|'armor'|'accessory') or '' on failure.
-        """
+        # Move an item from inventory into the matching equipment slot.
+        # Returns the slot name or '' on failure.
         from data.shop import get_shop_item
+        equipment = dict(self.model.equipment or {})
+        # Migrate legacy 3-slot keys before any logic
+        self._migrate_old_equipment_slots(equipment)
+
         item_name_lower = item_name.lower()
         found = None
         for item in (self.model.inventory or []):
@@ -353,23 +370,42 @@ class CharacterLogic:
         if shop_entry:
             item_type = shop_entry.get('type', item_type)
 
-        slot_map = {'weapon': 'weapon', 'armor': 'armor', 'accessory': 'accessory'}
-        slot = slot_map.get(item_type, '')
+        slot = self._TYPE_TO_SLOT.get(item_type, '')
         if not slot:
-            # Infer from name keywords
+            # Infer from name keywords for items not in the shop catalogue
             nl = found.get('name', '').lower()
             if any(w in nl for w in ('sword', 'staff', 'bow', 'dagger', 'axe', 'mace', 'spear', '劍', '杖', '弓', '刀')):
-                slot = 'weapon'
-            elif any(w in nl for w in ('shield', 'mail', 'armor', 'robe', 'plate', '盾', '甲', '袍', '鎧')):
-                slot = 'armor'
+                slot = 'main_hand'
+            elif any(w in nl for w in ('mail', 'armor', 'robe', 'plate', '甲', '袍', '鎧')):
+                slot = 'body'
             else:
-                slot = 'accessory'
+                slot = 'necklace'
 
-        equipment = dict(self.model.equipment or {})
+        # Two-handed weapon: clear off_hand sentinel/item first
+        if item_type == 'two_handed':
+            old_oh = equipment.get('off_hand')
+            if old_oh and not isinstance(old_oh, dict) or (isinstance(old_oh, dict) and '_two_hand_ref' not in old_oh):
+                # Real item in off_hand — return it to inventory
+                if old_oh:
+                    oh_entry = get_shop_item(old_oh.get('name', '')) if isinstance(old_oh, dict) else None
+                    if oh_entry:
+                        self._apply_equipment_stats(oh_entry, sign=-1)
+                    inv = list(self.model.inventory or [])
+                    inv.append(old_oh)
+                    self.model.inventory = inv
+
+        # Off_hand item while main_hand holds a two-handed weapon: unequip the weapon first
+        if slot == 'off_hand':
+            mh = equipment.get('main_hand')
+            mh_entry = get_shop_item(mh.get('name', '')) if isinstance(mh, dict) and 'name' in mh else None
+            if mh_entry and mh_entry.get('type') == 'two_handed':
+                self.unequip('main_hand')
+                equipment = dict(self.model.equipment or {})
+
         old_item = equipment.get(slot)
 
         # Unequip previous item — remove its stat bonuses and return to inventory
-        if old_item:
+        if old_item and isinstance(old_item, dict) and '_two_hand_ref' not in old_item:
             old_entry = get_shop_item(old_item.get('name', ''))
             if old_entry:
                 self._apply_equipment_stats(old_entry, sign=-1)
@@ -384,22 +420,44 @@ class CharacterLogic:
         # Move from inventory to equipment slot
         self.remove_item(found['name'])
         equipment[slot] = found
+        # Place two-hand sentinel in off_hand to block that slot
+        if item_type == 'two_handed':
+            equipment['off_hand'] = {'_two_hand_ref': found.get('name', '')}
         self.model.equipment = equipment
         self.session.commit()
         return slot
 
     def unequip(self, slot):
-        """
-        Remove the item from an equipment slot and return it to inventory.
-        Returns the item name or '' if the slot was empty.
-        """
+        # Remove the item from an equipment slot and return it to inventory.
+        # Returns the item name or '' if the slot was empty.
         from data.shop import get_shop_item
         equipment = dict(self.model.equipment or {})
+        # Migrate legacy 3-slot keys before any logic
+        self._migrate_old_equipment_slots(equipment)
+
         item = equipment.get(slot)
         if not item:
             return ''
 
-        shop_entry = get_shop_item(item.get('name', ''))
+        # If off_hand contains the two-hand sentinel, redirect to main_hand unequip
+        if slot == 'off_hand' and isinstance(item, dict) and '_two_hand_ref' in item:
+            slot = 'main_hand'
+            item = equipment.get('main_hand')
+            if not item:
+                # Sentinel present but main_hand already gone — just clear sentinel
+                del equipment['off_hand']
+                self.model.equipment = equipment
+                self.session.commit()
+                return ''
+
+        # Skip sentinel dicts — should not reach inventory
+        if isinstance(item, dict) and '_two_hand_ref' in item:
+            del equipment[slot]
+            self.model.equipment = equipment
+            self.session.commit()
+            return ''
+
+        shop_entry = get_shop_item(item.get('name', '')) if isinstance(item, dict) else None
         if shop_entry:
             self._apply_equipment_stats(shop_entry, sign=-1)
 
@@ -407,12 +465,43 @@ class CharacterLogic:
         inv.append(item)
         self.model.inventory = inv
         del equipment[slot]
+
+        # If we just unequipped a two-handed weapon, also clear the off_hand sentinel
+        if shop_entry and shop_entry.get('type') == 'two_handed':
+            equipment.pop('off_hand', None)
+
         self.model.equipment = equipment
         self.session.commit()
-        return item.get('name', '')
+        return item.get('name', '') if isinstance(item, dict) else ''
+
+    @staticmethod
+    def _migrate_old_equipment_slots(equipment):
+        # In-place migrate legacy 3-slot keys to 9-slot keys. Returns modified dict.
+        renames = {'weapon': 'main_hand', 'armor': 'body'}
+        for old, new in renames.items():
+            if old in equipment and new not in equipment:
+                equipment[new] = equipment.pop(old)
+        # 'accessory' → infer from item type
+        if 'accessory' in equipment:
+            item = equipment.pop('accessory')
+            if isinstance(item, dict):
+                from data.shop import get_shop_item
+                entry = get_shop_item(item.get('name', '')) or {}
+                itype = entry.get('type', item.get('type', ''))
+                _TYPE_TO_SLOT_LOCAL = {
+                    'boots': 'feet', 'helmet': 'head', 'gloves': 'hands',
+                    'ring': 'ring', 'earring': 'earring', 'necklace': 'necklace',
+                    'shield': 'off_hand', 'off_hand': 'off_hand',
+                }
+                slot = _TYPE_TO_SLOT_LOCAL.get(itype, 'necklace')
+                if slot not in equipment:
+                    equipment[slot] = item
+        return equipment
 
     def _apply_equipment_stats(self, shop_entry, sign):
-        """Apply or remove stat bonuses from an equipment shop entry (sign = +1 or -1)."""
+        # Skip two-hand sentinel dicts — they carry no stats
+        if isinstance(shop_entry, dict) and '_two_hand_ref' in shop_entry:
+            return
         if shop_entry.get('atk_bonus'):
             self.model.atk = max(1, (self.model.atk or 10) + sign * shop_entry['atk_bonus'])
         if shop_entry.get('def_bonus'):
@@ -509,36 +598,73 @@ class CharacterLogic:
     # Maps specific item names (lowercase) → set of classes that may equip them.
     # Items not in this table are equippable by all classes.
     _CLASS_EQUIP_RULES = {
-        # Heavy weapons — warrior/rogue only
-        'iron sword':     {'warrior', 'rogue'},
-        'steel sword':    {'warrior', 'rogue'},
-        'longbow':        {'warrior', 'rogue'},
-        # Mage-only weapons
-        'mage staff':     {'mage'},
-        'arcane wand':    {'mage'},
-        # Cleric-only weapons
-        'holy mace':      {'cleric'},
-        # Armor — mages wear no armor; rogues only light
-        'leather armor':  {'warrior', 'rogue', 'cleric'},
-        'chainmail':      {'warrior', 'cleric'},
-        'steel shield':   {'warrior', 'cleric'},
-        'plate armor':    {'warrior'},
-        # Class-specific accessories
-        'mage tome':      {'mage'},
-        'holy symbol':    {'cleric'},
-        # Rogue tools
-        'cloak of shadows': {'rogue'},
+        # Single-hand weapons
+        'iron sword':        {'warrior', 'rogue'},
+        'steel sword':       {'warrior', 'rogue'},
+        'mage staff':        {'mage'},
+        'arcane wand':       {'mage'},
+        'holy mace':         {'cleric'},
+        # Two-handed weapons
+        'longbow':           {'warrior', 'rogue'},
+        'great sword':       {'warrior'},
+        'war hammer':        {'warrior', 'cleric'},
+        'battle staff':      {'mage'},
+        # Shields / off-hand
+        'steel shield':      {'warrior', 'cleric'},
+        'buckler':           {'warrior', 'cleric', 'rogue'},
+        'tower shield':      {'warrior'},
+        'focus orb':         {'mage'},
+        'holy tome':         {'cleric'},
+        'mage tome':         {'mage'},
+        'spell focus crystal': {'mage'},
+        # Helmets
+        'iron helm':         {'warrior', 'cleric'},
+        'mage hood':         {'mage'},
+        'rogue hood':        {'rogue'},
+        # Body armor
+        'leather armor':     {'warrior', 'rogue', 'cleric'},
+        'cloak of shadows':  {'rogue'},
+        'chainmail':         {'warrior', 'cleric'},
+        'plate armor':       {'warrior'},
+        # Gloves
+        'steel gauntlets':   {'warrior', 'cleric'},
+        'arcane gloves':     {'mage'},
+        'rogue gloves':      {'rogue'},
+        # Boots
+        'iron boots':        {'warrior', 'cleric'},
+        'arcane boots':      {'mage'},
+        # Necklaces
+        'holy symbol':       {'cleric'},
+        'arcane pendant':    {'mage'},
+        'warrior pendant':   {'warrior'},
+        # Rings
+        'mana ring':         {'mage', 'cleric'},
+        'strength ring':     {'warrior', 'rogue'},
+        # Earrings
+        'moonstone earring': {'mage', 'cleric'},
+        'rogue earring':     {'rogue'},
+        'warrior earring':   {'warrior'},
         # Chinese aliases
-        '鐵劍':   {'warrior', 'rogue'},
-        '鋼劍':   {'warrior', 'rogue'},
-        '法師杖': {'mage'},
-        '聖錘':   {'cleric'},
-        '皮甲':   {'warrior', 'rogue', 'cleric'},
-        '鎖甲':   {'warrior', 'cleric'},
-        '鋼盾':   {'warrior', 'cleric'},
-        '板甲':   {'warrior'},
-        '法師典籍': {'mage'},
-        '聖符':   {'cleric'},
+        '鐵劍':     {'warrior', 'rogue'},
+        '鋼劍':     {'warrior', 'rogue'},
+        '法師杖':   {'mage'},
+        '聖錘':     {'cleric'},
+        '雙手劍':   {'warrior'},
+        '戰鎚':     {'warrior', 'cleric'},
+        '戰鬥法杖': {'mage'},
+        '長弓':     {'warrior', 'rogue'},
+        '鋼盾':     {'warrior', 'cleric'},
+        '塔盾':     {'warrior'},
+        '皮甲':     {'warrior', 'rogue', 'cleric'},
+        '鎖甲':     {'warrior', 'cleric'},
+        '板甲':     {'warrior'},
+        '鐵盔':     {'warrior', 'cleric'},
+        '鋼鐵護手': {'warrior', 'cleric'},
+        '鐵靴':     {'warrior', 'cleric'},
+        '聖符':     {'cleric'},
+        '法術聚焦水晶': {'mage'},
+        '法力戒指': {'mage', 'cleric'},
+        '月長石耳環': {'mage', 'cleric'},
     }
 
     # Tool/item bonuses applied to skill checks when item is in inventory or equipped.

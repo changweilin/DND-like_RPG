@@ -314,6 +314,18 @@ _UI_STRINGS = {
         "equip_btn":         "Equip",
         "unequip_btn":       "Remove",
         "equip_backpack_hdr": "Backpack — Equippable Items",
+        "equip_slot_main_hand": "Main Hand",
+        "equip_slot_off_hand":  "Off Hand",
+        "equip_slot_head":      "Head",
+        "equip_slot_body":      "Body",
+        "equip_slot_hands":     "Hands",
+        "equip_slot_feet":      "Feet",
+        "equip_slot_necklace":  "Necklace",
+        "equip_slot_ring":      "Ring",
+        "equip_slot_earring":   "Earring",
+        "equip_row_weapons":    "Weapons",
+        "equip_row_armor":      "Armor",
+        "equip_row_accessories":"Accessories",
         # Relations / NPC tab
         "no_relations":      "No relationship data yet. As the story progresses, character and organization relationships will be automatically recorded here.",
         "no_known_relations":"No known relations",
@@ -480,6 +492,18 @@ _UI_STRINGS = {
         "equip_btn":         "裝備",
         "unequip_btn":       "卸下",
         "equip_backpack_hdr": "背包 — 可裝備物品",
+        "equip_slot_main_hand": "主手",
+        "equip_slot_off_hand":  "副手",
+        "equip_slot_head":      "頭部",
+        "equip_slot_body":      "身體",
+        "equip_slot_hands":     "手部",
+        "equip_slot_feet":      "腳部",
+        "equip_slot_necklace":  "首飾",
+        "equip_slot_ring":      "戒指",
+        "equip_slot_earring":   "耳環",
+        "equip_row_weapons":    "武器",
+        "equip_row_armor":      "防具",
+        "equip_row_accessories":"飾品",
         # Relations / NPC tab
         "no_relations":      "尚無關係資料。隨著故事發展，角色與組織的關係將自動記錄於此。",
         "no_known_relations":"無已知關係",
@@ -645,6 +669,18 @@ _UI_STRINGS = {
         "equip_btn":         "装備",
         "unequip_btn":       "外す",
         "equip_backpack_hdr": "バッグ — 装備可能アイテム",
+        "equip_slot_main_hand": "主手",
+        "equip_slot_off_hand":  "副手",
+        "equip_slot_head":      "頭部",
+        "equip_slot_body":      "胴体",
+        "equip_slot_hands":     "手部",
+        "equip_slot_feet":      "足部",
+        "equip_slot_necklace":  "ネックレス",
+        "equip_slot_ring":      "指輪",
+        "equip_slot_earring":   "イヤリング",
+        "equip_row_weapons":    "武器",
+        "equip_row_armor":      "防具",
+        "equip_row_accessories":"アクセサリー",
         # Relations / NPC tab
         "no_relations":      "関係データがまだありません。ストーリーが進むにつれ、キャラクターと組織の関係が自動的に記録されます。",
         "no_known_relations":"既知の関係なし",
@@ -810,6 +846,18 @@ _UI_STRINGS = {
         "equip_btn":         "Equipar",
         "unequip_btn":       "Desequipar",
         "equip_backpack_hdr": "Mochila — objetos equipables",
+        "equip_slot_main_hand": "Mano Principal",
+        "equip_slot_off_hand":  "Mano Secundaria",
+        "equip_slot_head":      "Cabeza",
+        "equip_slot_body":      "Cuerpo",
+        "equip_slot_hands":     "Manos",
+        "equip_slot_feet":      "Pies",
+        "equip_slot_necklace":  "Collar",
+        "equip_slot_ring":      "Anillo",
+        "equip_slot_earring":   "Pendiente",
+        "equip_row_weapons":    "Armas",
+        "equip_row_armor":      "Armadura",
+        "equip_row_accessories":"Accesorios",
         # Relations / NPC tab
         "no_relations":      "No hay datos de relaciones todavía. A medida que avance la historia, las relaciones entre personajes y organizaciones se registrarán automáticamente aquí.",
         "no_known_relations":"Sin relaciones conocidas",
@@ -976,6 +1024,18 @@ _UI_STRINGS = {
         "equip_btn":         "装备",
         "unequip_btn":       "卸下",
         "equip_backpack_hdr": "背包 — 可装备物品",
+        "equip_slot_main_hand": "主手",
+        "equip_slot_off_hand":  "副手",
+        "equip_slot_head":      "头部",
+        "equip_slot_body":      "身体",
+        "equip_slot_hands":     "手部",
+        "equip_slot_feet":      "脚部",
+        "equip_slot_necklace":  "首饰",
+        "equip_slot_ring":      "戒指",
+        "equip_slot_earring":   "耳环",
+        "equip_row_weapons":    "武器",
+        "equip_row_armor":      "防具",
+        "equip_row_accessories":"饰品",
         # Relations / NPC tab
         "no_relations":      "尚无关系资料。随着故事发展，角色与组织的关系将自动记录于此。",
         "no_known_relations":"无已知关系",
@@ -1141,6 +1201,18 @@ _UI_STRINGS = {
         "equip_btn":         "장착",
         "unequip_btn":       "해제",
         "equip_backpack_hdr": "가방 — 장착 가능 아이템",
+        "equip_slot_main_hand": "주 무기",
+        "equip_slot_off_hand":  "보조",
+        "equip_slot_head":      "머리",
+        "equip_slot_body":      "몸통",
+        "equip_slot_hands":     "손",
+        "equip_slot_feet":      "발",
+        "equip_slot_necklace":  "목걸이",
+        "equip_slot_ring":      "반지",
+        "equip_slot_earring":   "귀걸이",
+        "equip_row_weapons":    "무기",
+        "equip_row_armor":      "방어구",
+        "equip_row_accessories":"장신구",
         # Relations / NPC tab
         "no_relations":      "관계 데이터가 없습니다. 스토리가 진행되면 캐릭터와 조직의 관계가 자동으로 기록됩니다.",
         "no_known_relations":"알려진 관계 없음",
@@ -1306,6 +1378,18 @@ _UI_STRINGS = {
         "equip_btn":         "Équiper",
         "unequip_btn":       "Retirer",
         "equip_backpack_hdr": "Sac — objets équipables",
+        "equip_slot_main_hand": "Main Principale",
+        "equip_slot_off_hand":  "Main Secondaire",
+        "equip_slot_head":      "Tête",
+        "equip_slot_body":      "Corps",
+        "equip_slot_hands":     "Mains",
+        "equip_slot_feet":      "Pieds",
+        "equip_slot_necklace":  "Collier",
+        "equip_slot_ring":      "Anneau",
+        "equip_slot_earring":   "Boucle d'oreille",
+        "equip_row_weapons":    "Armes",
+        "equip_row_armor":      "Armure",
+        "equip_row_accessories":"Accessoires",
         # Relations / NPC tab
         "no_relations":      "Aucune donnée de relation pour l'instant. Au fil de l'histoire, les relations entre personnages et organisations seront automatiquement enregistrées ici.",
         "no_known_relations":"Aucune relation connue",
@@ -1471,6 +1555,18 @@ _UI_STRINGS = {
         "equip_btn":         "Ausrüsten",
         "unequip_btn":       "Ablegen",
         "equip_backpack_hdr": "Rucksack — ausrüstbare Gegenstände",
+        "equip_slot_main_hand": "Haupthand",
+        "equip_slot_off_hand":  "Nebenhand",
+        "equip_slot_head":      "Kopf",
+        "equip_slot_body":      "Körper",
+        "equip_slot_hands":     "Hände",
+        "equip_slot_feet":      "Füße",
+        "equip_slot_necklace":  "Halskette",
+        "equip_slot_ring":      "Ring",
+        "equip_slot_earring":   "Ohrring",
+        "equip_row_weapons":    "Waffen",
+        "equip_row_armor":      "Rüstung",
+        "equip_row_accessories":"Zubehör",
         # Relations / NPC tab
         "no_relations":      "Noch keine Beziehungsdaten. Im Laufe der Geschichte werden die Beziehungen zwischen Charakteren und Organisationen automatisch aufgezeichnet.",
         "no_known_relations":"Keine bekannten Beziehungen",
@@ -2903,10 +2999,16 @@ def _render_party_sidebar(party, state, active_char):
         # Equipment slots
         equipment = getattr(char, 'equipment', None) or {}
         if equipment:
-            slot_icons = {'weapon': '⚔️', 'armor': '🛡️', 'accessory': '💍'}
+            slot_icons = {
+                'main_hand': '⚔️', 'off_hand': '🛡️',
+                'head': '🪖', 'body': '🥋', 'hands': '🧤', 'feet': '👢',
+                'necklace': '📿', 'ring': '💍', 'earring': '💎',
+                # legacy fallbacks
+                'weapon': '⚔️', 'armor': '🥋', 'accessory': '💍',
+            }
             equip_parts = []
             for sl, item in equipment.items():
-                if item:
+                if item and isinstance(item, dict) and not item.get('_two_hand_ref'):
                     icon = slot_icons.get(sl, '📦')
                     equip_parts.append(f"{icon} {item.get('name', sl)}")
             if equip_parts:
@@ -3045,15 +3147,23 @@ def _render_shop_panel(state, char):
 
         # Group items by type
         _TYPE_LABELS = {
-            'consumable': '🧪 消耗品',
-            'throwable':  '💣 投擲物',
-            'tool':       '🔧 工具',
-            'skillbook':  '📖 技能書',
-            'scroll':     '📜 法術捲軸',
-            'upgrade':    '🔨 升級套件',
-            'weapon':     '⚔️ 武器',
-            'armor':      '🛡️ 防具',
-            'accessory':  '💍 飾品',
+            'consumable':  '🧪 消耗品',
+            'throwable':   '💣 投擲物',
+            'tool':        '🔧 工具',
+            'skillbook':   '📖 技能書',
+            'scroll':      '📜 法術捲軸',
+            'upgrade':     '🔨 升級套件',
+            'weapon':      '⚔️ 單手武器',
+            'two_handed':  '⚔️⚔️ 雙手武器',
+            'shield':      '🛡️ 盾牌（副手）',
+            'off_hand':    '🔮 副手物品',
+            'helmet':      '🪖 頭盔',
+            'armor':       '🥋 身體防具',
+            'gloves':      '🧤 手套',
+            'boots':       '👢 靴子',
+            'necklace':    '📿 首飾',
+            'ring':        '💍 戒指',
+            'earring':     '💎 耳環',
         }
         groups = {}
         for name, entry in SHOP_CATALOGUE.items():
@@ -4349,30 +4459,21 @@ def _render_characters_tab(party, state, active_char):
             from data.shop import get_shop_item
             _char_logic = CharacterLogic(_sess_eq, char)
             _equipment  = dict(char.equipment or {})
-            _slot_meta  = [
-                ('weapon',    '⚔️',  _t('equip_slot_weapon')),
-                ('armor',     '🛡️', _t('equip_slot_armor')),
-                ('accessory', '💍',  _t('equip_slot_accessory')),
-            ]
-            eq_cols = st.columns(3)
-            for col_idx, (slot, icon, label) in enumerate(_slot_meta):
-                with eq_cols[col_idx]:
-                    equipped_item = _equipment.get(slot)
+
+            def _render_equip_slot(slot, icon, label, col):
+                equipped_item = _equipment.get(slot)
+                with col:
                     st.markdown(f"**{icon} {label}**")
-                    if equipped_item:
+                    if isinstance(equipped_item, dict) and equipped_item.get('_two_hand_ref'):
+                        st.caption(f"🔒 {equipped_item['_two_hand_ref']}")
+                    elif equipped_item and isinstance(equipped_item, dict):
                         item_nm = equipped_item.get('name', slot)
                         entry   = get_shop_item(item_nm) or {}
                         bonus_parts = []
-                        if entry.get('atk_bonus'):
-                            bonus_parts.append(f"+{entry['atk_bonus']} ATK")
-                        if entry.get('def_bonus'):
-                            bonus_parts.append(f"+{entry['def_bonus']} DEF")
-                        if entry.get('mp_bonus'):
-                            bonus_parts.append(f"+{entry['mp_bonus']} MP")
-                        if entry.get('mov_bonus'):
-                            bonus_parts.append(f"+{entry['mov_bonus']} MOV")
-                        if entry.get('hp_bonus'):
-                            bonus_parts.append(f"+{entry['hp_bonus']} HP")
+                        for k, lbl in [('atk_bonus','ATK'),('def_bonus','DEF'),
+                                       ('mp_bonus','MP'),('mov_bonus','MOV'),('hp_bonus','HP')]:
+                            if entry.get(k):
+                                bonus_parts.append(f"+{entry[k]} {lbl}")
                         st.write(item_nm)
                         if bonus_parts:
                             st.caption(", ".join(bonus_parts))
@@ -4383,15 +4484,38 @@ def _render_characters_tab(party, state, active_char):
                     else:
                         st.caption(_t('equip_slot_empty'))
 
+            # Row 1 — Weapons (2 cols)
+            st.caption(f"── {_t('equip_row_weapons')} ──")
+            _r1 = st.columns(2)
+            _render_equip_slot('main_hand', '⚔️', _t('equip_slot_main_hand'), _r1[0])
+            _render_equip_slot('off_hand',  '🛡️', _t('equip_slot_off_hand'),  _r1[1])
+
+            # Row 2 — Armor (4 cols)
+            st.caption(f"── {_t('equip_row_armor')} ──")
+            _r2 = st.columns(4)
+            _render_equip_slot('head',  '🪖', _t('equip_slot_head'),  _r2[0])
+            _render_equip_slot('body',  '🥋', _t('equip_slot_body'),  _r2[1])
+            _render_equip_slot('hands', '🧤', _t('equip_slot_hands'), _r2[2])
+            _render_equip_slot('feet',  '👢', _t('equip_slot_feet'),  _r2[3])
+
+            # Row 3 — Accessories (3 cols)
+            st.caption(f"── {_t('equip_row_accessories')} ──")
+            _r3 = st.columns(3)
+            _render_equip_slot('necklace', '📿', _t('equip_slot_necklace'), _r3[0])
+            _render_equip_slot('ring',     '💍', _t('equip_slot_ring'),     _r3[1])
+            _render_equip_slot('earring',  '💎', _t('equip_slot_earring'),  _r3[2])
+
             # Backpack — equippable items with Equip button
-            # Check shop catalogue first; fall back to the type stored on the item itself
-            _equippable_types = {'weapon', 'armor', 'accessory'}
+            _equippable_types = {
+                'weapon', 'two_handed', 'shield', 'off_hand',
+                'helmet', 'armor', 'gloves', 'boots',
+                'necklace', 'ring', 'earring',
+            }
             _equippable_inv   = [
                 it for it in (char.inventory or [])
                 if isinstance(it, dict) and
-                (
-                    (get_shop_item(it.get('name', '')) or {}).get('type', it.get('type', ''))
-                ) in _equippable_types
+                (get_shop_item(it.get('name', '')) or {}).get('type', it.get('type', ''))
+                in _equippable_types
             ]
             if _equippable_inv:
                 st.caption(f"**{_t('equip_backpack_hdr')}**")
@@ -4399,16 +4523,10 @@ def _render_characters_tab(party, state, active_char):
                     item_nm   = it.get('name', '')
                     entry     = get_shop_item(item_nm) or {}
                     b_parts   = []
-                    if entry.get('atk_bonus'):
-                        b_parts.append(f"+{entry['atk_bonus']} ATK")
-                    if entry.get('def_bonus'):
-                        b_parts.append(f"+{entry['def_bonus']} DEF")
-                    if entry.get('mp_bonus'):
-                        b_parts.append(f"+{entry['mp_bonus']} MP")
-                    if entry.get('mov_bonus'):
-                        b_parts.append(f"+{entry['mov_bonus']} MOV")
-                    if entry.get('hp_bonus'):
-                        b_parts.append(f"+{entry['hp_bonus']} HP")
+                    for k, lbl in [('atk_bonus','ATK'),('def_bonus','DEF'),
+                                   ('mp_bonus','MP'),('mov_bonus','MOV'),('hp_bonus','HP')]:
+                        if entry.get(k):
+                            b_parts.append(f"+{entry[k]} {lbl}")
                     bonus_str = f"  ({', '.join(b_parts)})" if b_parts else ''
                     ic, ib = st.columns([4, 1])
                     with ic:

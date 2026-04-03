@@ -27,7 +27,9 @@ class Character(Base):
     gold = Column(Integer, default=0)
     inventory = Column(JSON, default=lambda: [])   # List of item dicts
     skills = Column(JSON, default=lambda: [])       # List of skill strings
-    # Equipped items by slot: {weapon, armor, accessory} → item dict or null
+    # Equipped items by slot (9-slot system):
+    # main_hand, off_hand, head, body, hands, feet, necklace, ring, earring → item dict or null
+    # Legacy saves with {weapon, armor, accessory} keys are auto-migrated by CharacterLogic.
     equipment = Column(JSON, default=lambda: {})
 
     # Progression: XP accumulated and current level (1-10).

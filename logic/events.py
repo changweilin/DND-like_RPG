@@ -810,12 +810,24 @@ class EventManager:
 
         elif intent.get('action_type') == 'unequip':
             item_name = intent.get('target', '')
-            # Support slot name OR item name
-            slot_names = {'weapon', 'armor', 'accessory', '武器', '防具', '飾品'}
+            # Support slot name OR item name (9-slot system)
+            _slot_alias = {
+                'weapon': 'main_hand', '武器': 'main_hand', '主手': 'main_hand',
+                'armor':  'body',      '防具': 'body',      '身體': 'body',
+                'accessory': 'necklace', '飾品': 'necklace',
+                'main_hand': 'main_hand', 'off_hand': 'off_hand',
+                '副手': 'off_hand',
+                'head': 'head',   '頭部': 'head',
+                'body': 'body',
+                'hands': 'hands', '手部': 'hands',
+                'feet':  'feet',  '腳部': 'feet',
+                'necklace': 'necklace', '首飾': 'necklace',
+                'ring': 'ring',   '戒指': 'ring',
+                'earring': 'earring', '耳環': 'earring',
+            }
+            slot_names = set(_slot_alias.keys())
             if item_name.lower() in slot_names:
-                removed = char_logic.unequip(item_name.lower().replace('武器', 'weapon')
-                                             .replace('防具', 'armor')
-                                             .replace('飾品', 'accessory'))
+                removed = char_logic.unequip(_slot_alias[item_name.lower()])
             else:
                 # Unequip by item name: find which slot holds it
                 removed = ''
