@@ -300,6 +300,25 @@ class EventManager:
         world      = WorldManager(self.session, current_state)
         all_chars  = party if party else [character]
 
+        # Restore once-per-combat ability usage from DB (survives page reloads)
+        if current_state.in_combat:
+            self._used_abilities = set(current_state.used_combat_abilities or [])
+        else:
+            self._used_abilities = set()
+
+        # Expire skill-combat flags from previous turns
+        _ke_expire = dict(current_state.known_entities or {})
+        _flags_turn = _ke_expire.get('_skill_flags_turn', current_state.turn_count)
+        if _flags_turn < current_state.turn_count:
+            _expired = [k for k in list(_ke_expire.keys())
+                        if k in ('_sneak_ready', '_perception_bonus', '_skill_flags_turn')
+                        or k.startswith('_intimidated_') or k.startswith('_grappled_')]
+            if _expired:
+                for k in _expired:
+                    _ke_expire.pop(k, None)
+                current_state.known_entities = _ke_expire
+                flag_modified(current_state, 'known_entities')
+
         # --- Step 1: Retrieve long-term context from RAG ---
         rag_context = self.rag.retrieve_context(player_action)
 
@@ -357,6 +376,14 @@ class EventManager:
                 # Failed flee: apply counter-attack damage
                 if flee_result['damage_taken'] > 0:
                     char_logic.take_damage(flee_result['damage_taken'])
+            self.session.commit()
+
+        # Unconditionally clear smoke flag so it cannot carry over to future turns
+        _ke_tmp = dict(current_state.known_entities or {})
+        if '_smoke_active' in _ke_tmp:
+            _ke_tmp.pop('_smoke_active')
+            current_state.known_entities = _ke_tmp
+            flag_modified(current_state, 'known_entities')
             self.session.commit()
 
         # --- Step 3.6: Random encounter on travel actions ---
@@ -455,7 +482,6 @@ class EventManager:
                 _, _, sneak_bonus = self.dice.roll('1d6')
                 combat_result['sneak_attack_bonus'] = sneak_bonus
                 combat_result['net_damage'] = (combat_result.get('net_damage', 0) + sneak_bonus)
-                self._apply_combat_damage_to_entity(target, sneak_bonus, current_state)
 
             # Perception bonus: suppress enemy counter-attack this turn
             if _perception_bonus:
@@ -511,6 +537,8 @@ class EventManager:
                 adef = get_ability_definition(character.char_class, class_ability)
                 if adef and adef.get('once_per_combat'):
                     self._used_abilities.add(class_ability)
+                    current_state.used_combat_abilities = list(self._used_abilities)
+                    flag_modified(current_state, 'used_combat_abilities')
 
         elif intent.get('action_type') == 'item_use':
             # --- Item use (consumable / throwable / scroll) ---
@@ -618,6 +646,8 @@ class EventManager:
                 )
                 if adef.get('once_per_combat'):
                     self._used_abilities.add(class_ability)
+                    current_state.used_combat_abilities = list(self._used_abilities)
+                    flag_modified(current_state, 'used_combat_abilities')
 
         elif intent.get('action_type') == 'magic' and not class_ability:
             # Named spell cast — look up in spell compendium
@@ -820,6 +850,7 @@ class EventManager:
                 elif _skill_name == 'athletics' and target:
                     _known_flags[f'_grappled_{target.lower().replace(" ", "_")}'] = True
                     outcome_label += ' [擒抱成功]'
+                _known_flags['_skill_flags_turn'] = current_state.turn_count
                 current_state.known_entities = _known_flags
                 flag_modified(current_state, 'known_entities')
                 self.session.commit()

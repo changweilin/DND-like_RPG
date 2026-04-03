@@ -142,6 +142,11 @@ class GameState(Base):
     #             given_turn, completed_turn}}
     quests = Column(JSON, default=lambda: {})
 
+    # Tracks once-per-combat abilities already used this combat encounter.
+    # Stored as a list of ability key strings so it survives page reloads.
+    # Cleared when combat ends (flee, victory, new encounter).
+    used_combat_abilities = Column(JSON, default=list)
+
 class EntityRelation(Base):
     """
     Directed edge in the entity relationship graph.
@@ -215,6 +220,7 @@ class DatabaseManager:
             "ALTER TABLE characters ADD COLUMN equipment TEXT DEFAULT '{}'",
             "ALTER TABLE game_state ADD COLUMN quests TEXT DEFAULT '{}'",
             "ALTER TABLE characters ADD COLUMN pending_stat_points INTEGER DEFAULT 0",
+            "ALTER TABLE game_state ADD COLUMN used_combat_abilities TEXT DEFAULT '[]'",
         ]
         with engine.connect() as conn:
             for sql in migrations:
