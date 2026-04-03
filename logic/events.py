@@ -427,12 +427,47 @@ class EventManager:
         utility_result = None
         class_ability  = intent.get('class_ability')
         loot_xp_result = None   # populated after combat kill (Step 5 → Step 8 boundary)
+        # Pre-combat skill flag defaults (overridden inside the attack block if flags were set)
+        _sneak_ready      = False
+        _perception_bonus = False
+        _intimidated      = False
+        _grappled         = False
 
         if intent.get('action_type') == 'attack' and target and not flee_result:
+            # Consume pre-combat skill flags
+            _known_now = dict(current_state.known_entities or {})
+            _sneak_ready      = _known_now.pop('_sneak_ready', False)
+            _perception_bonus = _known_now.pop('_perception_bonus', False)
+            _target_key       = target.lower().replace(' ', '_') if target else ''
+            _intimidated      = _known_now.pop(f'_intimidated_{_target_key}', False)
+            _grappled         = _known_now.pop(f'_grappled_{_target_key}', False)
+            if any([_sneak_ready, _perception_bonus, _intimidated, _grappled]):
+                current_state.known_entities = _known_now
+                flag_modified(current_state, 'known_entities')
+
             combat_result = self.combat.resolve_attack(
                 character, char_logic, target, current_state,
                 class_ability_key=class_ability,
             )
+
+            # Apply sneak attack bonus damage on hit
+            if _sneak_ready and combat_result.get('hit'):
+                _, _, sneak_bonus = self.dice.roll('1d6')
+                combat_result['sneak_attack_bonus'] = sneak_bonus
+                combat_result['net_damage'] = (combat_result.get('net_damage', 0) + sneak_bonus)
+                self._apply_combat_damage_to_entity(target, sneak_bonus, current_state)
+
+            # Perception bonus: suppress enemy counter-attack this turn
+            if _perception_bonus:
+                combat_result['_suppress_counter'] = True
+
+            # Intimidated: enemy counter-attack is suppressed this turn
+            if _intimidated:
+                combat_result['_suppress_counter'] = True
+
+            # Grappled: mark penalty on enemy counter (read in _calculate_mechanics)
+            if _grappled:
+                combat_result['_grapple_atk_penalty'] = 2
             if combat_result['hit'] and combat_result['net_damage'] > 0:
                 self._apply_combat_damage_to_entity(target, combat_result['net_damage'], current_state)
                 # Pre-compute loot/XP so it's available for narrative injection (Step 7)
@@ -768,6 +803,27 @@ class EventManager:
             dice_result   = self.dice.roll_skill_check(dc=intent['dc'], modifier=modifier)
             outcome_label = _OUTCOME_LABELS[dice_result['outcome']]
 
+            # Wire skill outcomes → combat flags (consumed on next attack)
+            _skill_out = dice_result.get('outcome', '')
+            if _skill_out in ('success', 'critical_success'):
+                _skill_name = intent.get('skill', '')
+                _known_flags = dict(current_state.known_entities or {})
+                if _skill_name == 'stealth':
+                    _known_flags['_sneak_ready'] = True
+                    outcome_label += ' [潛行偷襲就緒]'
+                elif _skill_name == 'perception':
+                    _known_flags['_perception_bonus'] = True
+                    outcome_label += ' [感知先攻就緒]'
+                elif _skill_name == 'intimidation' and target:
+                    _known_flags[f'_intimidated_{target.lower().replace(" ", "_")}'] = True
+                    outcome_label += ' [威嚇成功]'
+                elif _skill_name == 'athletics' and target:
+                    _known_flags[f'_grappled_{target.lower().replace(" ", "_")}'] = True
+                    outcome_label += ' [擒抱成功]'
+                current_state.known_entities = _known_flags
+                flag_modified(current_state, 'known_entities')
+                self.session.commit()
+
         # --- Step 6.5: Rule engine mechanics ---
         # damage_taken / hp_healed / mp_used are computed here, never by the LLM.
         mechanics = self._calculate_mechanics(
@@ -1032,6 +1088,17 @@ class EventManager:
                     outcome_parts.append(
                         f"Punishing counter-attack: player takes {flee_result['damage_taken']} damage."
                     )
+
+        # Narrate skill combat flags
+        if _sneak_ready and combat_result and combat_result.get('hit'):
+            bonus = combat_result.get('sneak_attack_bonus', 0)
+            outcome_parts.append(f"Sneak attack! Extra {bonus} damage from stealth.")
+        if _perception_bonus:
+            outcome_parts.append("Perception advantage: enemy counter-attack suppressed this turn.")
+        if _intimidated:
+            outcome_parts.append(f"Enemy {target} is intimidated: counter-attack suppressed.")
+        if _grappled:
+            outcome_parts.append(f"Enemy {target} is grappled: reduced attack power.")
 
         if dice_result:
             outcome_parts.append(
@@ -1801,11 +1868,19 @@ class EventManager:
             target_entry = known.get(target_name, {})
             hp_after = combat_result.get('entity_hp_remaining')
             is_alive = target_entry.get('alive', True) and (hp_after is None or hp_after > 0)
+            if is_alive and combat_result.get('_suppress_counter'):
+                # Perception or intimidation flag suppresses enemy counter-attack this turn
+                is_alive = False
             if is_alive:
                 # Phase 4: trigger monster AI specials (berserk, song, etc.)
                 target_entry = self._apply_monster_ai_triggers(
                     target_name, target_entry, current_state
                 )
+                # Grapple penalty reduces enemy ATK for counter-attack resolution
+                _grapple_penalty = combat_result.get('_grapple_atk_penalty', 0)
+                if _grapple_penalty:
+                    target_entry = dict(target_entry)
+                    target_entry['atk'] = max(1, (target_entry.get('atk', 5) - _grapple_penalty))
                 counter = self.combat.resolve_enemy_counter_attack(target_entry, character)
                 if counter.get('hit'):
                     # Consume Arcane Shield bonus if active

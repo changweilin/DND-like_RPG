@@ -259,6 +259,13 @@ class CharacterLogic:
         if found is None:
             return ''
 
+        # Enforce class equipment restriction
+        char_class = (self.model.char_class or '').lower().strip()
+        item_lower = found.get('name', '').lower()
+        allowed = self._CLASS_EQUIP_RULES.get(item_lower)
+        if allowed and char_class not in allowed:
+            return ''
+
         # Determine equipment slot from item type
         item_type = found.get('type', '')
         shop_entry = get_shop_item(found.get('name', ''))
@@ -417,6 +424,41 @@ class CharacterLogic:
         self.model.pending_stat_points = pending - 1
         self.session.commit()
         return True
+
+    # Maps specific item names (lowercase) → set of classes that may equip them.
+    # Items not in this table are equippable by all classes.
+    _CLASS_EQUIP_RULES = {
+        # Heavy weapons — warrior/rogue only
+        'iron sword':     {'warrior', 'rogue'},
+        'steel sword':    {'warrior', 'rogue'},
+        'longbow':        {'warrior', 'rogue'},
+        # Mage-only weapons
+        'mage staff':     {'mage'},
+        'arcane wand':    {'mage'},
+        # Cleric-only weapons
+        'holy mace':      {'cleric'},
+        # Armor — mages wear no armor; rogues only light
+        'leather armor':  {'warrior', 'rogue', 'cleric'},
+        'chainmail':      {'warrior', 'cleric'},
+        'steel shield':   {'warrior', 'cleric'},
+        'plate armor':    {'warrior'},
+        # Class-specific accessories
+        'mage tome':      {'mage'},
+        'holy symbol':    {'cleric'},
+        # Rogue tools
+        'cloak of shadows': {'rogue'},
+        # Chinese aliases
+        '鐵劍':   {'warrior', 'rogue'},
+        '鋼劍':   {'warrior', 'rogue'},
+        '法師杖': {'mage'},
+        '聖錘':   {'cleric'},
+        '皮甲':   {'warrior', 'rogue', 'cleric'},
+        '鎖甲':   {'warrior', 'cleric'},
+        '鋼盾':   {'warrior', 'cleric'},
+        '板甲':   {'warrior'},
+        '法師典籍': {'mage'},
+        '聖符':   {'cleric'},
+    }
 
     # Tool/item bonuses applied to skill checks when item is in inventory or equipped.
     # Key = item name fragment (lowercase), value = {skill_name: bonus_int}

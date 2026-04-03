@@ -3025,10 +3025,21 @@ def _render_shop_panel(state, char):
                 bonus_str = f"  *({', '.join(bonuses)})*" if bonuses else ''
                 can_afford = (char.gold or 0) >= price
                 price_color = '#4ade80' if can_afford else '#f87171'
+                restriction = entry.get('restricted_to', [])
+                char_class = (char.char_class or '').lower()
+                if restriction:
+                    can_use = char_class in restriction
+                    rest_str = '/'.join(r.capitalize() for r in restriction)
+                    rest_color = '#4ade80' if can_use else '#94a3b8'
+                    restriction_html = (f"<span style='font-size:0.75em;color:{rest_color};"
+                                        f"background:#ffffff11;border-radius:3px;padding:1px 4px'>"
+                                        f"🔒 {rest_str}</span> ")
+                else:
+                    restriction_html = ''
                 st.markdown(
                     f"<div style='display:flex;justify-content:space-between;"
                     f"padding:2px 0;font-size:0.88em'>"
-                    f"<span>{name}{bonus_str}</span>"
+                    f"<span>{restriction_html}{name}{bonus_str}</span>"
                     f"<span style='color:{price_color};font-weight:bold'>{price}g</span>"
                     f"</div>",
                     unsafe_allow_html=True,
