@@ -96,6 +96,33 @@ class CharacterLogic:
         'scroll of restoration':{'spell_key': 'lesser_restoration', 'type': 'scroll'},
         '淨化捲軸':             {'spell_key': 'lesser_restoration', 'type': 'scroll'},
         'scroll of lightning':  {'spell_key': 'lightning_bolt', 'type': 'scroll'},
+        # Skill books — consuming grants a permanent proficiency bonus
+        'tome of athletics':      {'type': 'skillbook', 'skill_granted': 'athletics',    'bonus': 1},
+        'tome of intimidation':   {'type': 'skillbook', 'skill_granted': 'intimidation', 'bonus': 1},
+        'tome of acrobatics':     {'type': 'skillbook', 'skill_granted': 'acrobatics',   'bonus': 1},
+        'tome of stealth':        {'type': 'skillbook', 'skill_granted': 'stealth',      'bonus': 1},
+        'tome of perception':     {'type': 'skillbook', 'skill_granted': 'perception',   'bonus': 1},
+        'tome of persuasion':     {'type': 'skillbook', 'skill_granted': 'persuasion',   'bonus': 1},
+        'tome of medicine':       {'type': 'skillbook', 'skill_granted': 'medicine',     'bonus': 1},
+        'tome of arcana':         {'type': 'skillbook', 'skill_granted': 'arcana',       'bonus': 1},
+        '體能之書':               {'type': 'skillbook', 'skill_granted': 'athletics',    'bonus': 1},
+        '威嚇之書':               {'type': 'skillbook', 'skill_granted': 'intimidation', 'bonus': 1},
+        '特技之書':               {'type': 'skillbook', 'skill_granted': 'acrobatics',   'bonus': 1},
+        '潛行之書':               {'type': 'skillbook', 'skill_granted': 'stealth',      'bonus': 1},
+        '察覺之書':               {'type': 'skillbook', 'skill_granted': 'perception',   'bonus': 1},
+        '說服之書':               {'type': 'skillbook', 'skill_granted': 'persuasion',   'bonus': 1},
+        '醫療之書':               {'type': 'skillbook', 'skill_granted': 'medicine',     'bonus': 1},
+        '奧術之書':               {'type': 'skillbook', 'skill_granted': 'arcana',       'bonus': 1},
+        # Advanced skill books (Tier 2: +2 bonus)
+        'advanced stealth tome':    {'type': 'skillbook', 'skill_granted': 'stealth',    'bonus': 2},
+        'advanced athletics tome':  {'type': 'skillbook', 'skill_granted': 'athletics',  'bonus': 2},
+        'advanced acrobatics tome': {'type': 'skillbook', 'skill_granted': 'acrobatics', 'bonus': 2},
+        'advanced perception tome': {'type': 'skillbook', 'skill_granted': 'perception', 'bonus': 2},
+        'advanced persuasion tome': {'type': 'skillbook', 'skill_granted': 'persuasion', 'bonus': 2},
+        'advanced arcana tome':     {'type': 'skillbook', 'skill_granted': 'arcana',     'bonus': 2},
+        '進階潛行典籍':             {'type': 'skillbook', 'skill_granted': 'stealth',    'bonus': 2},
+        '進階體能典籍':             {'type': 'skillbook', 'skill_granted': 'athletics',  'bonus': 2},
+        '進階奧術典籍':             {'type': 'skillbook', 'skill_granted': 'arcana',     'bonus': 2},
     }
 
     def use_item(self, item_name, dice_roller=None):
@@ -135,6 +162,28 @@ class CharacterLogic:
         # Default: unknown consumable heals a small amount
         if not effect:
             effect = {'hp_healed_dice': '1d4', 'type': 'consumable'}
+
+        # Skill books — permanently add proficiency bonus to Character.skills
+        if effect.get('type') == 'skillbook' and effect.get('skill_granted'):
+            skill_name = effect['skill_granted']
+            bonus = effect.get('bonus', 1)
+            skills = list(self.model.skills or [])
+            existing = next((s for s in skills if isinstance(s, dict) and s.get('skill') == skill_name), None)
+            if existing:
+                existing['bonus'] = existing.get('bonus', 0) + bonus
+                self.model.skills = skills
+            else:
+                skills.append({'skill': skill_name, 'bonus': bonus})
+                self.model.skills = skills
+            self.remove_item(found['name'])   # commits skills + inventory removal atomically
+            return {
+                'used':          True,
+                'item_name':     found['name'],
+                'item_type':     'skillbook',
+                'skill_granted': skill_name,
+                'bonus':         bonus,
+                'hp_healed':     0,
+            }
 
         # Scrolls are dispatched back to events.py (need spells.py + combat engine)
         if effect.get('type') == 'scroll' and effect.get('spell_key'):
@@ -221,6 +270,38 @@ class CharacterLogic:
         setattr(self.model, stat_attr, current + bonus)
         self.remove_item(found_name)   # commits stat change + inventory removal atomically
         return {'upgraded': True, 'stat': stat_attr, 'bonus': bonus, 'reason': None}
+
+    # ── Trainer NPC skill training ────────────────────────────────────────────
+
+    # Gold cost to gain the next proficiency tier (1st +1, 2nd +1 stacked, etc.)
+    _TRAINING_COST = {1: 200, 2: 350, 3: 500}
+
+    def train_skill(self, skill_name):
+        skill_lower = (skill_name or '').lower().strip()
+        if skill_lower not in self._SKILL_STAT_MAP:
+            return {'trained': False, 'skill': skill_lower, 'bonus_gained': 0,
+                    'gold_spent': 0, 'reason': 'unknown_skill'}
+
+        skills = list(self.model.skills or [])
+        existing = next((s for s in skills if isinstance(s, dict) and s.get('skill') == skill_lower), None)
+        current_bonus = existing.get('bonus', 0) if existing else 0
+        next_tier = current_bonus + 1
+        cost = self._TRAINING_COST.get(next_tier, 500)
+
+        if (self.model.gold or 0) < cost:
+            return {'trained': False, 'skill': skill_lower, 'bonus_gained': 0,
+                    'gold_spent': 0, 'reason': 'insufficient_gold'}
+
+        self.model.gold = (self.model.gold or 0) - cost
+        if existing:
+            existing['bonus'] = current_bonus + 1
+            self.model.skills = skills
+        else:
+            skills.append({'skill': skill_lower, 'bonus': 1})
+            self.model.skills = skills
+        self.session.commit()
+        return {'trained': True, 'skill': skill_lower, 'bonus_gained': 1,
+                'gold_spent': cost, 'reason': None}
 
     # ── Rest ─────────────────────────────────────────────────────────────────
 
@@ -497,7 +578,13 @@ class CharacterLogic:
                 if tool_key in item_name:
                     tool_bonus += bonuses.get(skill_lower, 0)
 
-        return base_mod + tool_bonus
+        # Sum proficiency bonuses stored in Character.skills (dict entries from skill books / training)
+        proficiency_bonus = 0
+        for entry in (self.model.skills or []):
+            if isinstance(entry, dict) and entry.get('skill', '').lower() == skill_lower:
+                proficiency_bonus += entry.get('bonus', 0)
+
+        return base_mod + tool_bonus + proficiency_bonus
 
     def get_weapon_damage_notation(self):
         # Return the damage notation string for this character's class.

@@ -825,6 +825,11 @@ class EventManager:
                         break
             utility_result = {'unequipped': bool(removed), 'item_name': removed or item_name}
 
+        elif intent.get('action_type') == 'train_skill':
+            skill_to_train = intent.get('skill_to_train', '')
+            train_result = char_logic.train_skill(skill_to_train)
+            utility_result = {'train_skill': True, **train_result}
+
         # --- Step 6: Dice roll + rule engine for skill checks (deterministic) ---
         dice_result   = None
         outcome_label = "NO_ROLL"
@@ -1085,6 +1090,19 @@ class EventManager:
                 if utility_result.get('unequipped'):
                     outcome_parts.append(
                         f"Unequipped [{utility_result.get('item_name')}] — returned to inventory."
+                    )
+            elif utility_result.get('train_skill'):
+                if utility_result.get('trained'):
+                    outcome_parts.append(
+                        f"Skill training successful: [{utility_result.get('skill')}] "
+                        f"+{utility_result.get('bonus_gained', 1)} proficiency. "
+                        f"Gold spent: {utility_result.get('gold_spent', 0)}."
+                    )
+                else:
+                    reason = utility_result.get('reason', '')
+                    outcome_parts.append(
+                        f"Skill training failed: {reason}. "
+                        f"[{utility_result.get('skill')}] proficiency not gained."
                     )
             elif utility_result.get('spell'):
                 sp = utility_result['spell']

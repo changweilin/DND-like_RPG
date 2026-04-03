@@ -246,6 +246,18 @@ _UPGRADE_RE = re.compile(
     r'(升級|強化|改良|鍛造|enhance|upgrade|reinforce|temper|improve)\s+(?:my\s+|the\s+)?(.+)',
     re.I,
 )
+# Train skill with NPC trainer intent — "向訓練師學習潛行", "train stealth with trainer"
+_TRAIN_RE = re.compile(
+    r'(向.{0,10}(學習|訓練|拜師)|請.{0,10}(訓練|指導)|拜師學藝|'
+    r'train\s+(?:with\s+)?|learn\s+(?:the\s+)?skill|'
+    r'practice\s+with|study\s+with|pay.*train)',
+    re.I,
+)
+_TRAIN_SKILL_RE = re.compile(
+    r'(?:train|learn|study|practice)\s+(?:the\s+)?(?:skill\s+)?(\w+)',
+    re.I,
+)
+
 # Spell name capture — "cast <spell>", "施展 <spell>", "use <spell> spell"
 _CAST_NAME_RE = re.compile(
     r'(?:cast|施展|念|use\s+(?:a\s+)?|施放)\s+(.+?)(?:\s+(?:spell|術|咒)?)?$',
@@ -469,6 +481,15 @@ def try_parse(player_action, known_entities, difficulty, char_class=None):
         item_name = m.group(1).strip() if m else ''
         return _intent('unequip', False, '', 0, item_name, player_action,
                        class_ability=class_ability)
+
+    # --- Train skill with NPC trainer ---
+    if _TRAIN_RE.search(player_action):
+        skill_match = _TRAIN_SKILL_RE.search(player_action)
+        skill_to_train = skill_match.group(1).lower().strip() if skill_match else _detect_skill(player_action)
+        intent_d = _intent('train_skill', False, '', 0, target, player_action,
+                           class_ability=class_ability)
+        intent_d['skill_to_train'] = skill_to_train
+        return intent_d
 
     # Pattern not recognised with sufficient confidence → LLM fallback
     return None

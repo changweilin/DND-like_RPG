@@ -2976,6 +2976,7 @@ def _render_shop_panel(state, char):
             'consumable': '🧪 消耗品',
             'throwable':  '💣 投擲物',
             'tool':       '🔧 工具',
+            'skillbook':  '📖 技能書',
             'scroll':     '📜 法術捲軸',
             'upgrade':    '🔨 升級套件',
             'weapon':     '⚔️ 武器',
@@ -2989,9 +2990,10 @@ def _render_shop_panel(state, char):
 
         # Usage hints per item type
         _TYPE_HINTS = {
-            'tool':    '輸入「使用 {name}」或在對話中描述使用情境',
-            'scroll':  '輸入「使用 {name}」即可施放',
-            'upgrade': '輸入「升級武器」或「升級防具」來消耗套件',
+            'tool':      '輸入「使用 {name}」或在對話中描述使用情境',
+            'skillbook': '輸入「使用 {name}」即可永久學習技能熟練加值',
+            'scroll':    '輸入「使用 {name}」即可施放',
+            'upgrade':   '輸入「升級武器」或「升級防具」來消耗套件',
         }
 
         for type_key, label in _TYPE_LABELS.items():
@@ -3022,6 +3024,11 @@ def _render_shop_panel(state, char):
                 if entry.get('upgrade_stat') and entry.get('upgrade_bonus'):
                     stat_lbl = {'atk': 'ATK', 'def_stat': 'DEF'}.get(entry['upgrade_stat'], '')
                     bonuses.append(f"永久 +{entry['upgrade_bonus']} {stat_lbl}")
+                if entry.get('skill_granted') and entry.get('bonus'):
+                    skill_zh = {'athletics': '體能', 'intimidation': '威嚇', 'acrobatics': '特技',
+                                'stealth': '潛行', 'perception': '察覺', 'persuasion': '說服',
+                                'medicine': '醫療', 'arcana': '奧術'}.get(entry['skill_granted'], entry['skill_granted'])
+                    bonuses.append(f"永久 +{entry['bonus']} {skill_zh}熟練")
                 bonus_str = f"  *({', '.join(bonuses)})*" if bonuses else ''
                 can_afford = (char.gold or 0) >= price
                 price_color = '#4ade80' if can_afford else '#f87171'
@@ -4245,7 +4252,12 @@ def _render_characters_tab(party, state, active_char):
                     if char.skills:
                         st.markdown(f"**{_t('skills_label')}:**")
                         for skill in char.skills:
-                            st.write(f"  • {skill}")
+                            if isinstance(skill, dict):
+                                sname = skill.get('skill', '?').capitalize()
+                                sbonus = skill.get('bonus', 0)
+                                st.write(f"  • {sname} +{sbonus}")
+                            else:
+                                st.write(f"  • {skill}")
                     if char.inventory:
                         st.markdown(f"**{_t('inventory_label')}:**")
                         for item in char.inventory:
@@ -5552,7 +5564,13 @@ def _render_god_mode_tab(party, state):
                 st.caption("背包為空")
             skills = char.skills or []
             if skills:
-                st.caption("技能: " + ", ".join(str(s) for s in skills))
+                skill_parts = []
+                for s in skills:
+                    if isinstance(s, dict):
+                        skill_parts.append(f"{s.get('skill','?').capitalize()} +{s.get('bonus',0)}")
+                    else:
+                        skill_parts.append(str(s))
+                st.caption("技能: " + ", ".join(skill_parts))
 
     # ----------------------------------------------------------------
     # ChromaDB RAG collections

@@ -135,6 +135,40 @@ SHOP_CATALOGUE = {
                                 'restricted_to': ['mage'],
                                 'description': 'Amplifies spell power (+25 max MP)'},
 
+    # ── Skill Books (Tier 1: +1 proficiency bonus) ───────────────────────────
+    'tome of athletics':      {'price': 150, 'type': 'skillbook', 'skill_granted': 'athletics',    'bonus': 1,
+                               'description': '學習後永久獲得 +1 體能（Athletics）熟練加值'},
+    'tome of intimidation':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'intimidation', 'bonus': 1,
+                               'description': '學習後永久獲得 +1 威嚇（Intimidation）熟練加值'},
+    'tome of acrobatics':     {'price': 150, 'type': 'skillbook', 'skill_granted': 'acrobatics',   'bonus': 1,
+                               'description': '學習後永久獲得 +1 特技（Acrobatics）熟練加值'},
+    'tome of stealth':        {'price': 150, 'type': 'skillbook', 'skill_granted': 'stealth',      'bonus': 1,
+                               'description': '學習後永久獲得 +1 潛行（Stealth）熟練加值'},
+    'tome of perception':     {'price': 150, 'type': 'skillbook', 'skill_granted': 'perception',   'bonus': 1,
+                               'description': '學習後永久獲得 +1 察覺（Perception）熟練加值'},
+    'tome of persuasion':     {'price': 150, 'type': 'skillbook', 'skill_granted': 'persuasion',   'bonus': 1,
+                               'description': '學習後永久獲得 +1 說服（Persuasion）熟練加值'},
+    'tome of medicine':       {'price': 180, 'type': 'skillbook', 'skill_granted': 'medicine',     'bonus': 1,
+                               'description': '學習後永久獲得 +1 醫療（Medicine）熟練加值'},
+    'tome of arcana':         {'price': 200, 'type': 'skillbook', 'skill_granted': 'arcana',       'bonus': 1,
+                               'restricted_to': ['mage', 'cleric'],
+                               'description': '學習後永久獲得 +1 奧術（Arcana）熟練加值（法師／牧師限定）'},
+
+    # ── Advanced Skill Books (Tier 2: +2 proficiency bonus) ──────────────────
+    'advanced stealth tome':     {'price': 400, 'type': 'skillbook', 'skill_granted': 'stealth',      'bonus': 2,
+                                  'description': '深度修煉：永久獲得 +2 潛行熟練加值'},
+    'advanced athletics tome':   {'price': 400, 'type': 'skillbook', 'skill_granted': 'athletics',    'bonus': 2,
+                                  'description': '深度修煉：永久獲得 +2 體能熟練加值'},
+    'advanced acrobatics tome':  {'price': 400, 'type': 'skillbook', 'skill_granted': 'acrobatics',   'bonus': 2,
+                                  'description': '深度修煉：永久獲得 +2 特技熟練加值'},
+    'advanced perception tome':  {'price': 400, 'type': 'skillbook', 'skill_granted': 'perception',   'bonus': 2,
+                                  'description': '深度修煉：永久獲得 +2 察覺熟練加值'},
+    'advanced persuasion tome':  {'price': 400, 'type': 'skillbook', 'skill_granted': 'persuasion',   'bonus': 2,
+                                  'description': '深度修煉：永久獲得 +2 說服熟練加值'},
+    'advanced arcana tome':      {'price': 500, 'type': 'skillbook', 'skill_granted': 'arcana',       'bonus': 2,
+                                  'restricted_to': ['mage'],
+                                  'description': '深度修煉：永久獲得 +2 奧術熟練加值（法師限定）'},
+
     # ── Chinese name aliases ──────────────────────────────────────────────────
     '治療藥水':   {'price': 50,  'type': 'consumable', 'description': '恢復 2d4+2 HP'},
     '大治療藥水': {'price': 120, 'type': 'consumable', 'description': '恢復 4d4+4 HP'},
@@ -165,6 +199,20 @@ SHOP_CATALOGUE = {
     '淨化捲軸':   {'price': 200, 'type': 'scroll',     'spell_key': 'lesser_restoration'},
     '奧術魔杖':   {'price': 320, 'type': 'weapon',     'atk_bonus': 2, 'mp_bonus': 15, 'restricted_to': ['mage']},
     '法術聚焦水晶': {'price': 280, 'type': 'accessory', 'mp_bonus': 25, 'restricted_to': ['mage']},
+    # Chinese skill book aliases
+    '體能之書':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'athletics',    'bonus': 1},
+    '威嚇之書':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'intimidation', 'bonus': 1},
+    '特技之書':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'acrobatics',   'bonus': 1},
+    '潛行之書':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'stealth',      'bonus': 1},
+    '察覺之書':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'perception',   'bonus': 1},
+    '說服之書':   {'price': 150, 'type': 'skillbook', 'skill_granted': 'persuasion',   'bonus': 1},
+    '醫療之書':   {'price': 180, 'type': 'skillbook', 'skill_granted': 'medicine',     'bonus': 1},
+    '奧術之書':   {'price': 200, 'type': 'skillbook', 'skill_granted': 'arcana',       'bonus': 1,
+                  'restricted_to': ['mage', 'cleric']},
+    '進階潛行典籍': {'price': 400, 'type': 'skillbook', 'skill_granted': 'stealth',    'bonus': 2},
+    '進階體能典籍': {'price': 400, 'type': 'skillbook', 'skill_granted': 'athletics',  'bonus': 2},
+    '進階奧術典籍': {'price': 500, 'type': 'skillbook', 'skill_granted': 'arcana',     'bonus': 2,
+                   'restricted_to': ['mage']},
 }
 
 # Items sell for this fraction of their listed price
