@@ -319,6 +319,9 @@ class EventManager:
                 current_state.known_entities = _ke_expire
                 flag_modified(current_state, 'known_entities')
 
+        # Tick elixir buffs at turn start (decrement durations, remove expired)
+        expired_buffs = CharacterLogic.tick_buffs(current_state, self.session)
+
         # --- Step 1: Retrieve long-term context from RAG ---
         rag_context = self.rag.retrieve_context(player_action)
 
@@ -581,6 +584,26 @@ class EventManager:
                         'spell_damage': spell_dmg,
                         'spell_key':    item_result['spell_key'],
                         'item_result':  item_result,
+                    }
+                elif item_result.get('item_type') == 'elixir':
+                    CharacterLogic.apply_buffs(
+                        current_state,
+                        item_result['buffs'],
+                        item_result['buff_duration'],
+                        item_result['item_name'],
+                        self.session,
+                    )
+                    _elixir_buff_desc = ', '.join(
+                        f"+{b['value']} {b['stat']}" if b['value'] >= 0 else f"{b['value']} {b['stat']}"
+                        for b in item_result['buffs']
+                    )
+                    utility_result = {
+                        'ability_name':    item_result['item_name'],
+                        'ability_key':     'elixir',
+                        'mp_cost':         0,
+                        'hp_healed':       0,
+                        'elixir_buff_desc': _elixir_buff_desc,
+                        'item_result':     item_result,
                     }
                 else:
                     utility_result = {
@@ -1093,6 +1116,12 @@ class EventManager:
                     outcome_parts.append(
                         f"Scroll deals {utility_result['spell_damage']} damage to {target}."
                     )
+            elif utility_result.get('ability_key') == 'elixir':
+                outcome_parts.append(
+                    f"[ELIXIR] {utility_result.get('ability_name')} 已使用："
+                    f"{utility_result.get('elixir_buff_desc', '')}，"
+                    f"持續 {utility_result.get('item_result', {}).get('buff_duration', '?')} 回合"
+                )
             elif utility_result.get('equipped'):
                 outcome_parts.append(
                     f"Equipped [{utility_result.get('item_name')}] in "
@@ -1245,6 +1274,16 @@ class EventManager:
                         " to maintain narrative momentum."
                     )
             outcome_parts.append(constraint)
+
+        active_buffs = current_state.active_buffs or []
+        if active_buffs:
+            buff_lines = [
+                f"  {b['stat']} +{b['value']} (還剩 {b['turns_left']} 回合, 來源: {b['source']})"
+                if b['value'] >= 0 else
+                f"  {b['stat']} {b['value']} (還剩 {b['turns_left']} 回合, 來源: {b['source']})"
+                for b in active_buffs
+            ]
+            outcome_parts.append("[ACTIVE BUFFS]\n" + "\n".join(buff_lines))
 
         outcome_context = "\n".join(outcome_parts)
 

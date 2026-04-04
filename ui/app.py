@@ -392,6 +392,10 @@ _UI_STRINGS = {
         "delete_failed":     "Failed to delete save '{save}'.",
         "overwrite_failed":  "Failed to overwrite.",
         "load_existing_failed": "Failed to load existing save.",
+        # Elixir buff system
+        "active_buffs_title": "Active Buffs",
+        "turns_left":         "turns left",
+        "type_elixir":        "Elixir",
     },
     "繁體中文": {
         "model_expander":      "⚙️ 模型與語言",
@@ -570,6 +574,10 @@ _UI_STRINGS = {
         "delete_failed":     "刪除存檔「{save}」失敗。",
         "overwrite_failed":  "覆蓋失敗。",
         "load_existing_failed": "載入現有存檔失敗。",
+        # Elixir buff system
+        "active_buffs_title": "生效中增益",
+        "turns_left":         "回合剩餘",
+        "type_elixir":        "藥劑",
     },
     "日本語": {
         "model_expander":      "⚙️ モデルと言語",
@@ -747,6 +755,10 @@ _UI_STRINGS = {
         "delete_failed":     "セーブ「{save}」の削除に失敗しました。",
         "overwrite_failed":  "上書きに失敗しました。",
         "load_existing_failed": "既存のセーブの読み込みに失敗しました。",
+        # Elixir buff system
+        "active_buffs_title": "アクティブバフ",
+        "turns_left":         "ターン残り",
+        "type_elixir":        "エリクサー",
     },
     "Español": {
         "model_expander":      "⚙️ Modelo e Idioma",
@@ -924,6 +936,10 @@ _UI_STRINGS = {
         "delete_failed":     "Error al eliminar '{save}'.",
         "overwrite_failed":  "Error al sobreescribir.",
         "load_existing_failed": "Error al cargar el guardado existente.",
+        # Elixir buff system
+        "active_buffs_title": "Aumentos Activos",
+        "turns_left":         "turnos restantes",
+        "type_elixir":        "Elixir",
     },
     "简体中文": {
         "model_expander":      "⚙️ 模型与语言",
@@ -1102,6 +1118,10 @@ _UI_STRINGS = {
         "delete_failed":     "删除存档「{save}」失败。",
         "overwrite_failed":  "覆盖失败。",
         "load_existing_failed": "加载现有存档失败。",
+        # Elixir buff system
+        "active_buffs_title": "生效中增益",
+        "turns_left":         "回合剩余",
+        "type_elixir":        "药剂",
     },
     "한국어": {
         "model_expander":      "⚙️ 모델 및 언어",
@@ -1279,6 +1299,10 @@ _UI_STRINGS = {
         "delete_failed":     "저장 '{save}' 삭제에 실패했습니다.",
         "overwrite_failed":  "덮어쓰기에 실패했습니다.",
         "load_existing_failed": "기존 저장 불러오기에 실패했습니다.",
+        # Elixir buff system
+        "active_buffs_title": "활성 버프",
+        "turns_left":         "턴 남음",
+        "type_elixir":        "엘릭서",
     },
     "Français": {
         "model_expander":      "⚙️ Modèle et langue",
@@ -1456,6 +1480,10 @@ _UI_STRINGS = {
         "delete_failed":     "Échec de la suppression de '{save}'.",
         "overwrite_failed":  "Échec de l'écrasement.",
         "load_existing_failed": "Échec du chargement de la sauvegarde existante.",
+        # Elixir buff system
+        "active_buffs_title": "Effets Actifs",
+        "turns_left":         "tours restants",
+        "type_elixir":        "Élixir",
     },
     "Deutsch": {
         "model_expander":      "⚙️ Modell & Sprache",
@@ -1633,6 +1661,10 @@ _UI_STRINGS = {
         "delete_failed":     "Spielstand '{save}' konnte nicht gelöscht werden.",
         "overwrite_failed":  "Überschreiben fehlgeschlagen.",
         "load_existing_failed": "Vorhandener Spielstand konnte nicht geladen werden.",
+        # Elixir buff system
+        "active_buffs_title": "Aktive Buffs",
+        "turns_left":         "Runden übrig",
+        "type_elixir":        "Elixier",
     },
 }
 
@@ -3048,6 +3080,17 @@ def _render_party_sidebar(party, state, active_char):
             if char.id == active_char.id:
                 _render_status_badges(player_buffs)
 
+        # Active buffs from elixirs
+        if not is_dead:
+            gs = st.session_state.get('game_state')
+            active_buffs = (gs.active_buffs or []) if gs else []
+            if active_buffs:
+                st.sidebar.markdown("**" + _t('active_buffs_title') + "**")
+                for buff in active_buffs:
+                    val = buff.get('value', 0)
+                    sign = '+' if val >= 0 else ''
+                    st.sidebar.caption(f"⚗️ {buff.get('source','?')}: {sign}{val} {buff.get('stat','?')} ({buff.get('turns_left','?')} {_t('turns_left')})")
+
         st.sidebar.markdown("---")
 
 
@@ -3148,6 +3191,7 @@ def _render_shop_panel(state, char):
         # Group items by type
         _TYPE_LABELS = {
             'consumable':  '🧪 消耗品',
+            'elixir':      '⚗️ ' + _t('type_elixir'),
             'throwable':   '💣 投擲物',
             'tool':        '🔧 工具',
             'skillbook':   '📖 技能書',
@@ -3211,6 +3255,13 @@ def _render_shop_panel(state, char):
                                 'stealth': '潛行', 'perception': '察覺', 'persuasion': '說服',
                                 'medicine': '醫療', 'arcana': '奧術'}.get(entry['skill_granted'], entry['skill_granted'])
                     bonuses.append(f"永久 +{entry['bonus']} {skill_zh}熟練")
+                # Elixir temporary buffs
+                if entry.get('type') == 'elixir' and entry.get('buffs'):
+                    buff_strs = []
+                    for b in entry['buffs']:
+                        v = b.get('value', 0)
+                        buff_strs.append(f"{'+' if v >= 0 else ''}{v} {b.get('stat','?')}")
+                    bonuses.append(f"⏳ {', '.join(buff_strs)} ×{entry.get('buff_duration', 3)}T")
                 bonus_str = f"  *({', '.join(bonuses)})*" if bonuses else ''
                 can_afford = (char.gold or 0) >= price
                 price_color = '#4ade80' if can_afford else '#f87171'

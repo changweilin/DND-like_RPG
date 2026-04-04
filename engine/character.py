@@ -138,6 +138,27 @@ class CharacterLogic:
         '進階潛行典籍':             {'type': 'skillbook', 'skill_granted': 'stealth',    'bonus': 2},
         '進階體能典籍':             {'type': 'skillbook', 'skill_granted': 'athletics',  'bonus': 2},
         '進階奧術典籍':             {'type': 'skillbook', 'skill_granted': 'arcana',     'bonus': 2},
+        # Elixirs — temporary stat buffs; buff data returned to events.py for game_state storage
+        'strength potion':        {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 2}], 'buff_duration': 3},
+        'iron skin potion':       {'type': 'elixir', 'buffs': [{'stat': 'def_stat', 'value': 2}], 'buff_duration': 3},
+        'swiftness potion':       {'type': 'elixir', 'buffs': [{'stat': 'mov', 'value': 1}], 'buff_duration': 3},
+        'berserker elixir':       {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 4}, {'stat': 'def_stat', 'value': -2}], 'buff_duration': 4},
+        'stone skin elixir':      {'type': 'elixir', 'buffs': [{'stat': 'def_stat', 'value': 4}, {'stat': 'mov', 'value': -1}], 'buff_duration': 4},
+        'mana surge elixir':      {'type': 'elixir', 'buffs': [{'stat': 'mp', 'value': 30}], 'buff_duration': 3},
+        'battle focus elixir':    {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 3}, {'stat': 'def_stat', 'value': 2}], 'buff_duration': 3},
+        'warlord draught':        {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 6}, {'stat': 'def_stat', 'value': 3}], 'buff_duration': 4},
+        'divine blessing elixir': {'type': 'elixir', 'buffs': [{'stat': 'def_stat', 'value': 6}, {'stat': 'mp', 'value': 40}], 'buff_duration': 5},
+        'arcane surge elixir':    {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 5}, {'stat': 'mp', 'value': 50}], 'buff_duration': 4},
+        '力量藥水':    {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 2}], 'buff_duration': 3},
+        '鐵皮藥水':    {'type': 'elixir', 'buffs': [{'stat': 'def_stat', 'value': 2}], 'buff_duration': 3},
+        '敏捷藥水':    {'type': 'elixir', 'buffs': [{'stat': 'mov', 'value': 1}], 'buff_duration': 3},
+        '狂戰士藥劑':  {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 4}, {'stat': 'def_stat', 'value': -2}], 'buff_duration': 4},
+        '岩膚藥劑':    {'type': 'elixir', 'buffs': [{'stat': 'def_stat', 'value': 4}, {'stat': 'mov', 'value': -1}], 'buff_duration': 4},
+        '法力湧動藥劑': {'type': 'elixir', 'buffs': [{'stat': 'mp', 'value': 30}], 'buff_duration': 3},
+        '戰鬥精華':    {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 3}, {'stat': 'def_stat', 'value': 2}], 'buff_duration': 3},
+        '戰王藥劑':    {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 6}, {'stat': 'def_stat', 'value': 3}], 'buff_duration': 4},
+        '神佑藥劑':    {'type': 'elixir', 'buffs': [{'stat': 'def_stat', 'value': 6}, {'stat': 'mp', 'value': 40}], 'buff_duration': 5},
+        '奧術爆發藥劑': {'type': 'elixir', 'buffs': [{'stat': 'atk', 'value': 5}, {'stat': 'mp', 'value': 50}], 'buff_duration': 4},
     }
 
     def use_item(self, item_name, dice_roller=None):
@@ -209,6 +230,18 @@ class CharacterLogic:
                 'item_type': 'scroll',
                 'spell_key': effect['spell_key'],
                 'hp_healed': 0,
+            }
+
+        # Elixirs — return buff data; events.py applies them to game_state.active_buffs
+        if effect.get('type') == 'elixir' and effect.get('buffs'):
+            self.remove_item(found['name'])
+            return {
+                'used':         True,
+                'item_name':    found['name'],
+                'item_type':    'elixir',
+                'buffs':        effect['buffs'],
+                'buff_duration': effect.get('buff_duration', 3),
+                'hp_healed':    0,
             }
 
         # Roll HP healing
@@ -332,6 +365,48 @@ class CharacterLogic:
         self.model.mp = self.model.max_mp or 50
         self.session.commit()
         return {'hp_restored': self.model.hp, 'mp_restored': self.model.mp}
+
+    # ── Temporary buffs (elixirs) ─────────────────────────────────────────────
+
+    @staticmethod
+    def tick_buffs(game_state, db_session):
+        """Decrement active buff turn counters; remove expired buffs. Call at turn start."""
+        from sqlalchemy.orm.attributes import flag_modified
+        buffs = list(game_state.active_buffs or [])
+        expired = []
+        remaining = []
+        for b in buffs:
+            b = dict(b)
+            b['turns_left'] = b.get('turns_left', 1) - 1
+            if b['turns_left'] > 0:
+                remaining.append(b)
+            else:
+                expired.append(b)
+        game_state.active_buffs = remaining
+        flag_modified(game_state, 'active_buffs')
+        db_session.commit()
+        return expired  # list of buffs that just wore off
+
+    @staticmethod
+    def apply_buffs(game_state, buffs, buff_duration, source, db_session):
+        """Append new buff entries to game_state.active_buffs."""
+        from sqlalchemy.orm.attributes import flag_modified
+        active = list(game_state.active_buffs or [])
+        for b in buffs:
+            active.append({
+                'stat':       b['stat'],
+                'value':      b['value'],
+                'turns_left': buff_duration,
+                'source':     source,
+            })
+        game_state.active_buffs = active
+        flag_modified(game_state, 'active_buffs')
+        db_session.commit()
+
+    @staticmethod
+    def get_buff_modifier(game_state, stat):
+        """Return the total active buff modifier for a given stat string."""
+        return sum(b.get('value', 0) for b in (game_state.active_buffs or []) if b.get('stat') == stat)
 
     # ── Equipment ─────────────────────────────────────────────────────────────
 

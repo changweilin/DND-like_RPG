@@ -149,6 +149,9 @@ class GameState(Base):
     # Cleared when combat ends (flee, victory, new encounter).
     used_combat_abilities = Column(JSON, default=list)
 
+    # [{stat, value, turns_left, source}] — temporary stat buffs from elixirs
+    active_buffs = Column(JSON, nullable=True, default=lambda: [])
+
 class EntityRelation(Base):
     """
     Directed edge in the entity relationship graph.
@@ -223,6 +226,7 @@ class DatabaseManager:
             "ALTER TABLE game_state ADD COLUMN quests TEXT DEFAULT '{}'",
             "ALTER TABLE characters ADD COLUMN pending_stat_points INTEGER DEFAULT 0",
             "ALTER TABLE game_state ADD COLUMN used_combat_abilities TEXT DEFAULT '[]'",
+            "ALTER TABLE game_state ADD COLUMN active_buffs TEXT DEFAULT '[]'",
         ]
         with engine.connect() as conn:
             for sql in migrations:
