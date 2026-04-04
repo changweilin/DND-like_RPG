@@ -1,11 +1,11 @@
 # data/monsters.py
 # DND-inspired monster & enemy NPC roster.
 #
-# Organised into 4 tiers matching the difficulty system:
-#   Tier 1 — easy    (CR 1/4–1)
-#   Tier 2 — normal  (CR 2–4)
-#   Tier 3 — hard    (CR 5–8)
-#   Tier 4 — deadly  (CR 9+, bosses)
+# Organised into 4 tiers matching the 3-tier learning curve + boss tier:
+#   Tier 1 — 初學 (Novice)          CR 1/4–1   Starter encounters
+#   Tier 2 — 冒險者 (Adventurer)    CR 2–4     Mid-game encounters
+#   Tier 3 — 後期 (Late-game)       CR 5–8     Challenging encounters
+#   Tier 4 — 精英首領 (Elite Boss)  CR 9+      Boss encounters; is_boss: True
 #
 # Base stats are calibrated for "normal" difficulty.
 # get_entity_base_stats() in intent_parser.py applies ±20% variance
@@ -528,7 +528,7 @@ MONSTER_ROSTER = {
 
     'stone_giant': {
         'display_name': 'Stone Giant', 'cn_name': '石巨人',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 126, 'atk': 17, 'def_stat': 14,
         'damage_dice': '3d8',
         'special_ability': 'stone_skin',
@@ -540,7 +540,7 @@ MONSTER_ROSTER = {
     },
     'vampire_lord': {
         'display_name': 'Vampire Lord', 'cn_name': '吸血鬼領主',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 144, 'atk': 17, 'def_stat': 16,
         'damage_dice': '2d8',
         'special_ability': 'life_drain',
@@ -552,7 +552,7 @@ MONSTER_ROSTER = {
     },
     'lich': {
         'display_name': 'Lich', 'cn_name': '巫妖',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 135, 'atk': 18, 'def_stat': 17,
         'damage_dice': '3d6',
         'special_ability': 'spellcasting',
@@ -564,7 +564,7 @@ MONSTER_ROSTER = {
     },
     'demon_lord': {
         'display_name': 'Demon Lord', 'cn_name': '惡魔領主',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 200, 'atk': 20, 'def_stat': 18,
         'damage_dice': '2d10',
         'special_ability': 'infernal_rage',
@@ -576,7 +576,7 @@ MONSTER_ROSTER = {
     },
     'ancient_dragon': {
         'display_name': 'Ancient Dragon', 'cn_name': '遠古巨龍',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 367, 'atk': 20, 'def_stat': 19,
         'damage_dice': '2d10',
         'special_ability': 'breath_weapon_fire',
@@ -588,7 +588,7 @@ MONSTER_ROSTER = {
     },
     'frost_dragon': {
         'display_name': 'Frost Dragon', 'cn_name': '冰霜龍',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 300, 'atk': 19, 'def_stat': 18,
         'damage_dice': '2d10',
         'special_ability': 'breath_weapon_cold',
@@ -600,7 +600,7 @@ MONSTER_ROSTER = {
     },
     'orc_warchief': {
         'display_name': 'Orc Warchief', 'cn_name': '獸人首領',
-        'tier': 4, 'type': 'boss',
+        'tier': 4, 'type': 'boss', 'is_boss': True,
         'hp': 93, 'atk': 16, 'def_stat': 14,
         'damage_dice': '2d8',
         'special_ability': 'multiattack_2',
