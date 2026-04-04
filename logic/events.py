@@ -2002,7 +2002,8 @@ class EventManager:
                             if b.get('key') != '_evasion'
                         ]
                         current_state.known_entities = known2
-                    effective_def = character.def_stat + shield_bonus
+                    buff_def = CharacterLogic.get_buff_modifier(current_state, 'def_stat')
+                    effective_def = character.def_stat + shield_bonus + buff_def
                     damage_taken = max(0, raw_dmg - (effective_def // 2))
                     counter_status = counter.get('status_applied')
                     # Apply lifesteal (wight / vampire_spawn) — read fresh after AI triggers

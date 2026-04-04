@@ -459,7 +459,7 @@ class CharacterLogic:
         # Two-handed weapon: clear off_hand sentinel/item first
         if item_type == 'two_handed':
             old_oh = equipment.get('off_hand')
-            if old_oh and not isinstance(old_oh, dict) or (isinstance(old_oh, dict) and '_two_hand_ref' not in old_oh):
+            if old_oh and (not isinstance(old_oh, dict) or '_two_hand_ref' not in old_oh):
                 # Real item in off_hand — return it to inventory
                 if old_oh:
                     oh_entry = get_shop_item(old_oh.get('name', '')) if isinstance(old_oh, dict) else None

@@ -351,6 +351,9 @@ class CombatEngine:
         auto_hit    = ability_def.get('auto_hit', False) if ability_def else False
 
         atk_modifier  = (character.atk - 10) // 2 + hit_penalty
+        # Add ATK buff from active elixirs
+        from engine.character import CharacterLogic as _CL
+        atk_modifier += _CL.get_buff_modifier(current_state, 'atk')
         raw_d20       = self.dice.roll('1d20')[2]
         attack_total  = raw_d20 + atk_modifier
         critical      = raw_d20 == 20
@@ -394,6 +397,7 @@ class CombatEngine:
                 # Apply stone_skin passive (flat reduction)
                 stone_skin = self._get_passive_reduction(target_entry)
                 net_damage = max(0, raw_damage - (target_def // 2) - stone_skin)
+                # Note: target_def here is the ENEMY's DEF — player buffs apply in counter-attack
 
             # Update entity HP in known_entities
             entity_hp_remaining = target_entry.get('hp')
@@ -612,7 +616,9 @@ class CombatEngine:
             counter = self.resolve_enemy_counter_attack(punisher, character)
             if counter.get('hit'):
                 raw_dmg = counter.get('raw_damage', 0)
-                damage_taken = max(0, raw_dmg - (character.def_stat // 2))
+                from engine.character import CharacterLogic as _CL
+                buff_def = _CL.get_buff_modifier(current_state, 'def_stat')
+                damage_taken = max(0, raw_dmg - ((character.def_stat + buff_def) // 2))
 
         return {
             'fled':         fled,

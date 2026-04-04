@@ -226,6 +226,7 @@ class SaveLoadManager:
                 gold=base['gold'],
                 inventory=[],
                 skills=[],
+                equipment={},
             )
             session.add(char)
             party.append(char)
