@@ -299,6 +299,8 @@ class EventManager:
         char_logic = CharacterLogic(self.session, character)
         world      = WorldManager(self.session, current_state)
         all_chars  = party if party else [character]
+        # Placeholder until LLM renders the narrative (used in buy/sell/bribe branches below)
+        characters_present = []
 
         # Restore once-per-combat ability usage from DB (survives page reloads)
         if current_state.in_combat:
@@ -306,10 +308,16 @@ class EventManager:
         else:
             self._used_abilities = set()
 
-        # Expire skill-combat flags from previous turns
+        # Expire skill-combat flags that are older than one full turn.
+        # Flags are set with _skill_flags_turn = turn_count at step 6.  The turn
+        # counter is incremented at the end of the SAME turn (step 10a), so on the
+        # next turn turn_count = N+1 while the flag records N.  Using strict "<"
+        # would clear flags immediately at the start of turn N+1 before they could
+        # ever be consumed.  Subtracting 1 keeps them alive for exactly one additional
+        # turn so the player can stealth on turn N and sneak-attack on turn N+1.
         _ke_expire = dict(current_state.known_entities or {})
         _flags_turn = _ke_expire.get('_skill_flags_turn', current_state.turn_count)
-        if _flags_turn < current_state.turn_count:
+        if _flags_turn < current_state.turn_count - 1:
             _expired = [k for k in list(_ke_expire.keys())
                         if k in ('_sneak_ready', '_perception_bonus', '_skill_flags_turn')
                         or k.startswith('_intimidated_') or k.startswith('_grappled_')]

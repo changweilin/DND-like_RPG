@@ -147,7 +147,7 @@ class GameState(Base):
     # Tracks once-per-combat abilities already used this combat encounter.
     # Stored as a list of ability key strings so it survives page reloads.
     # Cleared when combat ends (flee, victory, new encounter).
-    used_combat_abilities = Column(JSON, default=list)
+    used_combat_abilities = Column(JSON, default=lambda: [])
 
     # [{stat, value, turns_left, source}] — temporary stat buffs from elixirs
     active_buffs = Column(JSON, nullable=True, default=lambda: [])
