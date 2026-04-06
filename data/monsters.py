@@ -408,9 +408,22 @@ MONSTER_ROSTER = {
         'description': 'A living patch of darkness that whispers of oblivion.',
         'xp': 100,
     },
+    # ogre: added to fill the Tier 2 mid-range slot vacated by wight/werewolf
+    'ogre': {
+        'display_name': 'Ogre', 'cn_name': '食人魔',
+        'tier': 2, 'type': 'monster',
+        'hp': 35, 'atk': 13, 'def_stat': 9,
+        'damage_dice': '2d6',
+        'special_ability': 'rampage',
+        'resistances': [], 'weaknesses': [],
+        'undead': False, 'construct': False,
+        'loot': ['Ogre Club', 'Hide Sack', 'Stolen Gold'],
+        'description': 'A brutish hulk twice the size of a man, driven by hunger and rage.',
+        'xp': 300,
+    },
     'wight': {
         'display_name': 'Wight', 'cn_name': '幽靈騎士',
-        'tier': 2, 'type': 'monster',
+        'tier': 3, 'type': 'monster',   # promoted: HP 45 + life_drain exceeds Tier 2 range
         'hp': 45, 'atk': 12, 'def_stat': 10,
         'damage_dice': '1d8',
         'special_ability': 'life_drain',
@@ -418,7 +431,7 @@ MONSTER_ROSTER = {
         'undead': True, 'construct': False,
         'loot': ['Wight Soul Gem', 'Corroded Armour Piece', 'Ancient Coin'],
         'description': 'A fallen warrior encased in tarnished armour, its eyes like cold embers.',
-        'xp': 700,
+        'xp': 1800,
     },
     'harpy': {
         'display_name': 'Harpy', 'cn_name': '鷹身女妖',
@@ -434,7 +447,7 @@ MONSTER_ROSTER = {
     },
     'werewolf': {
         'display_name': 'Werewolf', 'cn_name': '狼人',
-        'tier': 2, 'type': 'monster',
+        'tier': 3, 'type': 'monster',   # promoted: HP 58 + silver immunity exceeds Tier 2 range
         'hp': 58, 'atk': 12, 'def_stat': 11,
         'damage_dice': '2d4',
         'special_ability': 'cursed_bite',
@@ -442,7 +455,7 @@ MONSTER_ROSTER = {
         'undead': False, 'construct': False,
         'loot': ['Silver-Tipped Arrow', 'Werewolf Pelt', 'Moon Stone'],
         'description': 'A towering half-man half-wolf that hunts by moonlight.',
-        'xp': 700,
+        'xp': 1800,
     },
 
     # ===================================================================
@@ -609,6 +622,96 @@ MONSTER_ROSTER = {
         'loot': ['Warchief Waraxe', 'Iron War Crown', 'Warchief Cloak'],
         'description': 'A scarred giant among orcs, who has clawed his way to power through pure savagery.',
         'xp': 5000,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Boss story hooks — deterministic consequences triggered when a Tier 4 boss
+# is defeated.  Each entry drives _apply_boss_story_hooks() in events.py.
+#
+# guaranteed_loot  — item names always added to inventory (skip 50 % roll)
+# narrative_hint   — injected into LLM outcome_context as STORY CONSEQUENCE
+# npc_changes      — {npc_display_name: affinity_delta} applied immediately
+# quest_name       — auto-complete the matching active quest (if it exists)
+# location_unlock  — string stored as _unlocked_<boss_key> in known_entities
+# ---------------------------------------------------------------------------
+
+BOSS_STORY_HOOKS = {
+    'orc_warchief': {
+        'guaranteed_loot': ['Warchief Waraxe'],
+        'narrative_hint': (
+            "The Orc Warchief falls. Without their warlord the orc warband "
+            "scatters in disarray. Nearby villages are now safe from raids. "
+            "Villagers and guards who lived in fear of orc attacks will be grateful."
+        ),
+        'npc_changes': {'Village Elder': 15, 'Town Guard Captain': 10},
+        'quest_name': 'Defeat the Orc Warchief',
+    },
+    'vampire_lord': {
+        'guaranteed_loot': ['Castle Key'],
+        'narrative_hint': (
+            "The Vampire Lord crumbles to ash. The dark curse shrouding the castle "
+            "begins to lift. The Castle Key in your hands now opens the sealed "
+            "inner sanctum. Surviving thralls and spawn flee into the night."
+        ),
+        'npc_changes': {'Castle Steward': 20},
+        'quest_name': 'Break the Vampire Curse',
+        'location_unlock': 'Vampire Lord Inner Sanctum',
+    },
+    'lich': {
+        'guaranteed_loot': ['Phylactery Shard'],
+        'narrative_hint': (
+            "The Lich's physical form is destroyed. Its phylactery cracks with a "
+            "sound like breaking worlds. The undead legions it commanded collapse "
+            "into inanimate bone. Ancient scholars will seek the Phylactery Shard."
+        ),
+        'npc_changes': {'Archmage Advisor': 25, 'Temple High Priest': 20},
+        'quest_name': 'Shatter the Lich Phylactery',
+        'location_unlock': 'Lich Tomb Lower Chambers',
+    },
+    'demon_lord': {
+        'guaranteed_loot': ['Infernal Contract'],
+        'narrative_hint': (
+            "The Demon Lord is banished back to the Abyss. The infernal rift seals "
+            "shut. The Infernal Contract it held — binding countless souls — is now "
+            "in your hands. Demonic cultists lose their patron and scatter in terror."
+        ),
+        'npc_changes': {'Arch-Priest': 30, 'Royal Emissary': 20},
+        'quest_name': 'Seal the Infernal Rift',
+        'location_unlock': 'Sealed Demonic Sanctum',
+    },
+    'ancient_dragon': {
+        'guaranteed_loot': ['Dragon Eye Gem'],
+        'narrative_hint': (
+            "The Ancient Dragon falls at last. A legendary deed — bards will sing "
+            "of this day for generations. The Dragon Eye Gem pulses with residual "
+            "draconic power. The vast hoard lies unguarded deep in the lair."
+        ),
+        'npc_changes': {'King': 35, 'Guild Master': 25},
+        'quest_name': 'Slay the Ancient Dragon',
+        'location_unlock': "Ancient Dragon's Hoard Vault",
+    },
+    'frost_dragon': {
+        'guaranteed_loot': ['Ice Heart Gem'],
+        'narrative_hint': (
+            "The Frost Dragon's corpse steams in the warming air. The perpetual "
+            "blizzard that blanketed the northern lands begins to fade. "
+            "The Ice Heart Gem contains the crystallised essence of its power."
+        ),
+        'npc_changes': {'Northern Tribe Elder': 25, 'Ice Fisher': 15},
+        'quest_name': 'End the Eternal Winter',
+        'location_unlock': 'Frost Dragon Ice Cavern',
+    },
+    'stone_giant': {
+        'guaranteed_loot': ['Giant Heart Stone'],
+        'narrative_hint': (
+            "The Stone Giant crashes to the ground. The mountain passes it "
+            "controlled are now open. Caravans and refugees can move freely again. "
+            "The Giant Heart Stone radiates immense earth-shaping power."
+        ),
+        'npc_changes': {'Merchant Guild Leader': 20, 'Mountain Guide': 15},
+        'quest_name': 'Clear the Mountain Pass',
+        'location_unlock': 'Eastern Mountain Pass',
     },
 }
 

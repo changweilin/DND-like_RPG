@@ -53,19 +53,19 @@ SHOP_CATALOGUE = {
     # ── Spell Scrolls ─────────────────────────────────────────────────────────
     'scroll of healing':       {'price': 150, 'type': 'scroll', 'tier': 1,
                                 'spell_key': 'healing_word',
-                                'description': 'One-use: cast Healing Word (4d4+4 HP restore)'},
+                                'description': 'One-use: cast Healing Word (1d6+2 HP restore)'},
     'scroll of fireball':      {'price': 350, 'type': 'scroll', 'tier': 2,
                                 'spell_key': 'fireball',
                                 'description': 'One-use: cast Fireball (3d6 fire damage, AoE)'},
     'scroll of protection':    {'price': 250, 'type': 'scroll', 'tier': 2,
                                 'spell_key': 'shield_of_faith',
-                                'description': 'One-use: cast Shield of Faith (+3 DEF for 2 turns)'},
+                                'description': 'One-use: cast Shield of Faith (divine protection, strengthened 2 turns)'},
     'scroll of restoration':   {'price': 280, 'type': 'scroll', 'tier': 2,
                                 'spell_key': 'lesser_restoration',
                                 'description': 'One-use: cure all status effects'},
     'scroll of lightning':     {'price': 350, 'type': 'scroll', 'tier': 2,
-                                'spell_key': 'lightning_bolt',
-                                'description': 'One-use: cast Lightning Bolt (2d8 lightning damage)'},
+                                'spell_key': 'lightning bolt',
+                                'description': 'One-use: cast Lightning Bolt (3d6 lightning damage)'},
 
     # ── Upgrade Kits ──────────────────────────────────────────────────────────
     'weapon upgrade kit':      {'price': 250, 'type': 'upgrade', 'tier': 2,

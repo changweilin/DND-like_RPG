@@ -525,6 +525,19 @@ class EventManager:
                         current_state.known_entities = known_mark
                         flag_modified(current_state, 'known_entities')
                         self.session.commit()
+                    # Boss story hooks: guaranteed loot, NPC changes, quest, location unlock
+                    if killed_entry.get('type') == 'boss':
+                        from data.monsters import BOSS_STORY_HOOKS
+                        _boss_key = tk.replace(' ', '_')
+                        _hooks = BOSS_STORY_HOOKS.get(_boss_key)
+                        if _hooks:
+                            loot_xp_result = loot_xp_result or {}
+                            loot_xp_result['_boss_story_hint'] = (
+                                self._apply_boss_story_hooks(
+                                    _boss_key, _hooks, character,
+                                    char_logic, current_state, world,
+                                )
+                            )
             # Apply status to target if ability triggered one
             if combat_result.get('status_applied') and combat_result['hit']:
                 self.combat.apply_status_to_entity(
@@ -1232,13 +1245,18 @@ class EventManager:
         if loot_xp_result:
             loot_line = (
                 f"Loot gained: {', '.join(loot_xp_result['loot_dropped'])}"
-                if loot_xp_result['loot_dropped'] else "No loot dropped"
+                if loot_xp_result.get('loot_dropped') else "No loot dropped"
             )
-            xp_line = f"XP gained: {loot_xp_result['xp_gained']}"
+            xp_line = f"XP gained: {loot_xp_result.get('xp_gained', 0)}"
             outcome_parts.append(f"{loot_line}. {xp_line}.")
             if loot_xp_result.get('leveled_up'):
                 outcome_parts.append(
                     f"LEVEL UP! {character.name} is now Level {loot_xp_result['new_level']}!"
+                )
+            # Boss story consequence — deterministic world change facts for LLM
+            if loot_xp_result.get('_boss_story_hint'):
+                outcome_parts.append(
+                    f"STORY CONSEQUENCE (hard fact): {loot_xp_result['_boss_story_hint']}"
                 )
 
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
@@ -2707,6 +2725,44 @@ class EventManager:
             'leveled_up':   leveled_up,
             'new_level':    new_level,
         }
+
+    def _apply_boss_story_hooks(self, boss_key, hooks, character, char_logic,
+                                current_state, world):
+        # Guaranteed loot (no 50 % roll)
+        for item_name in hooks.get('guaranteed_loot', []):
+            char_logic.add_item({'name': item_name, 'source': boss_key, 'guaranteed': True})
+
+        # Immediate NPC relationship deltas
+        for npc_name, delta in hooks.get('npc_changes', {}).items():
+            world.update_relationship(npc_name, delta)
+
+        # Auto-complete a named quest if it is currently active
+        quest_name = hooks.get('quest_name')
+        if quest_name:
+            quests = list(current_state.active_quests or [])
+            updated = False
+            for q in quests:
+                if isinstance(q, dict) and q.get('name') == quest_name and q.get('status') == 'active':
+                    q['status'] = 'completed'
+                    updated = True
+            if updated:
+                current_state.active_quests = quests
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(current_state, 'active_quests')
+                self.session.commit()
+
+        # Mark a new location as unlocked in known_entities
+        location_unlock = hooks.get('location_unlock')
+        if location_unlock:
+            known = dict(current_state.known_entities or {})
+            unlock_key = f'_unlocked_{boss_key}'
+            known[unlock_key] = {'type': 'location_unlock', 'name': location_unlock, 'alive': True}
+            current_state.known_entities = known
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(current_state, 'known_entities')
+            self.session.commit()
+
+        return hooks.get('narrative_hint', '')
 
     def _apply_death_penalty(self, character, char_logic, current_state):
         """
