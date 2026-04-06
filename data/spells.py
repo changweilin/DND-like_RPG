@@ -63,6 +63,17 @@ SPELL_COMPENDIUM = {
     '暗影步':            {'mp_cost': 2, 'status_apply': 'invisible'},
     '毒刃':              {'mp_cost': 2, 'damage_dice': '1d4', 'status_apply': 'poisoned'},
 
+    # ── Scroll-only spells (mp_cost=0 — consumed by item, not by caster MP) ───
+    # healing_word: lighter heal used by scroll of healing
+    'healing_word':       {'mp_cost': 0, 'heal_dice': '1d6+2',
+                           'description': 'A whispered prayer that mends wounds'},
+    # shield_of_faith: divine blessing that strengthens the recipient
+    'shield_of_faith':    {'mp_cost': 0, 'status_apply': 'strengthened',
+                           'description': 'A shimmering barrier of faith grants divine protection'},
+    # lesser_restoration: clears all status ailments (special logic in events.py)
+    'lesser_restoration': {'mp_cost': 0,
+                           'description': 'A cleansing light purges all ailments from the body'},
+
     # ── Warrior battle-magic ──────────────────────────────────────────────────
     'battle cry':        {'mp_cost': 2, 'status_apply': 'strengthened',
                           'description': 'A war cry that sharpens your battle focus'},

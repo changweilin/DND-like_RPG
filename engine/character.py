@@ -110,7 +110,7 @@ class CharacterLogic:
         '防護捲軸':             {'spell_key': 'shield_of_faith', 'type': 'scroll'},
         'scroll of restoration':{'spell_key': 'lesser_restoration', 'type': 'scroll'},
         '淨化捲軸':             {'spell_key': 'lesser_restoration', 'type': 'scroll'},
-        'scroll of lightning':  {'spell_key': 'lightning_bolt', 'type': 'scroll'},
+        'scroll of lightning':  {'spell_key': 'lightning bolt', 'type': 'scroll'},
         # Skill books — consuming grants a permanent proficiency bonus
         'tome of athletics':      {'type': 'skillbook', 'skill_granted': 'athletics',    'bonus': 1},
         'tome of intimidation':   {'type': 'skillbook', 'skill_granted': 'intimidation', 'bonus': 1},

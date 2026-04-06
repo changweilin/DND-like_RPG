@@ -17,12 +17,12 @@ LEVEL_XP_TABLE = [
     300,    # Lv 2
     900,    # Lv 3
     2700,   # Lv 4
-    6500,   # Lv 5
-    14000,  # Lv 6
-    23000,  # Lv 7
-    34000,  # Lv 8
-    48000,  # Lv 9
-    64000,  # Lv 10 (cap)
+    5000,   # Lv 5  (smoothed: was 6500)
+    9000,   # Lv 6  (smoothed: was 14000)
+    16000,  # Lv 7  (smoothed: was 23000)
+    26000,  # Lv 8  (smoothed: was 34000)
+    40000,  # Lv 9  (smoothed: was 48000)
+    58000,  # Lv 10 (smoothed: was 64000)
 ]
 MAX_LEVEL = len(LEVEL_XP_TABLE)
 

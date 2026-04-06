@@ -194,6 +194,13 @@ def _validated_narrative(data):
         defaults["choices"] = (defaults["choices"]
                                + ["Look around", "Wait and observe", "Ask for information"]
                                )[:3]
+    # Coerce list fields — LLM sometimes returns a comma-separated string instead of a list.
+    for _list_key in ("characters_present", "items_found", "quest_completed"):
+        v = defaults[_list_key]
+        if isinstance(v, str):
+            defaults[_list_key] = [s.strip() for s in v.split(',') if s.strip()]
+        elif not isinstance(v, list):
+            defaults[_list_key] = []
     return defaults
 
 def _validated_stat_block(data, entity_name):

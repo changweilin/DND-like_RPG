@@ -4506,10 +4506,11 @@ def _render_characters_tab(party, state, active_char):
             st.markdown(f"**{_t('equip_panel_hdr')}**")
             _db_eq   = st.session_state.save_manager.db
             _sess_eq = _db_eq.get_session()
-            from engine.character import CharacterLogic
-            from data.shop import get_shop_item
-            _char_logic = CharacterLogic(_sess_eq, char)
-            _equipment  = dict(char.equipment or {})
+            try:
+              from engine.character import CharacterLogic
+              from data.shop import get_shop_item
+              _char_logic = CharacterLogic(_sess_eq, char)
+              _equipment  = dict(char.equipment or {})
 
             def _render_equip_slot(slot, icon, label, col):
                 equipped_item = _equipment.get(slot)
@@ -4588,27 +4589,32 @@ def _render_characters_tab(party, state, active_char):
                                      use_container_width=True):
                             _char_logic.equip(item_nm)
                             st.rerun()
+            finally:
+                _sess_eq.close()
 
             # ── Relations for this character ─────────────────────────────
             try:
                 _db      = st.session_state.save_manager.db
                 _sess    = _db.get_session()
-                _world   = WorldManager(_sess, state)
-                char_key = str(char.name).lower()
-                char_rels = _world.get_relations('char', char_key)
-                if not char_rels:
-                    # also try by id string in case edges were stored that way
-                    char_rels = _world.get_relations('char', str(char.id))
-                if char_rels:
-                    # Build a lookup from org + NPC names
-                    _lk = {o['name'].lower(): o['name']
-                           for o in _world.list_organizations()}
-                    for npc in (state.relationships or {}):
-                        _lk[npc.lower()] = npc
-                    for c in party:
-                        _lk[c.name.lower()] = c.name
-                    with st.expander(_t('relations_expander'), expanded=False):
-                        _render_relation_rows(char_rels, char_key, _lk)
+                try:
+                    _world   = WorldManager(_sess, state)
+                    char_key = str(char.name).lower()
+                    char_rels = _world.get_relations('char', char_key)
+                    if not char_rels:
+                        # also try by id string in case edges were stored that way
+                        char_rels = _world.get_relations('char', str(char.id))
+                    if char_rels:
+                        # Build a lookup from org + NPC names
+                        _lk = {o['name'].lower(): o['name']
+                               for o in _world.list_organizations()}
+                        for npc in (state.relationships or {}):
+                            _lk[npc.lower()] = npc
+                        for c in party:
+                            _lk[c.name.lower()] = c.name
+                        with st.expander(_t('relations_expander'), expanded=False):
+                            _render_relation_rows(char_rels, char_key, _lk)
+                finally:
+                    _sess.close()
             except Exception:
                 pass
 
