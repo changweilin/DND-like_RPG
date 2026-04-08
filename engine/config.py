@@ -9,7 +9,7 @@ class GameConfig:
     # RTX 4090 (24 GB VRAM): "qwen2.5:32b" (Q4_K_M / Q5_K_M) — top-tier bilingual,
     #   or "ms3.2-24b" (Magnum Diamond) for literary RP quality.
     USER_VRAM_GB = 12
-    LLM_MODEL_NAME = "llama3"
+    LLM_MODEL_NAME = "dnd-storyteller"
     IMAGE_MODEL_NAME = "stabilityai/sdxl-turbo"
 
     # Fallback policies
