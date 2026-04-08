@@ -12,6 +12,10 @@ from engine.intent_parser import (
     get_entity_base_stats,
     calculate_affinity_delta,
 )
+from engine.combat import (CombatEngine, STATUS_EFFECTS, compute_level, xp_for_level,
+                           roll_loot, roll_combat_gold,
+                           DIFFICULTY_REWARD, DIFFICULTY_DEATH_PENALTY)
+from data.monsters import get_monster_by_name, get_special_ability
 
 # Rule engine constants for _calculate_mechanics()
 _MP_COST_TABLE = {
@@ -29,11 +33,39 @@ _HEAL_RE = re.compile(
     re.I,
 )
 
+# Regex for flee/escape intent
+_FLEE_RE = re.compile(
+    r'(flee|run away|escape|retreat|逃跑|逃走|撤退|逃離|落荒而逃|逃之夭夭)',
+    re.I,
+)
+
 def _char_similarity(a, b):
     """Character-set overlap: |chars(a) ∩ chars(b)| / min(len(a), len(b))"""
     if not a or not b:
         return 0.0
     return len(set(a) & set(b)) / min(len(a), len(b))
+
+def _fmt_inventory_block(character):
+    """
+    Build a compact inventory + equipment string for the LLM system prompt.
+    Keeps the prompt short: max 10 inventory items, single line each.
+    Returns an empty string when both inventory and equipment are empty.
+    """
+    lines = []
+    equip = character.equipment or {}
+    equip_parts = []
+    for slot, item in equip.items():
+        if item:
+            equip_parts.append(f"{item.get('name', slot)}")
+    if equip_parts:
+        lines.append(f"Equipped: {', '.join(equip_parts)}.")
+    inv = list(character.inventory or [])
+    if inv:
+        names = [it.get('name', it) if isinstance(it, dict) else str(it) for it in inv[:10]]
+        suffix = f' (+{len(inv) - 10} more)' if len(inv) > 10 else ''
+        lines.append(f"Inventory: {', '.join(names)}{suffix}.")
+    return '\n'.join(lines) + '\n' if lines else ''
+
 
 # Human-readable labels for the rule engine's outcome codes
 _OUTCOME_LABELS = {
@@ -241,10 +273,13 @@ class EventManager:
     """
 
     def __init__(self, llm_client, rag_system, db_session):
-        self.llm  = llm_client
-        self.rag  = rag_system
+        self.llm     = llm_client
+        self.rag     = rag_system
         self.session = db_session
-        self.dice = DiceRoller()
+        self.dice    = DiceRoller()
+        self.combat  = CombatEngine(self.dice)
+        # Track once-per-combat ability usage per game-session (cleared on new combat)
+        self._used_abilities = set()
 
     # ------------------------------------------------------------------
     # Public API
@@ -265,12 +300,41 @@ class EventManager:
         world      = WorldManager(self.session, current_state)
         all_chars  = party if party else [character]
 
+        # Restore once-per-combat ability usage from DB (survives page reloads)
+        if current_state.in_combat:
+            self._used_abilities = set(current_state.used_combat_abilities or [])
+        else:
+            self._used_abilities = set()
+
+        # Expire skill-combat flags from previous turns
+        _ke_expire = dict(current_state.known_entities or {})
+        _flags_turn = _ke_expire.get('_skill_flags_turn', current_state.turn_count)
+        if _flags_turn < current_state.turn_count:
+            _expired = [k for k in list(_ke_expire.keys())
+                        if k in ('_sneak_ready', '_perception_bonus', '_skill_flags_turn')
+                        or k.startswith('_intimidated_') or k.startswith('_grappled_')]
+            if _expired:
+                for k in _expired:
+                    _ke_expire.pop(k, None)
+                current_state.known_entities = _ke_expire
+                flag_modified(current_state, 'known_entities')
+
+        # Tick elixir buffs at turn start (decrement durations, remove expired)
+        expired_buffs = CharacterLogic.tick_buffs(current_state, self.session)
+
         # --- Step 1: Retrieve long-term context from RAG ---
         rag_context = self.rag.retrieve_context(player_action)
 
         # --- Step 2: Seed world lore on the very first turn (TaskingAI style) ---
         if (current_state.turn_count or 0) == 0 and not self.rag.world_lore_seeded():
             self._seed_world_lore(current_state)
+
+        # --- Step 2.5: Tick player status effects at turn start ---
+        player_status_tick = self.combat.tick_player_status_effects(current_state)
+        if player_status_tick.get('damage', 0) > 0:
+            char_logic.take_damage(player_status_tick['damage'])
+        flag_modified(current_state, 'known_entities')
+        self.session.commit()
 
         # --- Step 3: Parse intent — rule engine first, LLM fallback ---
         # Rule engine handles clear keyword patterns (attack, magic, stealth, social …)
@@ -280,6 +344,7 @@ class EventManager:
             player_action,
             known_entities=current_state.known_entities or {},
             difficulty=current_state.difficulty or 'Normal',
+            char_class=character.char_class,
         )
         if intent is None:
             game_context_summary = (
@@ -290,19 +355,515 @@ class EventManager:
             )
             intent = self.llm.parse_intent(player_action, game_context_summary)
 
+        # Ensure class_ability key is always present (LLM path may omit it)
+        if 'class_ability' not in intent:
+            from engine.combat import detect_class_ability
+            intent['class_ability'] = detect_class_ability(player_action, character.char_class)
+
+        # --- Step 3.5: Flee mechanics (deterministic MOV check) ---
+        # Detected before Step 4/5 so we can short-circuit combat processing.
+        flee_result = None
+        if _FLEE_RE.search(player_action) and current_state.in_combat:
+            # Check if player used a smoke bomb this turn — reduces flee DC by 4
+            known_ents_now = dict(current_state.known_entities or {})
+            smoke_bonus = 4 if known_ents_now.pop('_smoke_active', False) else 0
+            if smoke_bonus:
+                current_state.known_entities = known_ents_now
+                flag_modified(current_state, 'known_entities')
+            flee_result = self.combat.resolve_flee(character, current_state,
+                                                   smoke_bonus=smoke_bonus)
+            if flee_result['fled']:
+                current_state.in_combat = 0
+                self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
+            else:
+                # Failed flee: apply counter-attack damage
+                if flee_result['damage_taken'] > 0:
+                    char_logic.take_damage(flee_result['damage_taken'])
+            self.session.commit()
+
+        # Unconditionally clear smoke flag so it cannot carry over to future turns
+        _ke_tmp = dict(current_state.known_entities or {})
+        if '_smoke_active' in _ke_tmp:
+            _ke_tmp.pop('_smoke_active')
+            current_state.known_entities = _ke_tmp
+            flag_modified(current_state, 'known_entities')
+            self.session.commit()
+
+        # --- Step 3.6: Random encounter on travel actions ---
+        random_encounter_entry = None
+        if intent.get('action_type') == 'travel' and not current_state.in_combat:
+            encounter_chance = config.RANDOM_ENCOUNTER_CHANCE
+            roll_val, _, _ = self.dice.roll('1d20')
+            if roll_val <= int(encounter_chance * 20):
+                # Pick a tier-appropriate random monster
+                from data.monsters import MONSTER_ROSTER
+                player_lvl = character.level or 1
+                if player_lvl <= 2:
+                    tiers = [1, 2]
+                elif player_lvl <= 5:
+                    tiers = [2, 3]
+                else:
+                    tiers = [3, 4]
+                candidates = [m for m in MONSTER_ROSTER if m.get('tier') in tiers]
+                if candidates:
+                    monster = random.choice(candidates)
+                    enc_name = monster['name'].lower()
+                    if enc_name not in (current_state.known_entities or {}):
+                        self._generate_and_store_stat_block(
+                            monster['name'], {'action_type': 'attack'}, current_state
+                        )
+                    random_encounter_entry = monster
+                    # Inject as attack intent so combat begins
+                    intent = dict(intent)
+                    intent['action_type'] = 'attack'
+                    intent['target']      = monster['name'].lower()
+
         # --- Step 4: Dynamic entity stat block (Infinite Monster Engine) ---
         target = intent.get('target', '').strip()
-        if target and not self.rag.entity_stat_block_exists(target):
+        # Detect "3 goblins" / "goblin x3" patterns → spawn multiple instances
+        _spawn_count, _base_name = self._parse_multi_enemy_count(target)
+        if _spawn_count > 1:
+            spawned_keys = self._spawn_multi_enemies(_base_name, _spawn_count, intent, current_state)
+            # Redirect first-attack target to the first instance key
+            target = spawned_keys[0] if spawned_keys else target
+            intent  = dict(intent); intent['target'] = target
+        elif target and not self.rag.entity_stat_block_exists(target):
             self._generate_and_store_stat_block(target, intent, current_state)
+
+        # Detect boss first-encounter (tier=4 entity just registered, not yet seen before)
+        boss_encounter_entry = None
+        if target:
+            _tk = target.lower()
+            _entity = (current_state.known_entities or {}).get(_tk, {})
+            if (_entity.get('type') in ('boss',) and _entity.get('alive', True)
+                    and not _entity.get('boss_announced')):
+                roster_entry = get_monster_by_name(target)
+                if roster_entry and roster_entry.get('tier', 0) >= 4:
+                    boss_encounter_entry = dict(roster_entry)
+                    boss_encounter_entry['hp']     = _entity.get('hp', roster_entry['hp'])
+                    boss_encounter_entry['max_hp'] = _entity.get('max_hp', roster_entry['hp'])
+                    # Mark so we don't re-announce on subsequent turns
+                    _known_mark = dict(current_state.known_entities or {})
+                    _e2 = dict(_known_mark.get(_tk, {})); _e2['boss_announced'] = True
+                    _known_mark[_tk] = _e2
+                    current_state.known_entities = _known_mark
+                    flag_modified(current_state, 'known_entities')
+                    self.session.commit()
 
         # --- Step 5: Combat rule engine (Section 3.3) ---
         # Fully deterministic: attack roll → hit/miss → damage roll → net damage.
         # The LLM is never asked to adjudicate combat — it only narrates the result.
-        combat_result = None
-        if intent.get('action_type') == 'attack' and target:
-            combat_result = self._resolve_combat(character, char_logic, target, current_state)
+        combat_result  = None
+        utility_result = None
+        class_ability  = intent.get('class_ability')
+        loot_xp_result = None   # populated after combat kill (Step 5 → Step 8 boundary)
+        # Pre-combat skill flag defaults (overridden inside the attack block if flags were set)
+        _sneak_ready      = False
+        _perception_bonus = False
+        _intimidated      = False
+        _grappled         = False
+
+        if intent.get('action_type') == 'attack' and target and not flee_result:
+            # Consume pre-combat skill flags
+            _known_now = dict(current_state.known_entities or {})
+            _sneak_ready      = _known_now.pop('_sneak_ready', False)
+            _perception_bonus = _known_now.pop('_perception_bonus', False)
+            _target_key       = target.lower().replace(' ', '_') if target else ''
+            _intimidated      = _known_now.pop(f'_intimidated_{_target_key}', False)
+            _grappled         = _known_now.pop(f'_grappled_{_target_key}', False)
+            if any([_sneak_ready, _perception_bonus, _intimidated, _grappled]):
+                current_state.known_entities = _known_now
+                flag_modified(current_state, 'known_entities')
+
+            combat_result = self.combat.resolve_attack(
+                character, char_logic, target, current_state,
+                class_ability_key=class_ability,
+            )
+
+            # Apply sneak attack bonus damage on hit
+            if _sneak_ready and combat_result.get('hit'):
+                _, _, sneak_bonus = self.dice.roll('1d6')
+                combat_result['sneak_attack_bonus'] = sneak_bonus
+                combat_result['net_damage'] = (combat_result.get('net_damage', 0) + sneak_bonus)
+
+            # Perception bonus: suppress enemy counter-attack this turn
+            if _perception_bonus:
+                combat_result['_suppress_counter'] = True
+
+            # Intimidated: enemy counter-attack is suppressed this turn
+            if _intimidated:
+                combat_result['_suppress_counter'] = True
+
+            # Grappled: mark penalty on enemy counter (read in _calculate_mechanics)
+            if _grappled:
+                combat_result['_grapple_atk_penalty'] = 2
             if combat_result['hit'] and combat_result['net_damage'] > 0:
                 self._apply_combat_damage_to_entity(target, combat_result['net_damage'], current_state)
+                # Pre-compute loot/XP so it's available for narrative injection (Step 7)
+                killed_entry = (current_state.known_entities or {}).get(target.lower(), {})
+                if (not killed_entry.get('alive', True)
+                        and killed_entry.get('type') in ('monster', 'boss', 'guard')
+                        and not killed_entry.get('loot_granted')):
+                    loot_xp_result = self._grant_loot_and_xp(
+                        target.lower(), killed_entry, character, char_logic, current_state
+                    )
+                    known_mark = dict(current_state.known_entities or {})
+                    tk = target.lower()
+                    if tk in known_mark:
+                        e2 = dict(known_mark[tk]); e2['loot_granted'] = True
+                        known_mark[tk] = e2
+                        current_state.known_entities = known_mark
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+            # Apply status to target if ability triggered one
+            if combat_result.get('status_applied') and combat_result['hit']:
+                self.combat.apply_status_to_entity(
+                    target.lower(), combat_result['status_applied'], current_state
+                )
+                flag_modified(current_state, 'known_entities')
+                self.session.commit()
+            # Handle AoE: apply damage to all other living enemies
+            if combat_result.get('ability_aoe'):
+                known = current_state.known_entities or {}
+                aoe_targets = []
+                for k, e in known.items():
+                    if k.startswith('_') or k == target.lower():
+                        continue
+                    if e.get('alive', True):
+                        self._apply_combat_damage_to_entity(k, combat_result['net_damage'], current_state)
+                        aoe_targets.append(k)
+                combat_result['aoe_targets'] = aoe_targets
+
+            # Consume once-per-combat abilities
+            if class_ability:
+                from engine.combat import get_ability_definition
+                adef = get_ability_definition(character.char_class, class_ability)
+                if adef and adef.get('once_per_combat'):
+                    self._used_abilities.add(class_ability)
+                    current_state.used_combat_abilities = list(self._used_abilities)
+                    flag_modified(current_state, 'used_combat_abilities')
+
+        elif intent.get('action_type') == 'item_use':
+            # --- Item use (consumable / throwable / scroll) ---
+            item_name   = intent.get('target', '') or intent.get('summary', '')
+            item_result = char_logic.use_item(item_name, dice_roller=self.dice)
+            if item_result.get('used'):
+                # Spell scroll — resolve via spell compendium (no MP cost)
+                if item_result.get('item_type') == 'scroll' and item_result.get('spell_key'):
+                    from data.spells import get_spell
+                    spell = get_spell(item_result['spell_key'])
+                    spell_dmg = 0; hp_healed_scroll = 0; status_key = None
+                    if spell:
+                        if spell.get('damage_dice') and target:
+                            _, _, spell_dmg = self.dice.roll(spell['damage_dice'])
+                            self._apply_combat_damage_to_entity(target, spell_dmg, current_state)
+                            if spell.get('aoe'):
+                                for k, e in (current_state.known_entities or {}).items():
+                                    if not k.startswith('_') and k != target.lower() and e.get('alive', True):
+                                        self._apply_combat_damage_to_entity(k, spell_dmg, current_state)
+                        if spell.get('heal_dice'):
+                            _, _, hp_healed_scroll = self.dice.roll(spell['heal_dice'])
+                            char_logic.heal(hp_healed_scroll)
+                        if spell.get('status_apply') and target:
+                            status_key = spell['status_apply']
+                            self.combat.apply_status_to_entity(target, status_key, current_state)
+                        # lesser_restoration clears all player status effects
+                        if item_result['spell_key'] == 'lesser_restoration':
+                            known_buffs = dict(current_state.known_entities or {})
+                            known_buffs['_player_buffs'] = []
+                            current_state.known_entities = known_buffs
+                            flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+                    utility_result = {
+                        'ability_name': item_result['item_name'],
+                        'ability_key':  'scroll',
+                        'mp_cost':      0,
+                        'hp_healed':    hp_healed_scroll,
+                        'spell_damage': spell_dmg,
+                        'spell_key':    item_result['spell_key'],
+                        'item_result':  item_result,
+                    }
+                elif item_result.get('item_type') == 'elixir':
+                    CharacterLogic.apply_buffs(
+                        current_state,
+                        item_result['buffs'],
+                        item_result['buff_duration'],
+                        item_result['item_name'],
+                        self.session,
+                    )
+                    _elixir_buff_desc = ', '.join(
+                        f"+{b['value']} {b['stat']}" if b['value'] >= 0 else f"{b['value']} {b['stat']}"
+                        for b in item_result['buffs']
+                    )
+                    utility_result = {
+                        'ability_name':    item_result['item_name'],
+                        'ability_key':     'elixir',
+                        'mp_cost':         0,
+                        'hp_healed':       0,
+                        'elixir_buff_desc': _elixir_buff_desc,
+                        'item_result':     item_result,
+                    }
+                else:
+                    utility_result = {
+                        'ability_name':   item_result['item_name'],
+                        'ability_key':    'item_use',
+                        'mp_cost':        0,
+                        'hp_healed':      item_result.get('hp_healed', 0),
+                        'mp_restored':    item_result.get('mp_restored', 0),
+                        'def_bonus':      0,
+                        'fled_enemies':   [],
+                        'damage_reduction': 0.0,
+                        'item_result':    item_result,
+                    }
+                    # Apply status cures to player
+                    if item_result.get('cures_status'):
+                        known3 = dict(current_state.known_entities or {})
+                        buffs3 = [b for b in known3.get('_player_buffs', [])
+                                  if b.get('key') != item_result['cures_status']]
+                        known3['_player_buffs'] = buffs3
+                        current_state.known_entities = known3
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+                    # Smoke bomb boosts flee DC this turn
+                    if item_result.get('smoke_escape'):
+                        current_state.known_entities = dict(
+                            current_state.known_entities or {},
+                            _smoke_active=True,
+                        )
+                        flag_modified(current_state, 'known_entities')
+                    # Throwable: apply damage and/or status to target(s)
+                    if (item_result.get('damage_dice') or item_result.get('apply_status')) and target:
+                        throw_dmg = 0
+                        if item_result.get('damage_dice'):
+                            _, _, throw_dmg = self.dice.roll(item_result['damage_dice'])
+                            self._apply_combat_damage_to_entity(target, throw_dmg, current_state)
+                        if item_result.get('apply_status'):
+                            self.combat.apply_status_to_entity(
+                                target.lower(), item_result['apply_status'], current_state
+                            )
+                        if item_result.get('aoe'):
+                            known_aoe = current_state.known_entities or {}
+                            for k, e in list(known_aoe.items()):
+                                if not k.startswith('_') and k != target.lower() and e.get('alive', True):
+                                    if throw_dmg:
+                                        self._apply_combat_damage_to_entity(k, throw_dmg, current_state)
+                                    if item_result.get('apply_status'):
+                                        self.combat.apply_status_to_entity(
+                                            k, item_result['apply_status'], current_state
+                                        )
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+            else:
+                utility_result = {'error': f"No item '{item_name}' in inventory"}
+
+        elif intent.get('action_type') in ('magic', 'direct_action') and class_ability:
+            # Utility ability (heal, shield, turn undead, evasion, etc.)
+            from engine.combat import get_ability_definition
+            adef = get_ability_definition(character.char_class, class_ability)
+            if adef and not char_logic.can_use_ability(class_ability, self._used_abilities):
+                utility_result = {'error': 'Cannot use ability', 'ability_key': class_ability}
+            elif adef and (adef.get('heal_dice') or adef.get('def_bonus')
+                           or adef.get('affects_undead_only') or adef.get('damage_reduction')):
+                utility_result = self.combat.resolve_utility_ability(
+                    character, char_logic, target, current_state, class_ability
+                )
+                if adef.get('once_per_combat'):
+                    self._used_abilities.add(class_ability)
+                    current_state.used_combat_abilities = list(self._used_abilities)
+                    flag_modified(current_state, 'used_combat_abilities')
+
+        elif intent.get('action_type') == 'magic' and not class_ability:
+            # Named spell cast — look up in spell compendium
+            from data.spells import get_spell
+            from engine.intent_parser import _CAST_NAME_RE
+            spell_name_match = _CAST_NAME_RE.search(player_action)
+            spell_name = spell_name_match.group(1).strip() if spell_name_match else ''
+            spell = get_spell(spell_name) if spell_name else None
+            if spell:
+                mp_cost = spell.get('mp_cost', 2)
+                if character.mp < mp_cost:
+                    utility_result = {'error': 'Not enough MP', 'mp_cost': mp_cost}
+                else:
+                    hp_healed_spell = 0
+                    spell_damage = 0
+                    if spell.get('heal_dice'):
+                        _, _, hp_healed_spell = self.dice.roll(spell['heal_dice'])
+                        char_logic.heal(hp_healed_spell)
+                    if spell.get('damage_dice') and target:
+                        _, _, raw_dmg = self.dice.roll(spell['damage_dice'])
+                        # Radiant/holy bonus vs undead
+                        entity_data = (current_state.known_entities or {}).get(target, {})
+                        is_undead = 'undead' in entity_data.get('description', '').lower()
+                        if spell.get('undead_only') and not is_undead:
+                            raw_dmg = max(1, raw_dmg // 2)
+                        self._apply_combat_damage_to_entity(target, raw_dmg, current_state)
+                        spell_damage = raw_dmg
+                        if spell.get('aoe'):
+                            for k, e in (current_state.known_entities or {}).items():
+                                if not k.startswith('_') and k != target and e.get('alive', True):
+                                    self._apply_combat_damage_to_entity(k, raw_dmg, current_state)
+                    if spell.get('status_apply') and target:
+                        self.combat.apply_status_to_entity(
+                            target, spell['status_apply'], current_state
+                        )
+                        flag_modified(current_state, 'known_entities')
+                        self.session.commit()
+                    char_logic.use_mp(mp_cost)
+                    utility_result = {
+                        'ability_name': spell_name,
+                        'ability_key':  'spell',
+                        'mp_cost':      mp_cost,
+                        'hp_healed':    hp_healed_spell,
+                        'spell_damage': spell_damage,
+                        'spell':        spell,
+                    }
+
+        elif intent.get('action_type') == 'short_rest':
+            if current_state.in_combat:
+                utility_result = {'error': 'Cannot rest during combat'}
+            else:
+                healed = char_logic.short_rest(self.dice)
+                utility_result = {'rest_type': 'short', 'hp_healed': healed}
+
+        elif intent.get('action_type') == 'long_rest':
+            if current_state.in_combat:
+                utility_result = {'error': 'Cannot rest during combat'}
+            else:
+                char_logic.long_rest()
+                utility_result = {
+                    'rest_type': 'long',
+                    'hp_restored': character.max_hp,
+                    'mp_restored': character.max_mp,
+                }
+
+        elif intent.get('action_type') == 'buy':
+            item_name = intent.get('target', '')
+            # Apply faction reputation price modifier from any merchant NPC present
+            faction_mult = 1.0
+            for npc_name in (characters_present or []):
+                # Detect merchant NPCs by entity type
+                known_ent = (current_state.known_entities or {}).get(npc_name.lower(), {})
+                if known_ent.get('type') == 'merchant':
+                    faction_mult = world.get_faction_price_modifier(npc_name)
+                    break
+            from data.shop import get_shop_item
+            shop_entry = get_shop_item(item_name)
+            adj_price = None
+            if shop_entry and faction_mult != 1.0:
+                adj_price = max(1, int(shop_entry['price'] * faction_mult))
+            buy_result = char_logic.buy_item(item_name, price=adj_price)
+            buy_result['faction_mult'] = faction_mult
+            utility_result = {'trade': 'buy', **buy_result}
+
+        elif intent.get('action_type') == 'sell':
+            item_name = intent.get('target', '')
+            # Apply faction reputation modifier: friendly merchants pay more
+            faction_mult = 1.0
+            for npc_name in (characters_present or []):
+                known_ent = (current_state.known_entities or {}).get(npc_name.lower(), {})
+                if known_ent.get('type') == 'merchant':
+                    raw_mult = world.get_faction_price_modifier(npc_name)
+                    # Invert: if merchant charges less (0.9), they also pay more (1.1)
+                    faction_mult = max(0.5, min(1.5, 2.0 - raw_mult))
+                    break
+            sell_result = char_logic.sell_item(item_name, price_mult=faction_mult)
+            sell_result['faction_mult'] = faction_mult
+            sell_result['item_name']    = item_name
+            utility_result = {'trade': 'sell', **sell_result}
+
+        elif intent.get('action_type') == 'bribe':
+            target_npc   = intent.get('target', '')
+            bribe_amount = int(intent.get('bribe_amount') or 0)
+            # Default: 10% of current gold (min 20g, max current gold)
+            if bribe_amount <= 0:
+                bribe_amount = max(20, int((character.gold or 0) * 0.10))
+            bribe_amount = min(bribe_amount, character.gold or 0)
+            if (character.gold or 0) < bribe_amount or bribe_amount <= 0:
+                utility_result = {
+                    'bribe': True, 'success': False,
+                    'reason': 'insufficient_gold',
+                    'target': target_npc, 'amount': bribe_amount,
+                }
+            else:
+                character.gold = (character.gold or 0) - bribe_amount
+                # Affinity delta: every 10g ≈ +1 affinity, capped at +15 per bribe
+                affinity_delta = min(15, max(1, bribe_amount // 10))
+                bribe_targets = []
+                if target_npc:
+                    world.update_relationship(target_npc, affinity_delta)
+                    bribe_targets.append(target_npc)
+                else:
+                    # No named target — apply to first present NPC
+                    for npc in (characters_present or []):
+                        world.update_relationship(npc, affinity_delta)
+                        bribe_targets.append(npc)
+                        break
+                self.session.commit()
+                utility_result = {
+                    'bribe': True, 'success': True,
+                    'target': ', '.join(bribe_targets) or target_npc,
+                    'amount': bribe_amount,
+                    'affinity_delta': affinity_delta,
+                }
+
+        elif intent.get('action_type') == 'upgrade':
+            item_target = (intent.get('target') or '').lower()
+            # Infer which kit to use from the target description
+            _WEAPON_WORDS = {'weapon', 'sword', 'staff', 'bow', 'mace', 'blade', 'dagger',
+                              '武器', '劍', '杖', '弓', '錘'}
+            _ARMOR_WORDS  = {'armor', 'armour', 'shield', 'mail', 'plate', 'leather',
+                              '防具', '甲', '盾', '鎧'}
+            _MAGIC_WORDS  = {'enchant', 'magic', 'arcane', '附魔', '魔法', 'rune', '符文'}
+            if any(w in item_target for w in _MAGIC_WORDS):
+                # Let the player specify; default weapon enchant
+                kit_name = 'enchanting stone' if any(w in item_target for w in _WEAPON_WORDS) else 'reinforcement rune'
+            elif any(w in item_target for w in _ARMOR_WORDS):
+                kit_name = 'armor repair kit'
+            else:
+                kit_name = 'weapon upgrade kit'   # default
+            result = char_logic.apply_upgrade(kit_name)
+            utility_result = {'upgrade': True, 'kit': kit_name, **result}
+
+        elif intent.get('action_type') == 'equip':
+            item_name = intent.get('target', '')
+            slot = char_logic.equip(item_name)
+            utility_result = {'equipped': bool(slot), 'slot': slot, 'item_name': item_name}
+
+        elif intent.get('action_type') == 'unequip':
+            item_name = intent.get('target', '')
+            # Support slot name OR item name (9-slot system)
+            _slot_alias = {
+                'weapon': 'main_hand', '武器': 'main_hand', '主手': 'main_hand',
+                'armor':  'body',      '防具': 'body',      '身體': 'body',
+                'accessory': 'necklace', '飾品': 'necklace',
+                'main_hand': 'main_hand', 'off_hand': 'off_hand',
+                '副手': 'off_hand',
+                'head': 'head',   '頭部': 'head',
+                'body': 'body',
+                'hands': 'hands', '手部': 'hands',
+                'feet':  'feet',  '腳部': 'feet',
+                'necklace': 'necklace', '首飾': 'necklace',
+                'ring': 'ring',   '戒指': 'ring',
+                'earring': 'earring', '耳環': 'earring',
+            }
+            slot_names = set(_slot_alias.keys())
+            if item_name.lower() in slot_names:
+                removed = char_logic.unequip(_slot_alias[item_name.lower()])
+            else:
+                # Unequip by item name: find which slot holds it
+                removed = ''
+                for sl, equipped_item in (character.equipment or {}).items():
+                    if equipped_item and equipped_item.get('name', '').lower() == item_name.lower():
+                        removed = char_logic.unequip(sl)
+                        break
+            utility_result = {'unequipped': bool(removed), 'item_name': removed or item_name}
+
+        elif intent.get('action_type') == 'train_skill':
+            skill_to_train = intent.get('skill_to_train', '')
+            train_result = char_logic.train_skill(skill_to_train)
+            utility_result = {'train_skill': True, **train_result}
 
         # --- Step 6: Dice roll + rule engine for skill checks (deterministic) ---
         dice_result   = None
@@ -314,10 +875,33 @@ class EventManager:
             dice_result   = self.dice.roll_skill_check(dc=intent['dc'], modifier=modifier)
             outcome_label = _OUTCOME_LABELS[dice_result['outcome']]
 
+            # Wire skill outcomes → combat flags (consumed on next attack)
+            _skill_out = dice_result.get('outcome', '')
+            if _skill_out in ('success', 'critical_success'):
+                _skill_name = intent.get('skill', '')
+                _known_flags = dict(current_state.known_entities or {})
+                if _skill_name == 'stealth':
+                    _known_flags['_sneak_ready'] = True
+                    outcome_label += ' [潛行偷襲就緒]'
+                elif _skill_name == 'perception':
+                    _known_flags['_perception_bonus'] = True
+                    outcome_label += ' [感知先攻就緒]'
+                elif _skill_name == 'intimidation' and target:
+                    _known_flags[f'_intimidated_{target.lower().replace(" ", "_")}'] = True
+                    outcome_label += ' [威嚇成功]'
+                elif _skill_name == 'athletics' and target:
+                    _known_flags[f'_grappled_{target.lower().replace(" ", "_")}'] = True
+                    outcome_label += ' [擒抱成功]'
+                _known_flags['_skill_flags_turn'] = current_state.turn_count
+                current_state.known_entities = _known_flags
+                flag_modified(current_state, 'known_entities')
+                self.session.commit()
+
         # --- Step 6.5: Rule engine mechanics ---
         # damage_taken / hp_healed / mp_used are computed here, never by the LLM.
         mechanics = self._calculate_mechanics(
             intent, dice_result, combat_result, player_action, character, current_state,
+            utility_result=utility_result, char_logic=char_logic,
         )
 
         # --- Step 7: Render Narrative Event (LLM Phase 2) ---
@@ -328,23 +912,78 @@ class EventManager:
         outcome_parts = [f"Player action: {player_action}"]
         if thought:
             outcome_parts.append(f"Action analysis: {thought}")
+        # Random encounter during travel
+        if random_encounter_entry:
+            enc_name = random_encounter_entry.get('name', 'unknown creature')
+            enc_spec = random_encounter_entry.get('special_ability', '')
+            outcome_parts.append(
+                f"RANDOM ENCOUNTER — while travelling, {enc_name} ambushes the party! "
+                + (f"Special: {enc_spec}. " if enc_spec else "")
+                + "Describe the sudden ambush dramatically."
+            )
+        # Boss first-encounter — narrator should build dramatic tension
+        if boss_encounter_entry:
+            bname = boss_encounter_entry.get('display_name', target)
+            bspec = boss_encounter_entry.get('special_ability', '')
+            outcome_parts.append(
+                f"BOSS ENCOUNTER — {bname} appears for the first time! "
+                f"HP: {boss_encounter_entry.get('hp')}, "
+                f"ATK: {boss_encounter_entry.get('atk')}, "
+                f"DEF: {boss_encounter_entry.get('def_stat')}. "
+                + (f"Special: {bspec}. " if bspec else "")
+                + "Narrate with maximum dramatic impact."
+            )
+
+        # Inject player status effects that ticked this turn
+        if player_status_tick.get('damage', 0) > 0:
+            active_labels = [
+                STATUS_EFFECTS.get(k, {}).get('cn_name', k)
+                for k in player_status_tick.get('active', [])
+            ]
+            outcome_parts.append(
+                f"Status effects on player: "
+                + ', '.join(active_labels or ['none'])
+                + f". Status damage this turn: {player_status_tick['damage']} HP."
+            )
+        if player_status_tick.get('expired'):
+            expired_labels = [
+                STATUS_EFFECTS.get(k, {}).get('cn_name', k)
+                for k in player_status_tick['expired']
+            ]
+            outcome_parts.append(f"Status effects expired: {', '.join(expired_labels)}.")
 
         # Inject combat hard facts so the LLM narrates from them, never invents them
         if combat_result:
+            ability_label = (
+                f" [{combat_result['class_ability']}]" if combat_result.get('class_ability') else ''
+            )
             outcome_parts.append(
-                f"Combat: {character.name} attacks {target}. "
+                f"Combat{ability_label}: {character.name} attacks {target}. "
                 f"Attack roll: {combat_result['attack_roll']} + {combat_result['atk_modifier']} "
                 f"= {combat_result['attack_total']} vs DEF {combat_result['target_def']}. "
-                f"{'HIT' if combat_result['hit'] else 'MISS'}."
+                f"{'AUTO-HIT' if combat_result.get('ability_auto_hit') else ('HIT' if combat_result['hit'] else 'MISS')}."
             )
             if combat_result['hit']:
+                bonus_note = (
+                    f" (ability bonus: +{combat_result['ability_bonus_dmg']})"
+                    if combat_result.get('ability_bonus_dmg') else ''
+                )
                 outcome_parts.append(
                     f"Damage roll: {combat_result['damage_notation']} "
-                    f"= {combat_result['raw_damage']} "
+                    f"= {combat_result['raw_damage']}{bonus_note} "
                     f"(net after DEF reduction: {combat_result['net_damage']})."
                 )
                 if combat_result.get('critical'):
                     outcome_parts.append("CRITICAL HIT — doubled dice damage!")
+                if combat_result.get('ability_aoe') and combat_result.get('aoe_targets'):
+                    outcome_parts.append(
+                        f"AoE also hits: {', '.join(combat_result['aoe_targets'])}."
+                    )
+                if combat_result.get('status_applied'):
+                    status_label = STATUS_EFFECTS.get(
+                        combat_result['status_applied'], {}
+                    ).get('cn_name', combat_result['status_applied'])
+                    outcome_parts.append(f"{target} is now {status_label}.")
                 entity_hp = combat_result.get('entity_hp_remaining')
                 if entity_hp is not None:
                     if entity_hp <= 0:
@@ -354,6 +993,204 @@ class EventManager:
             outcome_label = "CRITICAL SUCCESS" if combat_result.get('critical') else (
                 "SUCCESS" if combat_result['hit'] else "FAILURE"
             )
+
+        # Inject utility ability results
+        if utility_result and not utility_result.get('error'):
+            ab_name = utility_result.get('ability_name', class_ability)
+            if utility_result.get('hp_healed', 0) > 0:
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: heals {utility_result['hp_healed']} HP."
+                )
+            if utility_result.get('def_bonus', 0) > 0:
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: +{utility_result['def_bonus']} DEF until next hit."
+                )
+            if utility_result.get('fled_enemies'):
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: undead flee — {', '.join(utility_result['fled_enemies'])}."
+                )
+            if utility_result.get('damage_reduction', 0) > 0:
+                outcome_parts.append(
+                    f"Ability [{ab_name}]: next incoming damage halved."
+                )
+            # Item use facts
+            ir = utility_result.get('item_result', {})
+            if utility_result.get('mp_restored', 0) > 0:
+                outcome_parts.append(
+                    f"Item [{ab_name}] used: restores {utility_result['mp_restored']} MP. "
+                    f"MP now: {character.mp}/{character.max_mp}."
+                )
+            if ir.get('cures_status'):
+                outcome_parts.append(
+                    f"Item [{ab_name}] used: cures {ir['cures_status']} status."
+                )
+            if ir.get('apply_status'):
+                outcome_parts.append(
+                    f"Item [{ab_name}] used: inflicts {ir['apply_status']} on {target or 'target'}."
+                )
+            if ir.get('damage_dice') and target:
+                outcome_parts.append(
+                    f"Item [{ab_name}] thrown at {target}: {ir['damage_dice']} damage"
+                    + (" (AoE — hits all enemies)." if ir.get('aoe') else ".")
+                )
+            if ir.get('smoke_escape'):
+                outcome_parts.append(
+                    "Smoke bomb deployed — flee DC reduced by 4 on next flee attempt this turn."
+                )
+
+        # Inject spell/rest/trade/equip facts
+        if utility_result and not utility_result.get('error'):
+            atype = intent.get('action_type', '')
+            if atype in ('short_rest', 'long_rest') or utility_result.get('rest_type'):
+                rtype = utility_result.get('rest_type', 'short')
+                if rtype == 'long':
+                    outcome_parts.append(
+                        f"Long rest: character fully restores HP to {character.max_hp} "
+                        f"and MP to {character.max_mp}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Short rest: character heals {utility_result.get('hp_healed', 0)} HP."
+                    )
+            elif utility_result.get('trade') == 'buy':
+                if utility_result.get('bought'):
+                    outcome_parts.append(
+                        f"Purchased [{utility_result.get('item_name')}] for "
+                        f"{utility_result.get('price', 0)} gold. "
+                        f"Gold remaining: {character.gold}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Cannot buy [{intent.get('target', '')}]: "
+                        f"{utility_result.get('reason', 'unknown error')}."
+                    )
+            elif utility_result.get('trade') == 'sell':
+                if utility_result.get('sold'):
+                    faction_mult = utility_result.get('faction_mult', 1.0)
+                    mult_note = (f" (faction modifier ×{faction_mult:.2f})"
+                                 if abs(faction_mult - 1.0) >= 0.01 else "")
+                    outcome_parts.append(
+                        f"Sold [{intent.get('target', '')}] for "
+                        f"{utility_result.get('gold', 0)} gold{mult_note}. "
+                        f"Gold total: {character.gold}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Cannot sell [{intent.get('target', '')}]: "
+                        f"{utility_result.get('reason', 'unknown error')}."
+                    )
+            elif utility_result.get('bribe'):
+                if utility_result.get('success'):
+                    outcome_parts.append(
+                        f"Bribed [{utility_result.get('target', '?')}] with "
+                        f"{utility_result.get('amount', 0)} gold. "
+                        f"Relationship improved by +{utility_result.get('affinity_delta', 0)}. "
+                        f"Gold remaining: {character.gold}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Bribe failed: {utility_result.get('reason', 'insufficient gold')}."
+                    )
+            elif utility_result.get('upgrade'):
+                if utility_result.get('upgraded'):
+                    stat = utility_result.get('stat', '')
+                    bonus = utility_result.get('bonus', 0)
+                    outcome_parts.append(
+                        f"Equipment upgraded using [{utility_result.get('kit', '?')}]. "
+                        f"Permanently +{bonus} {stat.upper()}. "
+                        f"New {stat}: {getattr(character, stat, '?')}."
+                    )
+                else:
+                    outcome_parts.append(
+                        f"Upgrade failed: {utility_result.get('reason', 'no kit in inventory')}. "
+                        f"Need a weapon upgrade kit or armor repair kit."
+                    )
+            elif utility_result.get('ability_key') == 'scroll':
+                outcome_parts.append(
+                    f"Scroll [{utility_result.get('ability_name')}] used. "
+                    f"Spell key: {utility_result.get('spell_key', '')}."
+                )
+                if utility_result.get('hp_healed', 0) > 0:
+                    outcome_parts.append(f"Scroll heals {utility_result['hp_healed']} HP.")
+                if utility_result.get('spell_damage', 0) > 0:
+                    outcome_parts.append(
+                        f"Scroll deals {utility_result['spell_damage']} damage to {target}."
+                    )
+            elif utility_result.get('ability_key') == 'elixir':
+                outcome_parts.append(
+                    f"[ELIXIR] {utility_result.get('ability_name')} 已使用："
+                    f"{utility_result.get('elixir_buff_desc', '')}，"
+                    f"持續 {utility_result.get('item_result', {}).get('buff_duration', '?')} 回合"
+                )
+            elif utility_result.get('equipped'):
+                outcome_parts.append(
+                    f"Equipped [{utility_result.get('item_name')}] in "
+                    f"{utility_result.get('slot', '?')} slot."
+                )
+            elif 'unequipped' in utility_result:
+                if utility_result.get('unequipped'):
+                    outcome_parts.append(
+                        f"Unequipped [{utility_result.get('item_name')}] — returned to inventory."
+                    )
+            elif utility_result.get('train_skill'):
+                if utility_result.get('trained'):
+                    outcome_parts.append(
+                        f"Skill training successful: [{utility_result.get('skill')}] "
+                        f"+{utility_result.get('bonus_gained', 1)} proficiency. "
+                        f"Gold spent: {utility_result.get('gold_spent', 0)}."
+                    )
+                else:
+                    reason = utility_result.get('reason', '')
+                    outcome_parts.append(
+                        f"Skill training failed: {reason}. "
+                        f"[{utility_result.get('skill')}] proficiency not gained."
+                    )
+            elif utility_result.get('spell'):
+                sp = utility_result['spell']
+                outcome_parts.append(
+                    f"Spell [{utility_result.get('ability_name')}] cast. "
+                    f"MP cost: {utility_result.get('mp_cost', 0)}."
+                )
+                if utility_result.get('spell_damage', 0) > 0:
+                    outcome_parts.append(
+                        f"Spell deals {utility_result['spell_damage']} {sp.get('element', '')} damage"
+                        + (" (AoE — hits all enemies)." if sp.get('aoe') else f" to {target}.")
+                    )
+                if utility_result.get('hp_healed', 0) > 0:
+                    outcome_parts.append(
+                        f"Spell heals {utility_result['hp_healed']} HP."
+                    )
+        elif utility_result and utility_result.get('error'):
+            outcome_parts.append(f"Action failed: {utility_result['error']}")
+
+        # Inject flee facts so the LLM narrates the exact outcome
+        if flee_result:
+            flee_sign = '+' if flee_result['mov_modifier'] >= 0 else ''
+            smoke_note = (f" (smoke −{flee_result['smoke_bonus']})"
+                          if flee_result.get('smoke_bonus') else '')
+            outcome_parts.append(
+                f"Flee attempt: 1d20{flee_sign}{flee_result['mov_modifier']} "
+                f"= {flee_result['flee_total']} vs DC {flee_result['flee_dc']}{smoke_note}."
+            )
+            if flee_result['fled']:
+                outcome_parts.append("FLED SUCCESSFULLY — player escapes combat.")
+            else:
+                outcome_parts.append("FLEE FAILED — enemy blocks escape.")
+                if flee_result['damage_taken'] > 0:
+                    outcome_parts.append(
+                        f"Punishing counter-attack: player takes {flee_result['damage_taken']} damage."
+                    )
+
+        # Narrate skill combat flags
+        if _sneak_ready and combat_result and combat_result.get('hit'):
+            bonus = combat_result.get('sneak_attack_bonus', 0)
+            outcome_parts.append(f"Sneak attack! Extra {bonus} damage from stealth.")
+        if _perception_bonus:
+            outcome_parts.append("Perception advantage: enemy counter-attack suppressed this turn.")
+        if _intimidated:
+            outcome_parts.append(f"Enemy {target} is intimidated: counter-attack suppressed.")
+        if _grappled:
+            outcome_parts.append(f"Enemy {target} is grappled: reduced attack power.")
 
         if dice_result:
             outcome_parts.append(
@@ -368,15 +1205,33 @@ class EventManager:
         # Inject rule-engine mechanics as hard facts for the narrator
         mech_parts = []
         if mechanics['damage_taken'] > 0:
-            mech_parts.append(f"player takes {mechanics['damage_taken']} raw damage")
+            mech_parts.append(f"player takes {mechanics['damage_taken']} damage")
         if mechanics['hp_healed'] > 0:
             mech_parts.append(f"player recovers {mechanics['hp_healed']} HP")
         if mechanics['mp_used'] > 0:
             mech_parts.append(f"player expends {mechanics['mp_used']} MP")
+        if mechanics.get('counter_status'):
+            status_label = STATUS_EFFECTS.get(
+                mechanics['counter_status'], {}
+            ).get('cn_name', mechanics['counter_status'])
+            mech_parts.append(f"player is now {status_label} from enemy counter-attack")
         if mech_parts:
             outcome_parts.append(
                 "Mechanical outcomes (hard facts — narrate these): " + "; ".join(mech_parts) + "."
             )
+
+        # Loot/XP facts injected BEFORE narrative rendering so LLM can narrate them
+        if loot_xp_result:
+            loot_line = (
+                f"Loot gained: {', '.join(loot_xp_result['loot_dropped'])}"
+                if loot_xp_result['loot_dropped'] else "No loot dropped"
+            )
+            xp_line = f"XP gained: {loot_xp_result['xp_gained']}"
+            outcome_parts.append(f"{loot_line}. {xp_line}.")
+            if loot_xp_result.get('leveled_up'):
+                outcome_parts.append(
+                    f"LEVEL UP! {character.name} is now Level {loot_xp_result['new_level']}!"
+                )
 
         outcome_parts.append(f"Recent session history:\n{session_memory_text}")
 
@@ -419,6 +1274,16 @@ class EventManager:
                         " to maintain narrative momentum."
                     )
             outcome_parts.append(constraint)
+
+        active_buffs = current_state.active_buffs or []
+        if active_buffs:
+            buff_lines = [
+                f"  {b['stat']} +{b['value']} (還剩 {b['turns_left']} 回合, 來源: {b['source']})"
+                if b['value'] >= 0 else
+                f"  {b['stat']} {b['value']} (還剩 {b['turns_left']} 回合, 來源: {b['source']})"
+                for b in active_buffs
+            ]
+            outcome_parts.append("[ACTIVE BUFFS]\n" + "\n".join(buff_lines))
 
         outcome_context = "\n".join(outcome_parts)
 
@@ -530,9 +1395,10 @@ class EventManager:
 
         # --- Step 8: Apply deterministic mechanics ---
         # Values come from the rule engine (Step 6.5), NOT from the LLM narrative output.
-        damage_taken = mechanics['damage_taken']
-        hp_healed    = mechanics['hp_healed']
-        mp_used      = mechanics['mp_used']
+        damage_taken   = mechanics['damage_taken']
+        hp_healed      = mechanics['hp_healed']
+        mp_used        = mechanics['mp_used']
+        counter_status = mechanics.get('counter_status')
 
         if damage_taken:
             char_logic.take_damage(damage_taken)
@@ -540,6 +1406,24 @@ class EventManager:
             char_logic.heal(hp_healed)
         if mp_used:
             char_logic.use_mp(mp_used)
+
+        # --- Game Over check: player HP reached 0 ---
+        if character.hp <= 0:
+            character.hp = 0
+            current_state.in_combat = 0
+            # Apply difficulty-based death penalty before saving
+            death_penalty = self._apply_death_penalty(character, char_logic, current_state)
+            self.session.commit()
+            turn_data['game_over'] = True
+            turn_data['_combat_result'] = combat_result
+            turn_data['_death_penalty'] = death_penalty
+            return narrative, choices, turn_data, dice_result
+
+        # Apply any status effect the enemy inflicted on the player via counter-attack
+        if counter_status:
+            self.combat.apply_status_to_player(counter_status, current_state)
+            flag_modified(current_state, 'known_entities')
+            self.session.commit()
         for item in (turn_data.get('items_found') or []):
             char_logic.add_item({'name': item} if isinstance(item, str) else item)
         if turn_data.get('location_change'):
@@ -550,6 +1434,46 @@ class EventManager:
             if characters_present and npc.lower() not in present_lower:
                 continue
             world.update_relationship(npc, delta)
+
+        # --- Phase 3: Update combat state ---
+        self._update_combat_state(intent, combat_result, current_state,
+                                  flee_result=flee_result)
+
+        # Apply quest completion rewards from narrative
+        for quest_name in (turn_data.get('quest_completed') or []):
+            if not quest_name:
+                continue
+            for q in world.get_active_quests():
+                if q.get('name', '').lower() == str(quest_name).lower():
+                    rewards = world.complete_quest(q['quest_id'],
+                                                   current_state.turn_count)
+                    if rewards.get('reward_xp'):
+                        character.xp = (character.xp or 0) + rewards['reward_xp']
+                        new_lvl = compute_level(character.xp)
+                        if new_lvl > (character.level or 1):
+                            character.level = new_lvl
+                    if rewards.get('reward_gold'):
+                        character.gold = (character.gold or 0) + rewards['reward_gold']
+                    self.session.commit()
+                    turn_data.setdefault('_quest_rewards', []).append({
+                        'quest_name': q['name'],
+                        'xp':         rewards.get('reward_xp', 0),
+                        'gold':       rewards.get('reward_gold', 0),
+                    })
+                    break
+
+        # Store result refs in turn_data for UI rendering
+        turn_data['_combat_result'] = combat_result
+        if loot_xp_result:
+            turn_data['_loot_xp'] = loot_xp_result
+        if flee_result:
+            turn_data['_flee_result'] = flee_result
+        if boss_encounter_entry:
+            turn_data['_boss_encounter'] = boss_encounter_entry
+        if random_encounter_entry:
+            turn_data['_random_encounter'] = random_encounter_entry
+        if utility_result:
+            turn_data['_utility_result'] = utility_result
 
         # Track contribution for balanced reward calculation
         checks_passed = 1 if (dice_result and dice_result.get('outcome') in
@@ -723,58 +1647,7 @@ class EventManager:
     # Internal helpers — combat  (Section 3.3)
     # ------------------------------------------------------------------
 
-    def _resolve_combat(self, character, char_logic, target_name, current_state):
-        """
-        Full deterministic combat resolution:
-          1. Attack roll: 1d20 + ATK modifier vs target DEF
-          2. On hit: damage roll (class weapon dice + ATK modifier)
-          3. Critical (raw 20): double the dice component
-          4. Net damage after target DEF reduction
-
-        Returns a combat_result dict with all details for narrative injection.
-        """
-        known = (current_state.known_entities or {})
-        target_entry = known.get(target_name.lower(), {})
-        target_def   = target_entry.get('def_stat', 10)
-
-        atk_modifier   = (character.atk - 10) // 2
-        attack_roll    = self.dice.roll('1d20')[2]  # raw d20 value (no modifier yet)
-        raw_d20        = attack_roll
-        attack_total   = raw_d20 + atk_modifier
-        critical       = raw_d20 == 20
-        hit            = attack_total >= target_def
-
-        damage_notation = char_logic.get_weapon_damage_notation()
-        raw_damage = 0
-        net_damage = 0
-        entity_hp_remaining = None
-
-        if hit:
-            rolls, mod, total = self.dice.roll(damage_notation)
-            if critical:
-                # Double the dice component (not the modifier) for critical hits
-                dice_sum = sum(rolls)
-                raw_damage = dice_sum * 2 + mod
-            else:
-                raw_damage = total
-            net_damage = max(0, raw_damage - (target_def // 2))
-            entity_hp_remaining = target_entry.get('hp', None)
-            if entity_hp_remaining is not None:
-                entity_hp_remaining = max(0, entity_hp_remaining - net_damage)
-
-        return {
-            'target':             target_name,
-            'target_def':         target_def,
-            'atk_modifier':       atk_modifier,
-            'attack_roll':        raw_d20,
-            'attack_total':       attack_total,
-            'critical':           critical,
-            'hit':                hit,
-            'damage_notation':    damage_notation,
-            'raw_damage':         raw_damage,
-            'net_damage':         net_damage,
-            'entity_hp_remaining': entity_hp_remaining,
-        }
+    # _resolve_combat removed — replaced by CombatEngine.resolve_attack (engine/combat.py)
 
     def _apply_combat_damage_to_entity(self, entity_name, net_damage, current_state):
         """Decrement the target's HP in known_entities; mark alive=False on death."""
@@ -1064,7 +1937,8 @@ class EventManager:
         self.session.commit()
 
     def _calculate_mechanics(self, intent, dice_result, combat_result,
-                             player_action, character, current_state):
+                             player_action, character, current_state,
+                             utility_result=None, char_logic=None):
         """
         Rule engine for damage_taken, hp_healed, mp_used.
 
@@ -1073,60 +1947,141 @@ class EventManager:
 
         Rules:
           damage_taken — enemy counter-attack after player's attack (if target alive);
-                         minor fall/trap damage on critical_failure of a physical skill.
-          hp_healed    — healing keywords or medicine skill + successful dice outcome.
-          mp_used      — any magic-type action (regardless of outcome).
+                         minor fall/trap damage on critical_failure of a physical skill;
+                         status effect damage already applied in step 2.5.
+          hp_healed    — class utility ability heal; medicine skill + successful dice outcome.
+          mp_used      — any magic-type action or class ability with mp_cost.
 
-        Returns a dict {damage_taken, hp_healed, mp_used}.
+        Returns a dict {damage_taken, hp_healed, mp_used, counter_status}.
         """
         action_type = intent.get('action_type', 'direct_action')
         skill       = intent.get('skill', '').lower()
         outcome     = dice_result['outcome'] if dice_result else None
 
-        damage_taken = 0
-        hp_healed    = 0
-        mp_used      = 0
+        damage_taken   = 0
+        hp_healed      = 0
+        mp_used        = 0
+        counter_status = None  # status effect applied to player by enemy counter
 
         # --- Enemy counter-attack (after player's attack) ---
         if combat_result:
-            target_name = combat_result.get('target', '').lower()
-            known = current_state.known_entities or {}
+            target_name  = combat_result.get('target', '').lower()
+            known        = current_state.known_entities or {}
             target_entry = known.get(target_name, {})
-            # enemy HP remaining after player's hit (None if not in known_entities)
             hp_after = combat_result.get('entity_hp_remaining')
             is_alive = target_entry.get('alive', True) and (hp_after is None or hp_after > 0)
+            if is_alive and combat_result.get('_suppress_counter'):
+                # Perception or intimidation flag suppresses enemy counter-attack this turn
+                is_alive = False
             if is_alive:
-                enemy_atk     = target_entry.get('atk', 5)
-                enemy_atk_mod = (enemy_atk - 10) // 2
-                enemy_roll    = self.dice.roll('1d20')[2]
-                if enemy_roll == 20 or enemy_roll + enemy_atk_mod >= character.def_stat:
-                    # raw hit — CharacterLogic.take_damage() applies DEF reduction
-                    raw_hit      = self.dice.roll('1d6')[2] + max(0, enemy_atk_mod)
-                    damage_taken = max(0, raw_hit)
+                # Phase 4: trigger monster AI specials (berserk, song, etc.)
+                target_entry = self._apply_monster_ai_triggers(
+                    target_name, target_entry, current_state
+                )
+                # Grapple penalty reduces enemy ATK for counter-attack resolution
+                _grapple_penalty = combat_result.get('_grapple_atk_penalty', 0)
+                if _grapple_penalty:
+                    target_entry = dict(target_entry)
+                    target_entry['atk'] = max(1, (target_entry.get('atk', 5) - _grapple_penalty))
+                counter = self.combat.resolve_enemy_counter_attack(target_entry, character)
+                if counter.get('hit'):
+                    # Consume Arcane Shield bonus if active
+                    shield_bonus = char_logic.consume_def_bonus(current_state) if char_logic else 0
+                    # Evasion: check player buff
+                    evasion_active = any(
+                        b.get('key') == '_evasion'
+                        for b in (current_state.known_entities or {}).get('_player_buffs', [])
+                    )
+                    raw_dmg = counter.get('raw_damage', 0)
+                    if evasion_active:
+                        raw_dmg = int(raw_dmg * 0.5)
+                        # Remove evasion buff
+                        known2 = dict(current_state.known_entities or {})
+                        known2['_player_buffs'] = [
+                            b for b in known2.get('_player_buffs', [])
+                            if b.get('key') != '_evasion'
+                        ]
+                        current_state.known_entities = known2
+                    buff_def = CharacterLogic.get_buff_modifier(current_state, 'def_stat')
+                    effective_def = character.def_stat + shield_bonus + buff_def
+                    damage_taken = max(0, raw_dmg - (effective_def // 2))
+                    counter_status = counter.get('status_applied')
+                    # Apply lifesteal (wight / vampire_spawn) — read fresh after AI triggers
+                    if counter.get('lifesteal', 0) > 0 and is_alive:
+                        entry2 = dict((current_state.known_entities or {}).get(target_name, {}))
+                        entry2['hp'] = min(
+                            entry2.get('max_hp', entry2.get('hp', 0)),
+                            entry2.get('hp', 0) + counter['lifesteal'],
+                        )
+                        known2 = dict(current_state.known_entities or {})
+                        known2[target_name] = entry2
+                        current_state.known_entities = known2
+
+                # Tick enemy status effects (e.g. poison on the enemy) — always runs while alive
+                enemy_tick = self.combat.tick_entity_status_effects(target_name, current_state)
+                if enemy_tick.get('damage', 0) > 0:
+                    # Reapply damage from tick to entity
+                    self._apply_combat_damage_to_entity(
+                        target_name, enemy_tick['damage'], current_state
+                    )
+
+                    flag_modified(current_state, 'known_entities')
+                    self.session.commit()
 
         # --- Physical-skill critical failure → minor fall/hazard damage ---
         elif dice_result and skill in _PHYSICAL_SKILLS and outcome == 'critical_failure':
             damage_taken = self.dice.roll('1d4')[2]
 
-        # --- Magic action → MP cost (even on failure) ---
-        if action_type == 'magic':
-            cost    = _MP_COST_TABLE.get(skill, _MP_COST_DEFAULT)
-            mp_used = min(cost, character.mp)
+        # --- Class utility ability: healing, arcane shield, evasion, turn undead ---
+        if utility_result and not utility_result.get('error'):
+            hp_healed = utility_result.get('hp_healed', 0)
+            mp_used   = utility_result.get('mp_cost', 0)
+            # Arcane Shield — store DEF bonus in player buffs
+            def_bonus = utility_result.get('def_bonus', 0)
+            if char_logic and def_bonus > 0:
+                char_logic.apply_def_bonus(def_bonus, current_state)
+                flag_modified(current_state, 'known_entities')
+                self.session.commit()
+            # Evasion — store as player buff
+            if utility_result.get('damage_reduction', 0) > 0:
+                known3 = dict(current_state.known_entities or {})
+                buffs3 = [b for b in known3.get('_player_buffs', []) if b.get('key') != '_evasion']
+                buffs3.append({'key': '_evasion', 'turns_remaining': 1})
+                known3['_player_buffs'] = buffs3
+                current_state.known_entities = known3
+            # Turn Undead — mark fled enemies as dead
+            for fled_key in utility_result.get('fled_enemies', []):
+                self._apply_combat_damage_to_entity(fled_key, 9999, current_state)
+        else:
+            # --- Magic action → MP cost (even on failure, if no utility_result) ---
+            if action_type == 'magic' and not utility_result:
+                class_ability = intent.get('class_ability')
+                if class_ability:
+                    from engine.combat import get_ability_definition
+                    adef = get_ability_definition(character.char_class, class_ability)
+                    mp_used = min(adef.get('mp_cost', _MP_COST_DEFAULT), character.mp) if adef else 0
+                else:
+                    cost    = _MP_COST_TABLE.get(skill, _MP_COST_DEFAULT)
+                    mp_used = min(cost, character.mp)
 
-        # --- Healing: medicine skill or healing keywords + successful outcome ---
-        if outcome in ('success', 'critical_success') and character.hp < character.max_hp:
-            is_healing = (
-                skill == 'medicine'
-                or _HEAL_RE.search(player_action or '')
-            )
-            if is_healing:
-                notation  = '2d4' if outcome == 'critical_success' else '1d4'
-                hp_healed = self.dice.roll(notation)[2]
-                # healing magic burns MP even if action_type wasn't flagged 'magic'
-                if mp_used == 0 and character.mp > 0:
-                    mp_used = min(2, character.mp)
+            # --- Healing: medicine skill or healing keywords + successful outcome ---
+            if outcome in ('success', 'critical_success') and character.hp < character.max_hp:
+                is_healing = (
+                    skill == 'medicine'
+                    or _HEAL_RE.search(player_action or '')
+                )
+                if is_healing:
+                    notation  = '2d4' if outcome == 'critical_success' else '1d4'
+                    hp_healed = self.dice.roll(notation)[2]
+                    if mp_used == 0 and character.mp > 0:
+                        mp_used = min(2, character.mp)
 
-        return {'damage_taken': damage_taken, 'hp_healed': hp_healed, 'mp_used': mp_used}
+        return {
+            'damage_taken':   damage_taken,
+            'hp_healed':      hp_healed,
+            'mp_used':        mp_used,
+            'counter_status': counter_status,
+        }
 
     def _build_system_prompt(self, character, current_state, party=None):
         npc_context      = self._format_npc_state(current_state)
@@ -1159,8 +2114,10 @@ class EventManager:
             f"Active player this turn: {character.name} ({character.race} {character.char_class}).\n"
             f"{hp_lbl}: {character.hp}/{character.max_hp}  "
             f"{mp_lbl}: {character.mp}/{character.max_mp}  "
-            f"ATK: {character.atk}  DEF: {character.def_stat}.\n"
-            f"Location: {current_state.current_location}.\n"
+            f"ATK: {character.atk}  DEF: {character.def_stat}  "
+            f"Gold: {character.gold or 0}.\n"
+            + _fmt_inventory_block(character)
+            + f"Location: {current_state.current_location}.\n"
             f"World lore: {current_state.world_context}\n"
             f"Difficulty: {current_state.difficulty}\n"
             f"{npc_context}"
@@ -1575,8 +2532,14 @@ class EventManager:
         """
         action_type = intent.get('action_type', 'direct_action')
         entity_type = detect_entity_type(entity_name, action_type)
+        # Fetch player level for tier-gap difficulty scaling
+        from engine.game_state import Character as _CharModel
+        _char_row = self.session.get(_CharModel, current_state.player_id)
+        _player_level = (_char_row.level or 1) if _char_row else 1
         hp, atk, def_stat = get_entity_base_stats(
-            entity_type, current_state.difficulty or 'Normal'
+            entity_type, current_state.difficulty or 'Normal',
+            entity_name=entity_name,
+            player_level=_player_level,
         )
 
         stat_block = self.llm.generate_entity_stat_block(
@@ -1604,18 +2567,264 @@ class EventManager:
         known = dict(current_state.known_entities or {})
         key = entity_name.lower()
         if key not in known:
+            # Pull damage_dice and undead flag from monster roster if available
+            roster_entry = get_monster_by_name(entity_name)
+            damage_dice  = roster_entry.get('damage_dice', '1d6') if roster_entry else '1d6'
+            is_undead    = roster_entry.get('undead', False) if roster_entry else False
+            special_key  = (stat_block.get('special_ability') or
+                            (roster_entry.get('special_ability') if roster_entry else None) or '')
             known[key] = {
                 'type':            stat_block.get('type', entity_type),
                 'hp':              stat_block.get('hp', 20),
                 'max_hp':          stat_block.get('hp', 20),
                 'atk':             stat_block.get('atk', 5),
                 'def_stat':        stat_block.get('def_stat', 5),
+                'damage_dice':     damage_dice,
+                'undead':          is_undead,
                 'skills':          stat_block.get('skills', []),
-                'special_ability': stat_block.get('special_ability', ''),
+                'special_ability': special_key,
                 'description':     stat_block.get('description', entity_name),
-                'loot':            stat_block.get('loot', []),
+                'loot':            stat_block.get('loot', roster_entry.get('loot', []) if roster_entry else []),
                 'alive':           True,
+                'status_effects':  [],
             }
             current_state.known_entities = known
             flag_modified(current_state, 'known_entities')
             self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Multi-enemy spawn helpers
+    # ------------------------------------------------------------------
+
+    # Regex: "3 goblins", "goblin x3", "two skeletons", "a pair of wolves"
+    _MULTI_RE = re.compile(
+        r'^(?:(\d+)\s+(.+?)|(.+?)\s+[xX×](\d+)|'
+        r'(two|three|four|five|six)\s+(.+?))s?$',
+        re.I,
+    )
+    _WORD_NUMS = {'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6}
+
+    def _parse_multi_enemy_count(self, target_str):
+        """
+        Parse a target string for a count > 1.
+        Returns (count, base_name) or (1, target_str) for singles.
+        """
+        m = self._MULTI_RE.match(target_str.strip())
+        if not m:
+            return 1, target_str
+        if m.group(1) and m.group(2):           # "3 goblins"
+            return int(m.group(1)), m.group(2).rstrip('s')
+        if m.group(3) and m.group(4):           # "goblin x3"
+            return int(m.group(4)), m.group(3).rstrip('s')
+        if m.group(5) and m.group(6):           # "two skeletons"
+            return self._WORD_NUMS[m.group(5).lower()], m.group(6).rstrip('s')
+        return 1, target_str
+
+    def _spawn_multi_enemies(self, base_name, count, intent, current_state):
+        """
+        Register `count` instances of `base_name` in known_entities.
+        Keys: base_name_1, base_name_2, … (or just base_name when count==1).
+        Returns the list of keys that were newly registered.
+        """
+        keys = []
+        for i in range(1, count + 1):
+            key = f"{base_name.lower()}_{i}" if count > 1 else base_name.lower()
+            if not (current_state.known_entities or {}).get(key):
+                # Temporarily set intent target to key so stat block is generated
+                fake_intent = dict(intent)
+                fake_intent['target'] = key
+                self._generate_and_store_stat_block(key, fake_intent, current_state)
+            keys.append(key)
+        return keys
+
+    # ------------------------------------------------------------------
+    # Phase 2: Loot drop + XP grant
+    # ------------------------------------------------------------------
+
+    def _grant_loot_and_xp(self, entity_key, entity_entry, character, char_logic,
+                           current_state):
+        """
+        Called when an enemy is killed.  Grants:
+          - Monster XP to the character (from roster or fallback formula).
+          - Random loot items rolled from the monster's loot table (50 % each).
+          - Level-up if XP threshold crossed (stat bumps applied automatically).
+
+        Returns a dict {xp_gained, loot_dropped, leveled_up, new_level}.
+        """
+        roster   = get_monster_by_name(entity_key)
+        xp_gain  = roster.get('xp', 0) if roster else 0
+        if xp_gain == 0:
+            xp_gain = max(10, (entity_entry.get('max_hp') or 20) * 2)
+
+        # Scale XP by difficulty multiplier
+        diff_key = (current_state.difficulty or 'normal').lower()
+        xp_mult  = DIFFICULTY_REWARD.get(diff_key, DIFFICULTY_REWARD['normal'])['xp_mult']
+        xp_gain  = max(1, int(xp_gain * xp_mult))
+
+        old_level = character.level or 1
+        character.xp = (character.xp or 0) + xp_gain
+
+        new_level  = compute_level(character.xp)
+        leveled_up = new_level > old_level
+        if leveled_up:
+            character.level = new_level
+            levels_gained   = new_level - old_level
+            # Baseline auto-bump: +5 HP and +3 MP per level (survival minimum)
+            character.max_hp = (character.max_hp or 100) + 5 * levels_gained
+            character.hp     = min(character.max_hp, (character.hp or 0) + 5 * levels_gained)
+            character.max_mp = (character.max_mp or 50)  + 3 * levels_gained
+            # Grant 2 free stat points per level for player-directed allocation
+            character.pending_stat_points = (
+                (character.pending_stat_points or 0) + 2 * levels_gained
+            )
+
+        loot_dropped = roll_loot(entity_entry, self.dice,
+                                 difficulty=current_state.difficulty or 'normal')
+        for item_name in loot_dropped:
+            char_logic.add_item({'name': item_name, 'source': entity_key})
+
+        # Roll direct gold drop from the defeated enemy
+        gold_source  = roster if roster else entity_entry
+        gold_gained  = roll_combat_gold(gold_source, self.dice,
+                                        difficulty=current_state.difficulty or 'normal')
+        if gold_gained > 0:
+            character.gold = (character.gold or 0) + gold_gained
+
+        self.session.commit()
+        return {
+            'xp_gained':    xp_gain,
+            'xp_mult':      xp_mult,
+            'loot_dropped': loot_dropped,
+            'gold_gained':  gold_gained,
+            'leveled_up':   leveled_up,
+            'new_level':    new_level,
+        }
+
+    def _apply_death_penalty(self, character, char_logic, current_state):
+        """
+        Apply difficulty-scaled penalties when the player character dies (HP → 0).
+
+        Returns a summary dict for UI display:
+          {gold_lost, xp_lost, item_dropped, difficulty}
+        """
+        diff_key = (current_state.difficulty or 'normal').lower()
+        penalty  = DIFFICULTY_DEATH_PENALTY.get(diff_key,
+                                                DIFFICULTY_DEATH_PENALTY['normal'])
+        gold_lost    = 0
+        xp_lost      = 0
+        item_dropped = None
+
+        # Gold loss
+        if penalty['gold_loss_pct'] > 0 and (character.gold or 0) > 0:
+            gold_lost = max(1, int((character.gold or 0) * penalty['gold_loss_pct']))
+            character.gold = max(0, (character.gold or 0) - gold_lost)
+
+        # XP loss — only removes XP earned above the current level floor
+        # so the player can never be pushed below their current level.
+        if penalty['xp_loss_pct'] > 0 and (character.xp or 0) > 0:
+            current_level  = character.level or 1
+            level_floor_xp = xp_for_level(current_level)   # XP needed for this level
+            xp_above_floor = max(0, (character.xp or 0) - level_floor_xp)
+            xp_lost = max(0, int(xp_above_floor * penalty['xp_loss_pct']))
+            character.xp = max(level_floor_xp, (character.xp or 0) - xp_lost)
+
+        # Item drop — one random inventory item lost (Deadly only)
+        if penalty['drop_item'] and char_logic.model.inventory:
+            inv = list(char_logic.model.inventory)
+            drop_idx  = self.dice.roll(f'1d{len(inv)}')[2] - 1
+            drop_idx  = max(0, min(drop_idx, len(inv) - 1))
+            dropped   = inv[drop_idx]
+            item_dropped = dropped.get('name', str(dropped)) if isinstance(dropped, dict) else str(dropped)
+            char_logic.remove_item(item_dropped)
+
+        return {
+            'difficulty':    diff_key,
+            'gold_lost':     gold_lost,
+            'xp_lost':       xp_lost,
+            'item_dropped':  item_dropped,
+        }
+
+    # ------------------------------------------------------------------
+    # Phase 3: Combat state tracking
+    # ------------------------------------------------------------------
+
+    def _update_combat_state(self, intent, combat_result, current_state,
+                             flee_result=None):
+        """
+        Maintain GameState.in_combat and reset once-per-combat ability cooldowns.
+        Sets in_combat=True on attack; clears when all enemies die or player flees.
+
+        flee_result — already-resolved flee dict from Step 3.5 (or None).
+        """
+        was_in_combat = bool(current_state.in_combat)
+        action_type   = intent.get('action_type', '')
+
+        # Flee was resolved in Step 3.5; only clear combat if it succeeded.
+        if flee_result is not None:
+            if flee_result['fled']:
+                current_state.in_combat = 0
+                self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
+            self.session.commit()
+            return
+
+        if action_type == 'attack' and combat_result:
+            if not was_in_combat:
+                self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
+            current_state.in_combat = 1
+
+        if current_state.in_combat:
+            known = current_state.known_entities or {}
+            living_enemies = [
+                e for k, e in known.items()
+                if not k.startswith('_') and isinstance(e, dict)
+                and e.get('type') in ('monster', 'boss', 'guard')
+                and e.get('alive', True)
+            ]
+            if not living_enemies:
+                current_state.in_combat = 0
+                self._used_abilities.clear()
+                current_state.used_combat_abilities = []
+                flag_modified(current_state, 'used_combat_abilities')
+
+        self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Phase 4: Monster active AI — HP-triggered specials & archetypes
+    # ------------------------------------------------------------------
+
+    def _apply_monster_ai_triggers(self, entity_key, entity_entry, current_state):
+        """
+        Evaluate triggered special abilities before the monster's counter-attack.
+        Returns the (possibly mutated) entity entry.
+        """
+        from data.monsters import SPECIAL_ABILITIES
+        special_key = entity_entry.get('special_ability', '')
+        defn        = SPECIAL_ABILITIES.get(special_key or '')
+        if not defn:
+            return entity_entry
+
+        known = dict(current_state.known_entities or {})
+        entry = dict(known.get(entity_key, entity_entry))
+        hp    = entry.get('hp', 0)
+        max_hp = max(entry.get('max_hp', 1) or 1, 1)
+
+        # Berserk: +ATK when below 50 % HP (one-time activation)
+        if special_key == 'berserk' and not entry.get('berserk_active'):
+            if hp / max_hp <= 0.5:
+                entry['berserk_active'] = True
+                entry['atk'] = (entry.get('atk') or 5) + defn.get('value', 3)
+
+        # Luring Song: charm attempt once per encounter
+        if special_key == 'luring_song' and not entry.get('song_used'):
+            entry['song_used'] = True
+            if self.dice.roll('1d20')[2] < defn.get('dc', 13):
+                self.combat.apply_status_to_player('charmed', current_state)
+                flag_modified(current_state, 'known_entities')
+
+        known[entity_key] = entry
+        current_state.known_entities = known
+        return entry
