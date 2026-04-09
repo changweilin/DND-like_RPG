@@ -1,3 +1,4 @@
+import random
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import and_, or_
 from engine.game_state import GameState, EntityRelation
@@ -257,3 +258,233 @@ class WorldManager:
             .order_by(EntityRelation.since_turn)
             .all()
         )
+
+    # ------------------------------------------------------------------
+    # Dungeon map generation (room / corridor tree)
+    # ------------------------------------------------------------------
+
+    # Room type templates — (name_prefix, description_template)
+    _ROOM_TYPES = [
+        ('Entrance Hall',     'A grand but crumbling entrance. Torches flicker on damp stone walls.'),
+        ('Guard Room',        'Overturned furniture and dried bloodstains hint at a recent struggle.'),
+        ('Treasure Vault',    'Iron-banded chests line the walls. Some have been pried open.'),
+        ('Altar Chamber',     'A defaced stone altar dominates the room. Dark stains mar its surface.'),
+        ('Library',           'Rotting bookshelves hold crumbling tomes and scrolls.'),
+        ('Prison Cell Block',  'Rusted iron bars separate rows of empty cells. Bones litter the floor.'),
+        ('Alchemist\'s Lab',  'Shattered vials crunch underfoot. The air smells of sulfur and rot.'),
+        ('Throne Room',       'A massive throne of black stone faces a corridor of collapsed pillars.'),
+        ('Crypt',             'Stone sarcophagi line the walls. The air is cold and utterly still.'),
+        ('Barracks',          'Crude bunks fill the room. Weapon racks stand mostly empty.'),
+        ('Kitchen',           'A massive hearth, cold now, dominates this vaulted chamber.'),
+        ('Ritual Circle',     'Strange runes are carved into the floor in a complex pattern.'),
+    ]
+
+    def generate_dungeon(self, room_count=8, seed=None):
+        """
+        Generate a random dungeon map using a depth-first spanning tree.
+
+        Each room:
+          id          — sequential string ('room_0', 'room_1', …)
+          name        — descriptive room title
+          description — short atmospheric text
+          connections — list of adjacent room ids (bidirectional)
+          enemies     — list of monster name strings (empty by default)
+          loot        — list of item name strings (empty by default)
+          visited     — bool, set True when player enters
+
+        The map is stored in GameState.dungeon_map and committed.
+        Returns the dict.
+        """
+        rng = random.Random(seed)
+        room_count = max(3, min(room_count, 20))
+
+        # Build rooms
+        types_sample = rng.sample(
+            self._ROOM_TYPES * (room_count // len(self._ROOM_TYPES) + 1),
+            room_count,
+        )
+        rooms = {}
+        for i in range(room_count):
+            rid = f'room_{i}'
+            name, desc = types_sample[i]
+            rooms[rid] = {
+                'id':          rid,
+                'name':        name,
+                'description': desc,
+                'connections': [],
+                'enemies':     [],
+                'loot':        [],
+                'visited':     False,
+            }
+
+        # Connect rooms using a random spanning tree (DFS order)
+        room_ids = list(rooms.keys())
+        connected = {room_ids[0]}
+        remaining = set(room_ids[1:])
+        while remaining:
+            src = rng.choice(list(connected))
+            tgt = rng.choice(list(remaining))
+            rooms[src]['connections'].append(tgt)
+            rooms[tgt]['connections'].append(src)
+            connected.add(tgt)
+            remaining.discard(tgt)
+
+        # Add a few extra edges (loops) for variety — ~30 % of room_count
+        extra = max(1, room_count // 3)
+        for _ in range(extra):
+            src, tgt = rng.sample(room_ids, 2)
+            if tgt not in rooms[src]['connections']:
+                rooms[src]['connections'].append(tgt)
+                rooms[tgt]['connections'].append(src)
+
+        # Mark the first room as visited (start position)
+        rooms[room_ids[0]]['visited'] = True
+
+        self.state.dungeon_map = rooms
+        flag_modified(self.state, 'dungeon_map')
+        self.session.commit()
+        return rooms
+
+    def get_adjacent_rooms(self, current_room_id=None):
+        """
+        Return list of adjacent room dicts for the given room id.
+        If current_room_id is None, use current_location as key.
+        """
+        dungeon = self.state.dungeon_map or {}
+        if not dungeon:
+            return []
+        if current_room_id is None:
+            # Try to match current_location to a room name
+            loc = (self.state.current_location or '').lower()
+            for rid, room in dungeon.items():
+                if room.get('name', '').lower() == loc:
+                    current_room_id = rid
+                    break
+        if current_room_id not in dungeon:
+            return []
+        return [dungeon[cid] for cid in dungeon[current_room_id]['connections']
+                if cid in dungeon]
+
+    def mark_room_visited(self, room_id):
+        """Mark a room as visited and commit."""
+        dungeon = dict(self.state.dungeon_map or {})
+        if room_id in dungeon:
+            room = dict(dungeon[room_id])
+            room['visited'] = True
+            dungeon[room_id] = room
+            self.state.dungeon_map = dungeon
+            flag_modified(self.state, 'dungeon_map')
+            self.session.commit()
+
+    # ── Quest management ──────────────────────────────────────────────────────
+
+    def add_quest(self, quest_id, name, description='', objectives=None,
+                  reward_xp=0, reward_gold=0, given_turn=0):
+        """Register a new active quest. Idempotent — won't overwrite an existing entry."""
+        quests = dict(self.state.quests or {})
+        if quest_id in quests:
+            return quests[quest_id]
+        quests[quest_id] = {
+            'name':          name,
+            'description':   description,
+            'status':        'active',
+            'objectives':    objectives or [],
+            'reward_xp':     reward_xp,
+            'reward_gold':   reward_gold,
+            'given_turn':    given_turn,
+            'completed_turn': None,
+        }
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+        return quests[quest_id]
+
+    def complete_quest(self, quest_id, current_turn=0):
+        """Mark a quest as completed and return its rewards dict."""
+        quests = dict(self.state.quests or {})
+        if quest_id not in quests:
+            return {}
+        quest = dict(quests[quest_id])
+        quest['status'] = 'completed'
+        quest['completed_turn'] = current_turn
+        # Mark all objectives done
+        quest['objectives'] = [dict(o, done=True) for o in quest.get('objectives', [])]
+        quests[quest_id] = quest
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+        return {'reward_xp': quest.get('reward_xp', 0), 'reward_gold': quest.get('reward_gold', 0)}
+
+    def fail_quest(self, quest_id, current_turn=0):
+        """Mark a quest as failed."""
+        quests = dict(self.state.quests or {})
+        if quest_id not in quests:
+            return
+        quest = dict(quests[quest_id])
+        quest['status'] = 'failed'
+        quest['completed_turn'] = current_turn
+        quests[quest_id] = quest
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+
+    def complete_objective(self, quest_id, objective_index):
+        """Mark a single objective within a quest as done."""
+        quests = dict(self.state.quests or {})
+        quest = quests.get(quest_id)
+        if not quest:
+            return
+        objectives = list(quest.get('objectives', []))
+        if 0 <= objective_index < len(objectives):
+            objectives[objective_index] = dict(objectives[objective_index], done=True)
+        quest = dict(quest, objectives=objectives)
+        quests[quest_id] = quest
+        self.state.quests = quests
+        flag_modified(self.state, 'quests')
+        self.session.commit()
+
+    def get_active_quests(self):
+        """Return list of active quest dicts with their quest_id included."""
+        result = []
+        for qid, q in (self.state.quests or {}).items():
+            if q.get('status') == 'active':
+                result.append(dict(q, quest_id=qid))
+        return result
+
+    # ── Faction reputation & shop pricing ────────────────────────────────────
+
+    # Affinity → price multiplier tiers
+    _REP_PRICE_TIERS = [
+        (-100, -50, 1.30),   # Hostile     : +30% prices
+        (-50,  -10, 1.15),   # Unfriendly  : +15%
+        (-10,   30, 1.00),   # Neutral     : no change
+        ( 30,   70, 0.90),   # Friendly    : -10%
+        ( 70,  101, 0.80),   # Exalted     : -20%
+    ]
+
+    def get_faction_price_modifier(self, faction_name):
+        """
+        Return a price multiplier (float) for a merchant belonging to faction_name.
+        Looks up the faction's affinity in organizations first, then relationships.
+        """
+        if not faction_name:
+            return 1.0
+        fl = faction_name.lower()
+        # Check organizations dict
+        for key, org in (self.state.organizations or {}).items():
+            if key == fl or (org.get('name') or '').lower() == fl:
+                affinity = org.get('affinity', 0)
+                return self._affinity_to_price_multiplier(affinity)
+        # Fallback: check NPC relationships
+        for name, data in (self.state.relationships or {}).items():
+            if name.lower() == fl:
+                if isinstance(data, dict):
+                    affinity = data.get('affinity', 0)
+                    return self._affinity_to_price_multiplier(affinity)
+        return 1.0
+
+    def _affinity_to_price_multiplier(self, affinity):
+        for low, high, mult in self._REP_PRICE_TIERS:
+            if low <= affinity < high:
+                return mult
+        return 1.0
