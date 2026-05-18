@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_landscape_01_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a093d36b2488191a87d9622041acc0b.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: D\u0026D 5e / Forgotten Realms inspired high fantasy world map, continent plus archipelago terrain type.\nScene/backdrop: overhead birds-eye atlas view of one dominant fantasy continent with a large uneven offshore archipelago.\nSubject: one main continent with complex coastlines, peninsulas, gulfs, bays, fjords, broken coasts, river deltas, inland seas, and many irregular island chains offshore. Islands must be unevenly distributed with varied sizes and shapes: large islands, tiny islets, volcanic islands, reef rings, lagoons, narrow channels, and scattered remote atolls.\nStyle/medium: illustrated fantasy world map, cartographic parchment style, Tolkien-esque high fantasy atlas, digital fantasy concept art, highly detailed hand-painted RPG sourcebook map.\nComposition/framing: wide 16:9 landscape, dominant continent offset to one side and archipelago sweeping diagonally around it, no simple grid spacing, full map visible.\nLighting/mood: heroic high fantasy with deep ancient forests, jagged mountains, frontier towns, coastal harbors, scattered dungeon entrances, glowing rune stones, tiny dragon silhouettes in the distance.\nColor palette: parchment and teal ocean, richly varied biomes including deserts, wetlands, forests, mountains, tundra, volcanic regions, river basins, and coastal marshes.\nMaterials/textures: aged parchment, engraved coastlines, hand-painted terrain, fine atlas detail.\nConstraints: no text labels, no letters, no legend, no compass text, no watermark, no UI, no characters or portraits. Islands should feel natural and irregular, not evenly spaced.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T12:04:28.0583828+08:00"
+}

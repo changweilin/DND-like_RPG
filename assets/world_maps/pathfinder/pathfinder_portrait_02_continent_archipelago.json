@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a1651f7108191aceb0a2dab9ae66c.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Pathfinder Golarion inspired epic political fantasy RPG setting. Terrain type: continent_archipelago. Draw one dominant fictional Inner Sea continent plus a large irregular offshore archipelago in illustrated Pathfinder aged ink-on-parchment cartography. The mainland should include diverse nation-state regions, sprawling harbor cities, Absalom-like central hub, Pathfinder Society expedition roads, ancient god-war ruins, magical academies, desert kingdoms, northern frozen wastes, jungle interiors, volcanic scars, haunted necromantic territories, river trade cities, and mountain citadels. The archipelago should be uneven and varied: city-state islands, pirate islands, temple islands, ruin chains, wizard observatory isles, jungle islands, tiny shoals, and broad island kingdoms with political sea lanes. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a diagonal / C-shaped Inner Sea gulf with twisting straits, bays, reefs, and broken coastal shelves. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, sea caves, reefs, and shoals. Large detailed political fantasy atlas, subtle region tinting and expedition markers allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T03:28:40.8890098+08:00"
+}

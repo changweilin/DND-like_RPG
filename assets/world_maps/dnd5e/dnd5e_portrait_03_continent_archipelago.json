@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_portrait_03_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a0ef7f7488191a826ea8a3ec1c39e.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a D\u0026D 5e Forgotten Realms inspired heroic high fantasy RPG setting. Terrain type: continent_archipelago. Draw one dominant fictional continent plus a large irregular offshore archipelago in illustrated fantasy parchment cartography. The mainland should include rolling hills, deep ancient forests, jagged mountain ranges, scattered dungeon entrances, frontier towns and hamlets, winding rivers, coastal harbors, wizard towers, sacred temples, dragon lairs, dwarven mines, elven woods, haunted swamps, desert ruins, volcanic badlands, snowy highlands, and monster-haunted wilderness. The archipelago should be uneven and varied: pirate islands, temple islands, dragon-turtle reefs, wizard tower isles, ruin chains, jungle islands, tiny shoals, and broad island kingdoms. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a diagonal / C-shaped enchanted gulf with twisting straits, bays, reefs, and broken coastal shelves. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, sea caves, reefs, and shoals. Large detailed high fantasy atlas, magical atmosphere, ornate compass and fantasy border allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T02:57:16.0184687+08:00"
+}

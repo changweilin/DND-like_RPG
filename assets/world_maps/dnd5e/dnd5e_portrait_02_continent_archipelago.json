@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a099dcfd7c08191891c2a06db030463.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: D\u0026D 5e / Forgotten Realms inspired heroic high fantasy world map for the terrain type continent_archipelago.\nScene/backdrop: one dominant magical continent with a large uneven offshore archipelago, frontier towns and hamlets, coastal harbors, ancient forests, jagged mountains, winding rivers, dungeon entrances, ruined keeps, wizard towers, dragon-haunted islands, sacred groves, pirate coves, volcanic isles and enchanted sea routes.\nStyle/medium: high-resolution illustrated fantasy atlas, parchment cartography, inked relief terrain, hand-painted biomes, glowing runes, classic heroic adventure map atmosphere.\nComposition/framing: tall portrait map; main continent sits off-center with an irregular archipelago sweeping along the coast in a diagonal arc; islands range from tiny islets and reef belts to large island realms and crescent island chains; include compass rose, decorative border, roads, sea routes, dungeon icons and subtle borders without readable text.\nGeography constraints: islands must be irregularly distributed and varied in size and shape, with channels, lagoons, reefs, volcanic islands, atolls and broken shores; continental coastline should include peninsulas, bays, gulfs, straits, curved coasts, deltas, fjords, capes, marshes and fragmented cliffs; show deserts, forests, plains, snowy peaks, jungles, wetlands, magical wastelands and volcanic regions.\nAvoid: uniform island grid, simple round islands, tropical-only mood, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T18:58:06.1599637+08:00"
+}

@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_landscape_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a0943e323f48191bca69b72ae258271.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: Pathfinder / Golarion inspired epic political fantasy world map, single huge primary continent.\nScene/backdrop: overhead birds-eye atlas view surrounded by ocean, continent-scale geography inspired by an Inner Sea campaign region.\nSubject: one enormous primary continent with a complex realistic coastline: peninsulas, gulfs, bays, capes, fjords, narrow straits, broken coastal shelves, curved shores, river deltas, inland seas, and varied landforms. Include sprawling harbor cities, ancient ruins, trade roads, mountain passes, desert kingdoms, northern frozen wastes, jungle interiors, wetlands, forests, river basins, and frontier regions.\nStyle/medium: illustrated Pathfinder-style fantasy world map, aged ink-on-parchment, political fantasy atlas with subtle border lines and small non-text heraldic region markers, highly detailed hand-painted RPG sourcebook cartography, vibrant but readable.\nComposition/framing: wide 16:9 landscape map, full single continent visible with generous ocean border, no cropped landmasses, large high-resolution atlas feel.\nLighting/mood: epic political fantasy, rich nation-state atmosphere, adventurer trade routes, ancient god-war ruins, powerful factions, magical academy cities.\nColor palette: parchment tan, inked coastlines, blue-green seas, distinct biome color zones for deserts, tundra, jungle, forests, wetlands, mountains, and coastal regions.\nMaterials/textures: aged parchment grain, engraved ink lines, hand-painted terrain, fine cartographic detail.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Make the coastline natural, intricate, and realistic rather than a smooth blob.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T12:38:45.5924880+08:00"
+}

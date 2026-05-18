@@ -1,0 +1,16 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e ??Forgotten Realms",
+    "terrain_type":  "diverse_archipelago",
+    "terrain_name":  "Diverse Archipelago",
+    "status":  "generated",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_portrait_01_diverse_archipelago.png",
+    "error":  "",
+    "width":  1024,
+    "height":  1024,
+    "image_style":  "fantasy_art",
+    "image_model":  "stabilityai/sdxl-turbo",
+    "prompt":  "illustrated fantasy world map, cartographic parchment style, tolkien-esque continent, many island groups and microcontinents across a broad ocean, uneven distribution, large islands, tiny islets, curved island arcs, lagoons, reef belts, straits, remote atolls and fragmented coastlines with no grid-like spacing, rolling hills, deep ancient forests, jagged mountains, scattered dungeon entrances, frontier towns and hamlets, winding rivers, coastal harbors, heroic high fantasy, magical atmosphere, glowing rune stones, distant dragon silhouettes, large high-resolution atlas map, overhead birds-eye view, multiple climates and biomes, deserts, wetlands, forests, mountains, tundra, river basins and coastal regions, highly detailed, digital fantasy art, concept art, highly detailed illustration, vibrant colors, artstation quality, dramatic lighting, professional",
+    "negative_prompt":  "photo, realistic, modern, blurry, low quality, watermark, text, characters, people, text overlay, watermark, blurry, low quality",
+    "updated_at":  "2026-05-17T01:28:49"
+}

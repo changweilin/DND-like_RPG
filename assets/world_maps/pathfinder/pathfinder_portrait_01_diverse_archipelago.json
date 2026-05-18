@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09af612d18819187306fc438135565.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Pathfinder / Golarion inspired epic political fantasy world map for the terrain type diverse_archipelago.\nScene/backdrop: a vast inner-sea fantasy world of many island groups and microcontinents, island nation-states, sprawling harbor cities, adventurer trade ports, ancient ruin islands, desert atolls, northern frozen islands, jungle interiors, volcanic sanctums, faction enclaves, lost vaults, wizard islands and sacred expedition sites.\nStyle/medium: high-resolution illustrated political fantasy atlas, aged ink-on-parchment, richly colored regional borders, hand-painted terrain relief, ornate compass and cartographic decorations, epic adventure society campaign tone.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large islands, tiny islets, crescent island arcs, lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include compass rose, sea routes, city icons, ruin markers and subtle political boundary shading without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, fjords, deltas, marshy estuaries, volcanic ridges and ancient landmarks; show many climates and biomes across the archipelago including snowfields, deserts, jungles, wetlands, temperate forests, mountains, volcanic badlands and magical corrupted zones.\nAvoid: evenly spaced islands, simple round islands, tropical-only palette, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T20:10:18.1076710+08:00"
+}

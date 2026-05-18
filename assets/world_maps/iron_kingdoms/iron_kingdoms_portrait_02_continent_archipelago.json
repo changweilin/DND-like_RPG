@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a42d42b9c81919aa04beff8bd6531.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for an Iron Kingdoms inspired Full Metal Fantasy RPG setting. Terrain type: continent_archipelago. Draw one dominant Immoren-like continent plus a large irregular offshore archipelago in steampunk fantasy strategic cartography, brass-and-soot parchment, mechanikal detail overlay. The mainland should include mechanikal factory-cities, steam-vented ruins, rail lines, border war fronts, warjack assembly ports, river city hubs, storm-tech provinces, frozen fortress states, temple-fortresses, dwarf mountain holds, elven arcane enclaves, blighted marshes, alchemical wastelands, and arcane storm fronts. The archipelago should be uneven and varied: naval fort islands, foundry islands, warjack dock rocks, arcane lighthouse chains, smuggler ports, tiny shoals, broad industrial island provinces, and storm-battered refinery isles. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a diagonal / C-shaped steam-fog gulf with twisting straits, bays, shoals, sea caves, and broken coastal shelves. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, reefs, and shoals. Large detailed atlas, smoke plumes and arcane lightning allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T06:45:54.1239355+08:00"
+}

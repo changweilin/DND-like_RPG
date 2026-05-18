@@ -1,0 +1,171 @@
+{
+  "next_world_index": 0,
+  "completed_worlds": [
+    "dnd5e",
+    "pathfinder",
+    "warhammer_fantasy",
+    "wh40k",
+    "shadowrun",
+    "world_of_darkness",
+    "call_of_cthulhu",
+    "iron_kingdoms",
+    "blades_in_the_dark",
+    "hearts_of_wulin",
+    "l5r",
+    "deadlands",
+    "mutant_year_zero",
+    "gloomhaven"
+  ],
+  "runs": [
+    {
+      "world_id": "dnd5e",
+      "world_name": "D&D 5e ??Forgotten Realms",
+      "generated": 0,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": true,
+      "completed": false,
+      "updated_at": "2026-05-17T00:56:42"
+    },
+    {
+      "world_id": "dnd5e",
+      "world_name": "D&D 5e — Forgotten Realms",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T01:28:50"
+    },
+    {
+      "world_id": "pathfinder",
+      "world_name": "Pathfinder — Golarion",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T02:09:34"
+    },
+    {
+      "world_id": "warhammer_fantasy",
+      "world_name": "Warhammer Fantasy — The Old World",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T02:45:08"
+    },
+    {
+      "world_id": "wh40k",
+      "world_name": "Warhammer 40,000 — Dark Imperium",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T03:09:13"
+    },
+    {
+      "world_id": "shadowrun",
+      "world_name": "Shadowrun — Sixth World",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T03:39:36"
+    },
+    {
+      "world_id": "world_of_darkness",
+      "world_name": "World of Darkness — Vampire: The Masquerade",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T04:09:59"
+    },
+    {
+      "world_id": "call_of_cthulhu",
+      "world_name": "Call of Cthulhu — 1920s Lovecraftian",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T04:40:26"
+    },
+    {
+      "world_id": "iron_kingdoms",
+      "world_name": "Iron Kingdoms — Full Metal Fantasy",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T05:11:15"
+    },
+    {
+      "world_id": "blades_in_the_dark",
+      "world_name": "Blades in the Dark — Doskvol",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T05:41:24"
+    },
+    {
+      "world_id": "hearts_of_wulin",
+      "world_name": "Hearts of Wulin — Jianghu",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T06:12:08"
+    },
+    {
+      "world_id": "l5r",
+      "world_name": "Legend of the Five Rings — Rokugan",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T06:42:50"
+    },
+    {
+      "world_id": "deadlands",
+      "world_name": "Deadlands — Weird West",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T07:14:10"
+    },
+    {
+      "world_id": "mutant_year_zero",
+      "world_name": "Mutant: Year Zero — The Ark",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T07:57:22"
+    },
+    {
+      "world_id": "gloomhaven",
+      "world_name": "Gloomhaven — City of Lions",
+      "generated": 4,
+      "skipped": 0,
+      "failed": 0,
+      "prompt_only": false,
+      "completed": true,
+      "updated_at": "2026-05-17T08:22:32"
+    }
+  ]
+}

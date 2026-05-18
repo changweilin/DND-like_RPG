@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098bfd595481918acaf676d6063362.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Deadlands / Weird West inspired world map for the terrain type dual_continent.\nScene/backdrop: two major frontier continents separated by uneven haunted seas and narrow straits, weird west territories, ghost-rock deposits, railroad corridors, boom towns, desert badlands, haunted mesas, prairie grasslands, pine highlands, flooded maze coastlines and supernatural dead zones.\nStyle/medium: high-resolution illustrated atlas and old frontier cartography, sepia parchment, ink wash and watercolor relief, engraved linework, dusty western horror atmosphere, ghost-rock steam-tech silhouettes.\nComposition/framing: wide landscape world map, asymmetric continents of different sizes; the ocean separation is diagonal and S-shaped with C-shaped gulfs and jagged straits, not a vertical divider; include map border, compass, mine/railroad iconography and subtle territorial markings with no readable text.\nGeography constraints: coastlines must be realistic and complex with peninsulas, bays, gulfs, capes, broken coasts, curving shores, deltas, tidal marshes and inland seas; landforms vary from deserts and canyons to alpine ranges, forests, swamps, plains and cursed wastelands.\nAvoid: simple two-blob layout, mirrored continents, clean vertical split, modern road map, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:41:51.3198038+08:00"
+}

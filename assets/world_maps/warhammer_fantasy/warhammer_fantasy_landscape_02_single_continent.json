@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "warhammer_fantasy",
+    "world_name":  "Warhammer Fantasy - The Old World",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\warhammer_fantasy\\warhammer_fantasy_landscape_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a094af2b27481919ac30873cd48776b.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: Warhammer Fantasy / The Old World inspired grimdark fantasy map, single huge primary continent.\nScene/backdrop: overhead birds-eye atlas view surrounded by stormy ocean, continent-scale geography.\nSubject: one enormous primary continent with complex realistic coastline: peninsulas, gulfs, bays, capes, fjords, narrow straits, broken coastal shelves, curved shores, river deltas, inland seas, and varied landforms. Include old empire cities, river trading towns, dark forests touched by Chaos, northern wastes with unnatural storms, mountain dwarf holds, blighted marshes, fortified roads, and grim borderlands.\nStyle/medium: dark fantasy map, old world cartography, sinister wilderness regions marked with non-text symbols, aged ink-on-parchment, highly detailed hand-painted RPG sourcebook atlas.\nComposition/framing: wide 16:9 landscape map, full single continent visible with generous ocean border, no cropped landmasses, large high-resolution atlas feel.\nLighting/mood: grimdark low fantasy, oppressive threatening sky, corruption spreading from the north, crumbling empire atmosphere, brutal survival and black humour undertone.\nColor palette: smoky parchment, charcoal ink, muted greens, rust reds, sickly marsh tones, icy northern blues, dark mountain greys, dim coastal seas.\nMaterials/textures: stained parchment, engraved ink lines, hand-painted terrain, soot and weathering, fine cartographic detail.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Make the coastline natural, intricate, and realistic rather than a smooth blob.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T13:07:48.9220734+08:00"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a447474848191b8379fe2632d6e8f.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution Iron Kingdoms inspired steampunk fantasy atlas. Terrain type: diverse_archipelago. Many irregular island chains and scattered landmasses, unevenly distributed, brass-and-soot parchment, mechanikal technical overlay. Islands vary strongly: factory-city islands, naval fortress isles, warjack dock rocks, arcane lighthouse chains, blighted marsh islands, frozen fortress islands, dwarf mountain islands, elven arcane enclaves, alchemical wasteland atolls, storm-front islands, smuggler ports, tiny shoals, broad industrial provinces. Include many climates: riverlands, snowy tundra, mountains, blighted marsh, industrial wasteland, forests, dry badlands, volcanic forge regions, storm coasts. Complex realistic coastlines on every major island: peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, sea caves, reefs, shoals. Full Metal Fantasy mood, steam plumes, arcane lightning, no readable labels, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T06:45:54.1239355+08:00"
+}

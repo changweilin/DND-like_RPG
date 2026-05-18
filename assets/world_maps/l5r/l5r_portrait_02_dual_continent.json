@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings - Rokugan",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a555692b48191a1df5e801e5d2292.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Legend of the Five Rings / Rokugan-inspired feudal samurai fantasy setting. Terrain type: dual_continent. Draw two large feudal fantasy continents separated by a diagonal S-shaped mist sea, crescent bays, island stepping-stones, reef narrows, and twisting straits; avoid a simple vertical split. One continent centers on Imperial capital rings, Crane coastal courts, Lion battle plains, Phoenix temples, Dragon mountain monasteries, cherry valleys, rice deltas, cedar forests, sacred lakes, and castle districts. The other holds Crab defensive walls, corrupted Shadowlands, volcanic demon wastes, Unicorn steppe roads, Scorpion hidden valleys, ruined fortresses, storm cliffs, spirit forests, and remote shugenja sanctuaries. Include multiple climates and biomes: snowy celestial ranges, bamboo groves, volcanic hot springs, marsh deltas, dry steppe, fertile plains, coastal wetlands, storm coasts, corrupted southern wasteland. Complex realistic coastlines with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, reefs, sea caves. Uneven varied islands: shrine islands, pirate coves, monastery isles, fishing towns, castle rocks, spirit gates. Japanese ink and mineral pigment atlas, elemental rings aesthetic, no readable labels, no text, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:02:07.0390746Z"
+}

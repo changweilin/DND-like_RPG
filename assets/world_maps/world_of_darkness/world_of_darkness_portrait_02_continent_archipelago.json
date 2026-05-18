@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "world_of_darkness",
+    "world_name":  "World of Darkness - Vampire: The Masquerade",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\world_of_darkness\\world_of_darkness_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a335ca1e08191bf2c071e30b8cd51.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a World of Darkness: Vampire the Masquerade inspired gothic-punk modern horror RPG setting. Terrain type: continent_archipelago. Draw one dominant fictional continent plus a large irregular offshore archipelago as a nocturnal gothic vampire domain map. The mainland should include gothic city districts, opulent Elysium masquerade locations, haunted cemeteries, sewer warrens, cathedral spires, fog-filled midnight parks, ruined havens, Camarilla courts, Anarch districts, Sabbat ruins, werewolf wilderness preserves, mage observatories, shadowy suburbs, decaying industrial ports, and secret supernatural corridors. The archipelago should be uneven and varied: abandoned resort Elysium islands, occult lighthouse islands, cemetery isles, vampire haven rocks, storm ports, monastery islands, tiny shoals, and broad foggy island cities. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a diagonal / C-shaped black-water gulf with twisting straits, bays, shoals, fog channels, and broken coastal shelves. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, sea caves, reefs, and shoals. Large detailed noir gothic atlas, dark parchment, crimson moon accents, visual domain territories, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T05:35:14.1795937+08:00"
+}

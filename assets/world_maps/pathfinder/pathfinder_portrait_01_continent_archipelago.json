@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_portrait_01_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09aed29d9c8191beab418cd32b186f.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Pathfinder / Golarion inspired epic political fantasy world map for the terrain type continent_archipelago.\nScene/backdrop: one dominant fantasy continent with a large uneven offshore archipelago, inner sea coastline, sprawling harbor cities, diverse nation-states, ancient ruins, desert regions, northern frozen highlands, jungle interiors, faction ports, adventurer trade routes, pirate coves, lost temples, wizard enclaves and island relic sites.\nStyle/medium: high-resolution illustrated political fantasy atlas, aged ink-on-parchment, hand-painted terrain relief, richly colored political borders, ornate cartographic frame, adventure expedition mood.\nComposition/framing: tall portrait map; main continent sits off-center with an irregular archipelago sweeping along the coast in a diagonal arc; islands range from tiny islets and reef belts to large island realms, crescent island chains and volcanic outcrops; include compass rose, sea routes, city icons, ruins and subtle boundary shading without readable text.\nGeography constraints: islands must be irregularly distributed and diverse in size and shape, with channels, lagoons, reefs, atolls, volcanic islands and broken shores; continental coastline should include peninsulas, bays, gulfs, straits, curved coasts, deltas, fjords, marshy estuaries and fragmented cliffs; show deserts, frozen wastes, jungles, forests, wetlands, high mountains, volcanic badlands and magical regions.\nAvoid: uniform island grid, simple round islands, tropical-only palette, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T20:10:18.1076710+08:00"
+}

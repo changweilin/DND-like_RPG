@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "wh40k",
+    "world_name":  "Warhammer 40,000 - Dark Imperium",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\wh40k\\wh40k_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09bcb266b4819195319f5bf62a5672.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer 40,000 / Dark Imperium inspired grimdark planetary war-zone atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast toxic ocean war world filled with many island groups and microcontinents, hive city islands, underhive slum coasts, forge-world archipelagos, promethium refinery platforms, industrial wastelands, orbital landing islands, ruined battle sectors, irradiated reef belts, quarantined xenos zones and mechanicus sensor stations.\nStyle/medium: high-resolution grimdark far-future atlas, imperial sector cartography translated into planetary ocean map, gothic architecture aesthetic, toxic ochre water, mechanicus technical overlay, armored parchment-metal border, brutal war-zone mood.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large hive islands, tiny refinery islets, crescent island arcs, toxic lagoons, industrial reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include auspex compass, orbital route lines, hazard glyphs, hive icons and tactical sector boundaries without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, polluted deltas, toxic estuaries, ash fjords, volcanic forge ridges and wreck-strewn coasts; show many climates and regions including polar wastes, rad deserts, toxic swamps, industrial basins, hive sprawl, mountain fortresses and blasted battlefields.\nAvoid: evenly spaced islands, clean bright sci-fi, cheerful tropical palette, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T21:07:22.9506674+08:00"
+}

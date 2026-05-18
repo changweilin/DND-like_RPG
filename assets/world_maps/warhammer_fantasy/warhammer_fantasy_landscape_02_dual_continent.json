@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "warhammer_fantasy",
+    "world_name":  "Warhammer Fantasy - The Old World",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\warhammer_fantasy\\warhammer_fantasy_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a094b65cf1c819180dc5f1e543194ea.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: Warhammer Fantasy / The Old World inspired grimdark fantasy map, dual-continent terrain type.\nScene/backdrop: overhead birds-eye atlas view with two major continents separated by uneven seas, inland waters, and narrow straits.\nSubject: two asymmetric old-world continents divided by a diagonal C-shaped and S-bending sea corridor, not a simple vertical split. Use island-studded straits, inland seas, peninsulas, gulf systems, capes, fjords, broken coasts, river deltas, and realistic curved shorelines. Include old empire cities, river trading towns, dwarf mountain holds, blighted marshes, northern wastes and chaos storms, dark corrupted forests, fortified roads, border castles, and desolate coastlands.\nStyle/medium: dark fantasy map, old world cartography, sinister wilderness regions marked with non-text symbols, stained aged parchment, highly detailed hand-painted RPG sourcebook atlas.\nComposition/framing: wide 16:9 landscape map, both continents fully visible, diagonal/C-shaped separation, generous ocean border, continent-scale geography.\nLighting/mood: grimdark low fantasy, oppressive threatening sky, corruption spreading from the north, crumbling empire, desperate survival.\nColor palette: smoky parchment, charcoal ink, muted greens, rust reds, sickly marsh tones, icy northern blues, dark mountain greys, cold seas.\nMaterials/textures: stained parchment, engraved ink coastlines, hand-painted mountains and forests, soot and weathering, fine atlas detail.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Avoid mirrored symmetry and avoid a clean vertical division.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T13:07:48.9527982+08:00"
+}

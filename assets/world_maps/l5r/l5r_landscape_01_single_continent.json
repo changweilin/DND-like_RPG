@@ -1,0 +1,17 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings — Rokugan",
+    "terrain_type":  "single_continent",
+    "terrain_name":  "Single Continent",
+    "prompt":  "rokugan map, japanese feudal empire provinces, elemental rings aesthetic, mon crests, one huge primary continent surrounded by ocean, continent-scale geography, complex realistic coastline with peninsulas, gulfs, bays, capes, fjords, straits, broken coastal shelves, curved shores and river deltas, rokugan empire provinces, celestial mountain ranges, shadow lands border, castle districts, sacred forest groves, elemental spirit realms beyond the veil, japanese feudal fantasy, cherry blossom atmosphere, honor and duty, elemental spirits, large high-resolution atlas map, overhead birds-eye view, multiple climates and biomes, deserts, wetlands, forests, mountains, tundra, river basins and coastal regions, highly detailed, digital fantasy art, concept art, highly detailed illustration, vibrant colors, artstation quality, dramatic lighting, professional, no readable text labels, no watermark, no characters, no modern UI",
+    "negative_prompt":  "photo, realistic, modern, blurry, low quality, watermark, text, characters, people, text overlay, watermark, blurry, low quality",
+    "status":  "generated",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_landscape_01_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e31b3-7d25-72d2-ba20-a0a358a6f8be\\ig_09c7539f2ea8b785016a08f0c319b08191a7f1bde87df40836.png",
+    "error":  "",
+    "width":  1536,
+    "height":  1024,
+    "image_style":  "fantasy_art",
+    "image_model":  "chatgpt-imagegen",
+    "updated_at":  "2026-05-17T06:42:50"
+}

@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "warhammer_fantasy",
+    "world_name":  "Warhammer Fantasy - The Old World",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\warhammer_fantasy\\warhammer_fantasy_portrait_01_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09b359e8b48191b1d8620be1c20ad4.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer Fantasy / The Old World inspired grimdark world map for the terrain type single_continent.\nScene/backdrop: one huge primary continent surrounded by stormy seas, old world empire cities, grim river trading towns, dark forests tainted by Chaos, northern wastes and chaos storms, dwarf holds in jagged mountains, blighted marshes, greenskin borderlands, witch-hunter roads, crumbling fortresses and sinister wilderness regions.\nStyle/medium: high-resolution illustrated dark fantasy atlas, old world cartography, aged parchment, inked terrain relief, oppressive threatening sky, corruption spreading from the north, grim and battle-worn campaign-map mood.\nComposition/framing: tall portrait atlas view, single continent fills most of the vertical frame with surrounding seas and small offshore fragments; include compass rose, severe map border, road and river routes, fortress symbols, corruption marks and regional boundaries without readable text.\nGeography constraints: large world map crossing many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, fjords, capes, deltas, marshy river mouths and varied landforms; include frozen northern wastes, temperate empire lands, dark forests, mountains, moors, swamps, blasted chaos regions and grim coastal harbors.\nAvoid: bright heroic fantasy, clean cheerful colors, simple oval continent, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T20:34:38.7459426+08:00"
+}

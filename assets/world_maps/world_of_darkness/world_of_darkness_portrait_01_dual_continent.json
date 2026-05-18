@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "world_of_darkness",
+    "world_name":  "World of Darkness - Vampire: The Masquerade",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\world_of_darkness\\world_of_darkness_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09ca2dd0488191bd3eaed09a939520.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: World of Darkness / Vampire: The Masquerade inspired gothic-punk horror atlas for the terrain type dual_continent.\nScene/backdrop: two major gothic-punk continents under eternal night, separated by uneven black seas and narrow straits, with vampire clan domains, Elysium masquerade districts, haunted cemeteries, sewer warrens, cathedral cities, fog-filled parks, ruined havens, Anarch territories, Camarilla courts, Sabbat war zones and occult wilderness.\nStyle/medium: high-resolution illustrated gothic vampire atlas, noir domain cartography, dark parchment, silver ink and deep crimson accents, fog, shadows, blood moon glow, political horror atmosphere.\nComposition/framing: tall portrait map, asymmetric continents of different sizes; the dark sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped channels and jagged straits, not a simple vertical divider; include black compass rose, ornate gothic border, clan-domain boundaries, cemetery icons, Elysium symbols and hidden sewer-route traces without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, broken shores, curved coasts, deltas, foggy estuaries, inland seas, cliff coasts and varied landforms; span gloomy megacities, old forests, moors, mountains, wetlands, snowfields, plague-dark countryside and haunted harbors.\nAvoid: bright heroic fantasy, clean modern tourist map, mirrored continents, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T22:10:55.1423265+08:00"
+}

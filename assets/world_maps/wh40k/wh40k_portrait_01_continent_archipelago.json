@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "wh40k",
+    "world_name":  "Warhammer 40,000 - Dark Imperium",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\wh40k\\wh40k_portrait_01_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09bc1009148191a53d9f24aa114b41.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer 40,000 / Dark Imperium inspired grimdark planetary war-zone atlas for the terrain type continent_archipelago.\nScene/backdrop: one dominant polluted Imperial continent with a large uneven offshore archipelago of forge islands, orbital platform landing zones, toxic promethium rigs, hive spire islands, underhive slum coastlines, manufactorum harbors, ruined war sectors, irradiated reefs, xenos quarantine islands and mechanicus survey stations.\nStyle/medium: high-resolution grimdark sci-fantasy atlas, gothic imperial cartography, toxic ochre seas, inked and metallic terrain relief, mechanicus technical overlay, severe armor-plated border, battle-zone map tone.\nComposition/framing: tall portrait map; main continent off-center with an irregular archipelago sweeping along the coast in a diagonal arc; islands include tiny islets, refinery platforms, reef belts, large hive islands, crescent island chains and volcanic forge outcrops; include auspex compass, supply routes, hazard glyphs, hive icons and sector boundaries without readable text.\nGeography constraints: islands must be irregularly distributed and varied in size and shape, with channels, toxic lagoons, wreck fields, industrial reefs, atolls, volcanic forge islands and broken shores; continental coastline should include peninsulas, bays, gulfs, straits, curved coasts, polluted deltas, ash fjords, capes, toxic estuaries and fragmented cliffs; show rad deserts, toxic swamps, hive sprawl, polar wastes, mountains, industrial basins and blasted battlefields.\nAvoid: uniform island grid, clean utopian sci-fi, simple round islands, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T21:07:22.9506674+08:00"
+}

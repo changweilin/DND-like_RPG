@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "shadowrun",
+    "world_name":  "Shadowrun - Sixth World",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\shadowrun\\shadowrun_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a2b98a4688191b0fbe98030a541d2.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Shadowrun Sixth World inspired cyberpunk urban fantasy RPG setting. Terrain type: dual_continent. Draw two large fictional continents as a dark neon cyberpunk city-region atlas with Matrix hex overlay, separated by a dramatic non-vertical ocean passage: diagonal and S-shaped straits, corporate shipping gulfs, smuggler narrows, broken coast shelves, polluted shoals, and twisting channels rather than a simple straight split. One continent contains megacorp arcology towers, dense metropolitan districts, corporate logo-light city zones without readable logos, matrix access hubs, awakened forest preserves, and dragon-owned financial towers; the other contains barrens slums, gang territory borders, toxic industrial wastelands, desert solar farms, mana storm zones, smuggling docks, and arcane black-site wilderness. Complex realistic coastlines on both continents: peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, sea caves. Islands are unevenly scattered between and around the continents with varied size and shape, including corporate island enclaves, data-haven rocks, smuggler ports, awakened spirit islands, and abandoned offshore arcologies. Large detailed atlas, neon cyan/magenta highlights on dark map, rain-slick cyberpunk dystopia mood, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T04:59:17.4599527+08:00"
+}

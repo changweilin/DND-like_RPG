@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "world_of_darkness",
+    "world_name":  "World of Darkness - Vampire: The Masquerade",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\world_of_darkness\\world_of_darkness_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a0960a0030481918877c989675bc9f0.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG gothic-punk world atlas map, first batch pass, landscape orientation\nPrimary request: World of Darkness / Vampire: The Masquerade inspired gothic horror map, dual-continent terrain type.\nScene/backdrop: overhead birds-eye nocturnal atlas view with two major shadowed landmasses separated by uneven black seas and narrow straits.\nSubject: two asymmetric gothic continents divided by a diagonal S-shaped and C-bending sea corridor, not a simple vertical split. Include island-studded straits, inland lakes, misty gulfs, capes, broken rocky coasts, dark river deltas, jagged peninsulas, gothic city domains, Elysium neutral grounds, haunted cemeteries, sewer warrens, cathedral spires, fog parks, ruined havens, industrial zones, werewolf-haunted forests, mountain passes, wetlands, tundra, and coastal regions.\nStyle/medium: gothic vampire masquerade city map expanded to continental scale, noir atmosphere, domain territories marked with non-text sigils, dark illustrated RPG sourcebook cartography, highly detailed.\nComposition/framing: wide 16:9 landscape map, both continents fully visible, diagonal/S/C-shaped sea separation, generous black ocean border, top-down map clarity.\nLighting/mood: gothic-punk political horror, eternal night, blood moon overhead, deep shadows, masquerade secrecy, ancient alliances and betrayal.\nColor palette: charcoal black, desaturated purple, blood red, moonlit silver, fog grey, deep blue-black ocean, muted natural terrain beneath nocturnal haze.\nMaterials/textures: black parchment, engraved silver ink coastlines, smoky fog layers, subtle blood-red domain sigils, aged paper grain.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Avoid mirrored symmetry and avoid a clean vertical division.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T14:39:56.4236667+08:00"
+}

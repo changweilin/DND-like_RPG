@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "blades_in_the_dark",
+    "world_name":  "Blades in the Dark - Doskvol",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\blades_in_the_dark\\blades_in_the_dark_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09e24787688191b479b0bdf11f7352.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Blades in the Dark / Doskvol inspired industrial gothic supernatural atlas for the terrain type dual_continent.\nScene/backdrop: two major industrial gothic continents under perpetual supernatural darkness, separated by uneven black seas and narrow straits, with canal cities, lightning rail lines, leaky industrial waterways, electroplasmic lightning towers, gang territory borders, deathlands beyond city walls, ghost-lit sectors, leviathan-blood docks and haunted factory districts.\nStyle/medium: high-resolution illustrated dark gaslamp atlas, soot-stained parchment, industrial gothic cartography, smog and fog, flickering gas lamps, electroplasmic blue lightning, criminal faction map atmosphere.\nComposition/framing: tall portrait map, asymmetric continents of different sizes; the black sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped channels and jagged straits, not a simple vertical divider; include iron compass rose, gothic border, canal and rail routes, gang boundary shading, lightning tower symbols and ghost-field marks without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, broken shores, curved coasts, fjords, deltas, oily estuaries, inland seas and varied landforms; span walled cities, canal deltas, industrial marshes, dark forests, barren deathlands, cold highlands, haunted coastlines and polluted harbors.\nAvoid: bright heroic fantasy, clean steampunk optimism, mirrored continents, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:58:28.7004893+08:00"
+}

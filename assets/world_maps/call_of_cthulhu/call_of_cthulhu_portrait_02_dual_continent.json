@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "call_of_cthulhu",
+    "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\call_of_cthulhu\\call_of_cthulhu_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a39cdb2a48191a0d4f772ba35d5c3.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Call of Cthulhu 1920s Lovecraftian cosmic horror RPG setting. Terrain type: dual_continent. Draw two large fictional continents in aged parchment and 1920s investigative cartography style, separated by diagonal and S-shaped fogbound straits, crescent gulfs, shoals, broken shelves, black-water narrows, and twisting channels rather than a simple vertical split. One continent has New England-like coastlines, Arkham-style towns, Miskatonic river delta, old colonial cities, lighthouses, fishing ports, university districts, and decaying mansions. The other has fog-shrouded rocky hills, ancient standing stones, cult-haunted moors, old rail towns, forbidden dig sites, black pine forests, marshes, volcanic blacklands, and isolated icy north. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, and sea caves. Islands are unevenly scattered with varied size and shape: lighthouse islands, ruined chapel isles, fishing villages, occult stone circles, forbidden reefs, and storm-battered ports. Large detailed sepia horror atlas, hand-annotation marks but no readable text, creeping cosmic dread, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T06:05:03.4929287+08:00"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a5c7f7abc8191b0b952524e27bdcb.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Deadlands-inspired Weird West supernatural frontier setting. Terrain type: dual_continent. Draw two large frontier continents separated by a diagonal S-shaped haunted sea, flooded canyon maze, crescent gulfs, foggy straits, reef narrows, and rail-ferry channels; do not use a simple vertical split. One continent has boom towns, railroad lines, cattle trails, forts, ghost rock mine claims, mad science foundries, desert badlands, prairie grasslands, snowy mountains, and river deltas. The other continent is darker: haunted canyons, undead outlaw territories, cursed ruins, black-rock volcanic basins, spirit lands, ghost swamps, salt flats, storm cliffs, and Reckoning-scarred wasteland. Complex realistic coastlines with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, capes, lagoons, barrier islands, reefs, sea caves. Uneven varied islands: mining islands, outlaw coves, haunted lighthouse rocks, flooded canyon isles, rail ferry ports, spirit shrine islands. Sepia frontier map, ghost-rock green glow, survey marks and rail routes without readable labels, no text, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:32:42.3343124Z"
+}

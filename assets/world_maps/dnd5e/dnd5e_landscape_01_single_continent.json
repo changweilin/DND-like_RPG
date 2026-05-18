@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_landscape_01_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a093cd1dde88191acf0e8d46c8a473b.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: D\u0026D 5e / Forgotten Realms inspired high fantasy world map, single huge primary continent.\nScene/backdrop: overhead birds-eye atlas view surrounded by ocean, continent-scale geography.\nSubject: one enormous primary continent with complex realistic coastline: peninsulas, gulfs, bays, capes, fjords, narrow straits, broken coastal shelves, curved shores, river deltas, inland seas, and varied landforms.\nStyle/medium: illustrated fantasy world map, cartographic parchment style, Tolkien-esque continent, digital fantasy concept art, highly detailed illustration, vibrant but readable atlas colors, professional RPG sourcebook quality.\nComposition/framing: wide 16:9 landscape map, very large scale, full map visible with generous ocean border, no cropped landmasses.\nLighting/mood: heroic high fantasy, magical atmosphere, wondrous ancient ruins, frontier towns, scattered dungeon entrances, glowing rune stones, distant dragon silhouettes kept tiny and decorative.\nColor palette: parchment tan oceans and inked coastlines with rich biome colors for forests, deserts, wetlands, tundra, mountains, river basins, and coastal regions.\nMaterials/textures: aged parchment, engraved ink lines, hand-painted terrain, fine cartographic detail.\nConstraints: no text labels, no letters, no legend, no compass text, no watermark, no UI, no characters or portraits; keep it as a clean world map. Make the landmass and coastlines more realistic and complex than a simple blob.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T12:04:28.0157289+08:00"
+}

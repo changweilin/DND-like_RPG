@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09ad5930ac8191933b28e163b801bc.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Pathfinder / Golarion inspired epic political fantasy world map for the terrain type dual_continent.\nScene/backdrop: two major fantasy continents separated by uneven inner seas and narrow straits, diverse nation-states, sprawling harbor cities, ancient ruins, desert kingdoms, northern frozen wastes, jungle interiors, adventurer routes, faction territories, holy war scars, wizard schools and lost vaults.\nStyle/medium: high-resolution illustrated political fantasy atlas, aged ink-on-parchment, ornate region coloring, hand-painted terrain relief, detailed old-world cartography, epic Pathfinder-like campaign mood.\nComposition/framing: tall portrait world map, asymmetric continents of different sizes; the sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped ocean channels and jagged straits, not a simple vertical divider; include compass rose, decorative border, trade routes, city icons, ruin markers and political boundary shading without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, fjords, broken shores, curved coasts, deltas, inland seas, marshy estuaries and varied landforms; span many climates including frozen wastes, deserts, jungle interiors, temperate plains, mountains, wetlands, volcanic badlands and magical corrupted regions.\nAvoid: mirrored continents, clean vertical split, simple two-blob layout, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T20:10:18.1076710+08:00"
+}

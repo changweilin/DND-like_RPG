@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a159135f48191b21d7403a9424ca1.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Pathfinder Golarion inspired epic political fantasy RPG setting. Terrain type: dual_continent. Draw two large fictional continents in illustrated Pathfinder aged ink-on-parchment cartography, separated by a dramatic non-vertical Inner Sea passage: diagonal and S-shaped straits, crescent gulfs, political sea lanes, shoals, broken coastal shelves, and twisting channels rather than a simple straight split. One continent contains sprawling harbor city-states, Absalom-like island metropolis, ancient god-war ruins, magical schools, forest nations, mountain citadels, and trade roads; the other contains desert empires, jungle interiors, northern frozen wastes, haunted necromantic realms, volcanic badlands, nomad steppes, and Pathfinder expedition routes. Complex realistic coastlines on both continents: peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, sea caves. Islands are unevenly scattered between and around the continents with varied size and shape, including independent city-state islands, ruin chains, pirate coves, temple isles, and monster-haunted rocks. Large detailed political fantasy atlas, subtle region tinting and heraldic-style markers allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T03:25:17.7218301+08:00"
+}

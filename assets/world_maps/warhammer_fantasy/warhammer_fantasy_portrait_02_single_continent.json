@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "warhammer_fantasy",
+    "world_name":  "Warhammer Fantasy - The Old World",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\warhammer_fantasy\\warhammer_fantasy_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a1c18cb7c8191955058242e00cdc0.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Warhammer Fantasy Old World inspired grimdark low-fantasy RPG setting. Terrain type: single_continent. Draw one immense fictional continent in dark fantasy old-world cartography, aged parchment, sinister wilderness regions marked. Include crumbling empire cities, river trading towns, witch-hunter roads, dark forests touched by Chaos taint, northern wastes and Chaos storm fronts, dwarf holds in jagged mountains, blighted marshes, greenskin borderlands, rat-haunted undercity regions implied by surface symbols, plague villages, haunted barrows, bleak farmlands, and fortified passes. The continent must span many climates and biomes: temperate imperial provinces, black pine forests, snowy northern wastes, alpine dwarf mountains, cursed marshes, cold steppe, blasted Chaos badlands, storm coasts, river valleys, and desolate moors. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, sea caves, and varied landforms. Include irregular offshore islands in uneven clusters, all different sizes and shapes, some as cursed isles, fortified harbors, pirate rocks, or plague ruins. Large detailed atlas composition, oppressive threatening sky mood through palette, ornate compass and grim border allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T03:53:04.2420422+08:00"
+}

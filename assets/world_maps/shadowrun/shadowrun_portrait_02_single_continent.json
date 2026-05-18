@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "shadowrun",
+    "world_name":  "Shadowrun - Sixth World",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\shadowrun\\shadowrun_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a2ab404d88191bd14b658180b1add.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Shadowrun Sixth World inspired cyberpunk urban fantasy RPG setting. Terrain type: single_continent. Draw one immense fictional continent as a neon-dark cyberpunk atlas and Matrix-overlay map, with sprawling metropolitan districts, megacorp arcology towers, barrens slums, matrix access node hubs, gang territory borders, smuggling docks, corporate enclave borders, dragon-owned skyscraper cities, awakened forest preserves, mana storm zones, toxic industrial wastelands, arcane black sites, and rain-slick neon transit corridors. The continent must span many climates and biomes: hyperurban megasprawls, polluted coastal zones, awakened rainforests, desert solar farms, alpine corporate retreats, flooded lowlands, toxic marshes, frozen data-center tundra, volcanic geothermal fields, and stormy harbors. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, sea caves, and varied landforms. Include irregular offshore islands in uneven clusters, all different sizes and shapes, some as corporate island enclaves, smuggler ports, awakened spirit preserves, and abandoned arcologies. Large detailed atlas composition, dark map with neon cyan/magenta highlights, subtle hexagonal Matrix overlay allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T04:55:24.7258220+08:00"
+}

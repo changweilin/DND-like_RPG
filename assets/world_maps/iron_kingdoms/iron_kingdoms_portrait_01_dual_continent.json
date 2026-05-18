@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09d8ea898081919e91db7d533c5ed7.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Iron Kingdoms / Full Metal Fantasy inspired steampunk military-fantasy atlas for the terrain type dual_continent.\nScene/backdrop: two major western Immoren-style continents separated by uneven iron-grey seas and narrow straits, mechanikal factory-cities, steam-vented ruins, blighted marshes, warjack assembly ports, arcane storm fronts, rival kingdoms, fortified railways, coal basins, river trade cities, alchemist roads and mercenary war zones.\nStyle/medium: high-resolution illustrated steampunk fantasy atlas, aged parchment with brass-and-iron mechanikal overlay, steam and magic intertwined, warjack smoke plumes, arcane lightning, industrial military campaign-map mood.\nComposition/framing: tall portrait map, asymmetric continents of different sizes; the sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped channels and jagged straits, not a simple vertical divider; include brass compass rose, riveted border, rail lines, factory icons, fortress markers, arcane storm symbols and national border shading without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, broken shores, curved coasts, fjords, deltas, smoky estuaries, inland seas and varied landforms; span snowbound northlands, temperate river kingdoms, blighted swamps, mountain holds, industrial basins, forests, harbors and arcane-scorched wastelands.\nAvoid: clean heroic fantasy, mirrored continents, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:19:21.9998033+08:00"
+}

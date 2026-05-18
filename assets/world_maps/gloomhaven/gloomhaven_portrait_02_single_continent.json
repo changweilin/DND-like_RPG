@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven - City of Lions",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a0668c15481919c47435b6b158776.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Gloomhaven-inspired grim mercenary fantasy RPG setting. Terrain type: single_continent. Draw one immense fictional continent in dark tactical fantasy cartography, scenario-map style, gloomy overcast atmosphere. Include a grim harbor city like Gloomhaven on the edge of the Misty Sea, dungeon entrance locations, ancient catacomb networks, demon-infested ruined citadels, frozen northern peaks, dark forest regions, monster-infested tunnels, merchant roads, mercenary guild routes, cursed marshes, old imperial ruins, bleak highlands, and forgotten magic sites. The continent must span many climates and biomes: foggy coastlands, rain-dark forests, snowy mountains, tundra, haunted swamps, rocky deserts, volcanic ruins, deep river valleys, and broken badlands. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, sea caves, and varied landforms. Include irregular offshore islands in uneven clusters, all different sizes and shapes, some holding ruins, monster lairs, and abandoned fortresses. Large detailed atlas composition, dark parchment, tactical RPG scenario-map symbols allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T02:20:30.9574696+08:00"
+}

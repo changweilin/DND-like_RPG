@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "wh40k",
+    "world_name":  "Warhammer 40,000 - Dark Imperium",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\wh40k\\wh40k_portrait_01_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09bacf38488191aec5decb66687724.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer 40,000 / Dark Imperium inspired grimdark planetary war-zone atlas for the terrain type single_continent.\nScene/backdrop: one huge primary continent on a polluted Imperial world, surrounded by toxic oceans, hive city mega-structures, underhive slums, industrial wastelands, promethium refinery zones, ruined manufactorum belts, gothic spires, ash deserts, irradiated plains, war trenches, void-shield districts and mechanicus survey overlays.\nStyle/medium: high-resolution illustrated grimdark far-future atlas, imperial sector cartography fused with planetary terrain map, toxic ochre atmosphere, gothic architecture aesthetic, mechanicus technical overlay, parchment-metal interface feel.\nComposition/framing: tall portrait planetary map, single continent fills most of the vertical frame with surrounding poisonous seas and offshore industrial platforms; include compass/auspex rose, severe gothic border, supply routes, hazard glyphs, hive icons and tactical sector boundaries without readable text.\nGeography constraints: large world map crossing many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, polluted estuaries, ash cliffs and varied landforms; include hive megacity zones, rad deserts, toxic swamps, mountain fortresses, polar wastes, industrial basins and blasted battlefields.\nAvoid: clean utopian sci-fi, bright heroic fantasy, simple oval continent, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T21:07:22.9506674+08:00"
+}

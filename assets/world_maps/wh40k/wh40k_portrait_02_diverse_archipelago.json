@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "wh40k",
+    "world_name":  "Warhammer 40,000 - Dark Imperium",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\wh40k\\wh40k_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a25c82bf481919cede843e874f688.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Warhammer 40,000 Dark Imperium inspired grimdark science-fantasy RPG setting. Terrain type: diverse_archipelago. Draw an entire grimdark planetary war-zone world made of many irregular island chains and scattered landmasses, unevenly distributed across the page, as an Imperial cartographic atlas with gothic sci-fi architecture, mechanicus technical overlay, and toxic ochre atmosphere. The islands must vary strongly in size and shape: broad hive-province islands, crescent refinery islands, tiny minefield reef specks, long manufactorum ridge islands, frozen fortress islands, volcanic forge islands, acidic marsh islands, underhive slum stacks, quarantine rocks, wrecked void-port islands, cathedral-fortress isles, xenos-contaminated badlands, and toxic promethium platform chains. Include multiple climates and biomes across the archipelago: industrial ash plains, toxic deserts, frozen wastes, acidic marshes, dead forests, volcanic forge regions, polluted deltas, cracked highlands, storm coasts, and irradiated ruins. Coastlines on every major island should be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, sea caves, reefs, shoals, and hidden coves. Make the island distribution asymmetrical and natural, with dense industrial clusters in some regions and wide dangerous contaminated seas elsewhere. Large detailed grimdark planetary atlas, tactical grid and gothic border allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T04:34:27.0682779+08:00"
+}

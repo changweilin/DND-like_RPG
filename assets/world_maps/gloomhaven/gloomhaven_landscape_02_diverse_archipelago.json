@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven - City of Lions",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_landscape_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a0998248a748191a5dae7831c1f64a4.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Gloomhaven / City of Lions inspired world map for the terrain type diverse_archipelago.\nScene/backdrop: a vast Misty Sea dark fantasy world of many island groups and microcontinents, grim harbor city-states, mercenary contract islands, dungeon entrances, ancient catacomb islands, demon-infested ruined citadels, frozen northern isles, dark forest islands, cursed swamp chains, volcanic rift islands, haunted reefs and forgotten empire ruins.\nStyle/medium: high-resolution illustrated tactical RPG atlas, gloomy overcast atmosphere, muted parchment, iron-grey water, inked relief terrain, scenario-map style, dungeon-crawl symbols and grim mercenary fantasy tone.\nComposition/framing: wide landscape world map with uneven island clusters; include large islands, tiny islets, crescent island arcs, lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include compass, route lines, dungeon icons and worn border ornaments without readable text.\nGeography constraints: islands must vary strongly in size and shape, with complex coastlines, broken shores, curved bays, peninsulas, fjords, deltas, marshy estuaries, volcanic scars and abyssal rifts; show many climates and biomes across the archipelago including snowfields, dark forests, swamps, rocky wastelands, misty coasts, haunted ruins and bleak highlands.\nAvoid: evenly spaced islands, cheerful tropical colors, simple pirate map, bright heroic fantasy, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T18:31:12.1105192+08:00"
+}

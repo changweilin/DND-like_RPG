@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_portrait_03_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a0fa8fd7881918b974bf8907bef0e.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a D\u0026D 5e Forgotten Realms inspired heroic high fantasy RPG setting. Terrain type: diverse_archipelago. Draw an entire heroic fantasy world made of many irregular island chains and scattered landmasses, unevenly distributed across the page, in illustrated cartographic parchment style. The islands must vary strongly in size and shape: broad kingdom islands, crescent jungle islands, tiny reef specks, long mountain ridge islands, volcanic dragon isles, snowy northern fortress islands, swamp islands, elven forest isles, dwarven mine islands, wizard tower rocks, pirate coves, temple isles, ruin chains, and monster lair atolls. Include multiple climates and biomes across the archipelago: temperate kingdoms, tropical jungles, snowy peaks, tundra, misty swamps, arid desert islands, volcanic badlands, grassland realms, river deltas, storm coasts, and enchanted forests. Coastlines on every major island should be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, sea caves, reefs, shoals, and hidden coves. Make the island distribution asymmetrical and natural, with dense clusters in some regions and wide mythic seas elsewhere. Large detailed high fantasy atlas, magical rune stones and distant dragon silhouettes allowed, ornate compass and border allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T03:00:06.3655159+08:00"
+}

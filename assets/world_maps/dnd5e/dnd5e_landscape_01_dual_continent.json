@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_landscape_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a093d00e11c8191a44218168fb176d9.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: D\u0026D 5e / Forgotten Realms inspired high fantasy world map, dual-continent terrain type.\nScene/backdrop: overhead birds-eye atlas view with two major continents separated by uneven seas and narrow straits.\nSubject: two asymmetric major continents, not a simple vertical split; use a diagonal S-shaped ocean channel with offset landmasses, inland seas, peninsulas, gulf systems, capes, bays, island-studded straits, broken coasts, river deltas, and realistic curved shorelines.\nStyle/medium: illustrated fantasy world map, cartographic parchment style, Tolkien-esque high fantasy atlas, digital fantasy concept art, highly detailed illustration, vibrant but readable RPG sourcebook quality.\nComposition/framing: wide 16:9 landscape map, both continents fully visible, diagonal/S-shaped separation, generous ocean border, continent-scale geography.\nLighting/mood: heroic high fantasy with ancient ruins, frontier towns, scattered dungeon entrances, winding rivers, coastal harbors, tiny glowing rune stones, distant dragon silhouettes used sparingly.\nColor palette: aged parchment and blue-green seas, with diverse forests, deserts, wetlands, tundra, alpine ranges, river basins, and coastal regions.\nMaterials/textures: aged parchment, engraved ink coastlines, hand-painted mountains and forests, fine atlas detail.\nConstraints: no text labels, no letters, no legend, no compass text, no watermark, no UI, no characters or portraits. Avoid mirrored symmetry and avoid a clean vertical division.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T12:04:28.0553705+08:00"
+}

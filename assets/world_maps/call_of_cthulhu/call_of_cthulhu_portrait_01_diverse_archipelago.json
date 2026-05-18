@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "call_of_cthulhu",
+    "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\call_of_cthulhu\\call_of_cthulhu_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09d2c1b1a08191b7715b9418b2a569.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Call of Cthulhu / 1920s Lovecraftian inspired cosmic horror atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast cold ocean world of many island groups and microcontinents, New England-style fishing towns, Arkham-like university islands, Miskatonic river deltas, fog-shrouded rocky hills, old colonial harbors, lighthouse coastlines, cult-haunted villages, forbidden standing stones, marsh atolls, shipwreck reefs, remote polar isles and strange ruins beneath ordinary 1920s settlements.\nStyle/medium: high-resolution illustrated 1920s investigative atlas, aged parchment with hand annotations, sepia ink, fog and damp paper texture, creeping cosmic dread, occult marginalia, subtle impossible geometry.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large island regions, tiny haunted islets, crescent island arcs, black lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include compass rose, ship routes, rail-route fragments, lighthouse icons, standing stone symbols and investigator annotations without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, foggy deltas, salt marshes, dark estuaries, cliff coasts and storm harbors; show many climates and regions including rocky coasts, dark forests, rural farmlands, mountains, wetlands, cold islands, moors, polar wastes and uncanny ruined zones.\nAvoid: evenly spaced islands, heroic fantasy, visible tentacle monster centerpiece, cheerful tropical palette, modern satellite image, clean tourist map, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T22:45:35.2687502+08:00"
+}

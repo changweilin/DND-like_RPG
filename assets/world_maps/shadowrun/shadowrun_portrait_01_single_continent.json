@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "shadowrun",
+    "world_name":  "Shadowrun - Sixth World",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\shadowrun\\shadowrun_portrait_01_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09c21cbce881918577aa0168d4701e.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Shadowrun / Sixth World inspired cyberpunk urban-fantasy atlas for the terrain type single_continent.\nScene/backdrop: one huge primary continent dominated by sprawling metropolitan districts, megacorp arcology towers, barrens slums, matrix access node hubs, gang territory borders, smuggling docks, awakened wilderness preserves, dragon-owned corporate enclaves, toxic industrial zones, neon port cities and magical leyline anomalies.\nStyle/medium: high-resolution illustrated cyberpunk world atlas, dark map with neon highlights, rain-slicked dystopian atmosphere, corporate logo glow, holo-billboard light, Matrix overlay hexagons, urban fantasy cartography.\nComposition/framing: tall portrait atlas view, single continent fills most of the vertical frame with surrounding black ocean and offshore sprawl islands; include digital compass, circuit-like border, transit routes, gang-zone markings, corporate district icons and Matrix node overlays without readable text.\nGeography constraints: large world map crossing many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, polluted estuaries, seawalls and varied landforms; include megacity sprawl, rain forests, deserts, mountain arcologies, toxic wetlands, coastal docks, awakened forests and wasteland barrens.\nAvoid: clean utopian sci-fi, medieval fantasy map, simple oval continent, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T21:39:16.1614133+08:00"
+}

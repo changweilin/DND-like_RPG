@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "wh40k",
+    "world_name":  "Warhammer 40,000 - Dark Imperium",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\wh40k\\wh40k_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09bb6b3a2081919a6dcbd74ac4e975.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer 40,000 / Dark Imperium inspired grimdark planetary war-zone atlas for the terrain type dual_continent.\nScene/backdrop: two major continents on a polluted Imperial war world, separated by uneven toxic seas and narrow straits, hive city mega-structures, underhive slums, manufactorum belts, industrial wastelands, promethium refinery zones, ruined battle sectors, orbital landing fields, gothic cathedral-spires and mechanicus noosphere overlays.\nStyle/medium: high-resolution grimdark far-future atlas, Imperial cartography, gothic sci-fi armor-panel border, toxic ochre atmosphere, mechanicus technical overlay, battle-worn parchment-metal map.\nComposition/framing: tall portrait map, asymmetric continents of different sizes; the toxic sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped channels and jagged straits, not a simple vertical divider; include auspex compass, severe gothic border, supply routes, hazard glyphs, hive icons and tactical sector boundaries without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, broken shores, curved coasts, deltas, polluted estuaries, inland seas, ash cliffs and varied landforms; span rad deserts, toxic swamps, hive sprawl, polar wastes, mountain fortress zones, industrial basins, ash wastes and blasted battlefields.\nAvoid: clean bright sci-fi, symmetrical continents, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T21:07:22.9506674+08:00"
+}

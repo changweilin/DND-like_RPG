@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_portrait_01_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09d841f0b48191bcf172e80225a2bb.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Iron Kingdoms / Full Metal Fantasy inspired steampunk military-fantasy atlas for the terrain type single_continent.\nScene/backdrop: one huge primary continent like western Immoren, surrounded by iron-grey seas, mechanikal factory-cities, steam-vented ruins, blighted marshes, warjack assembly ports, arcane storm fronts, rival nation borders, river city trade hubs, alchemist roads, coal basins, fortified rail lines and warcaster battlefields.\nStyle/medium: high-resolution illustrated Iron Kingdoms continent map, steampunk fantasy aesthetic, aged parchment with brass-and-iron mechanikal detail overlay, steam and magic intertwined, warjack smoke plumes, arcane lightning, industrial military fantasy tone.\nComposition/framing: tall portrait atlas view, single continent fills most of the vertical frame with surrounding seas and offshore industrial platforms; include brass compass rose, riveted border, rail lines, factory icons, fortress markers, arcane storm symbols and national border shading without readable text.\nGeography constraints: large world map crossing many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, fjords, capes, deltas, smoky estuaries and varied landforms; include snowbound Khador-like northlands, temperate river kingdoms, blighted swamps, mountain holds, industrial basins, forests, coast harbors and arcane-scorched wastelands.\nAvoid: clean heroic fantasy, modern satellite image, simple oval continent, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:19:21.9998033+08:00"
+}

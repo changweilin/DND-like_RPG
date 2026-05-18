@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings - Rokugan",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_portrait_01_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09f3249eb48191b1c58b22bb3145be.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Legend of the Five Rings / Rokugan inspired Japanese feudal fantasy atlas for the terrain type continent_archipelago.\nScene/backdrop: one dominant samurai-empire continent with a large uneven offshore archipelago, clan provinces, celestial mountains, castle districts, sacred forest groves, elemental spirit realms, shrine islands, fishing ports, court roads, cherry blossom valleys, volcanic kami islands, pirate coves and Shadowlands-tainted outer isles.\nStyle/medium: high-resolution illustrated Rokugan-style atlas, Japanese feudal fantasy, parchment and ink wash cartography, elemental rings aesthetic, mon crest ornaments, cherry blossom atmosphere, subtle kami spirit glow.\nComposition/framing: tall portrait map; main continent off-center with an irregular archipelago sweeping along the coast in a diagonal arc; islands include tiny shrine islets, reef belts, large clan islands, crescent island chains, misty atolls and volcanic spirit rocks; include compass seal, elegant border, sea routes, province boundary shading, castle icons, shrine symbols and clan crest-like ornaments without readable text.\nGeography constraints: islands must be irregularly distributed and varied in size and shape, with channels, mist lagoons, reefs, atolls, volcanic islands and broken shores; continental coastline should include peninsulas, bays, gulfs, straits, curved coasts, deltas, misty estuaries, capes and fragmented cliffs; show snowy sacred peaks, temperate forests, rice plains, deserts, wetlands, volcanic lands, sacred groves, spirit valleys and corrupted Shadowlands.\nAvoid: uniform island grid, western medieval fantasy, modern satellite image, simple round islands, bright UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:07:00.3022186+08:00"
+}

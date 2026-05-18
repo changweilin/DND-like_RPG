@@ -116,7 +116,8 @@ class ImageGenerator:
     # Main generation entry point — dispatches by provider
     # ------------------------------------------------------------------
 
-    def generate_image(self, prompt, negative_prompt=None, context_type="scene"):
+    def generate_image(self, prompt, negative_prompt=None, context_type="scene",
+                       width=None, height=None):
         """
         Generate an image from prompt. Returns PIL Image or None.
 
@@ -130,19 +131,20 @@ class ImageGenerator:
 
         provider = self._provider()
         if provider == _PROVIDER_OPENAI:
-            return self._generate_openai(prompt)
+            return self._generate_openai(prompt, width=width, height=height)
         elif provider == _PROVIDER_STABILITY:
-            return self._generate_stability(prompt)
+            return self._generate_stability(prompt, width=width, height=height)
         else:
             if not self.can_generate_safely():
                 return None
-            return self._generate_diffusers(prompt, negative_prompt=negative_prompt)
+            return self._generate_diffusers(prompt, negative_prompt=negative_prompt,
+                                            width=width, height=height)
 
     # ------------------------------------------------------------------
     # Provider implementations
     # ------------------------------------------------------------------
 
-    def _generate_diffusers(self, prompt, negative_prompt=None):
+    def _generate_diffusers(self, prompt, negative_prompt=None, width=None, height=None):
         """Local GPU inference via HuggingFace diffusers."""
         preset   = self._preset()
         steps    = preset.get('steps', 2)
@@ -178,6 +180,9 @@ class ImageGenerator:
                 )
                 if negative_prompt:
                     pipe_kwargs['negative_prompt'] = negative_prompt
+                if width and height:
+                    pipe_kwargs['width'] = int(width)
+                    pipe_kwargs['height'] = int(height)
                 image = self.pipeline(**pipe_kwargs).images[0]
                 self.unload_model()
                 if vram_acquired and self.on_vram_release:
@@ -238,7 +243,7 @@ class ImageGenerator:
             print(f"[ImageGen/{provider_tag}] {env_key} not set — skipping.")
         return key or None
 
-    def _generate_openai(self, prompt):
+    def _generate_openai(self, prompt, width=None, height=None):
         """DALL-E 3 via OpenAI REST API. Returns PIL Image or None."""
         api_key = self._get_api_key('OpenAI')
         if not api_key:
@@ -247,10 +252,16 @@ class ImageGenerator:
             import openai
             from PIL import Image
             client = openai.OpenAI(api_key=api_key)
+            size = "1024x1024"
+            if width and height:
+                if int(width) > int(height):
+                    size = "1792x1024"
+                elif int(height) > int(width):
+                    size = "1024x1792"
             resp   = client.images.generate(
                 model="dall-e-3",
                 prompt=prompt[:1000],   # DALL-E 3 prompt length limit
-                size="1024x1024",
+                size=size,
                 quality="standard",
                 n=1,
             )
@@ -261,7 +272,7 @@ class ImageGenerator:
             print(f"[ImageGen/OpenAI] {e}")
             return None
 
-    def _generate_stability(self, prompt):
+    def _generate_stability(self, prompt, width=None, height=None):
         """Stability AI Core REST API. Returns PIL Image or None."""
         api_key = self._get_api_key('Stability')
         if not api_key:
@@ -269,6 +280,16 @@ class ImageGenerator:
         try:
             import requests
             from PIL import Image
+            data = {"prompt": prompt[:2000], "output_format": "webp"}
+            if width and height:
+                w = int(width)
+                h = int(height)
+                if w > h:
+                    data["aspect_ratio"] = "16:9"
+                elif h > w:
+                    data["aspect_ratio"] = "9:16"
+                else:
+                    data["aspect_ratio"] = "1:1"
             response = requests.post(
                 "https://api.stability.ai/v2beta/stable-image/generate/core",
                 headers={
@@ -276,7 +297,7 @@ class ImageGenerator:
                     "accept":        "image/*",
                 },
                 files={"none": ''},
-                data={"prompt": prompt[:2000], "output_format": "webp"},
+                data=data,
                 timeout=60,
             )
             if response.status_code == 200:

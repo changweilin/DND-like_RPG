@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "hearts_of_wulin",
+    "world_name":  "Hearts of Wulin - Jianghu",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\hearts_of_wulin\\hearts_of_wulin_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09ebfb362081918702f895120ecff1.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Hearts of Wulin / Jianghu inspired wuxia ink-wash atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast misty sea martial-world atlas of many island groups and microcontinents, island sword schools, bamboo forest valleys, ancient temple complexes, river market towns, hidden sect strongholds, forbidden manual shrines, sacred waterfall isles, wandering hero ferry routes, hermit peaks and chi-haunted spiritual islands.\nStyle/medium: high-resolution Chinese ink wash atlas, classical landscape painting style, wuxia aesthetic, flowing chi energy trails, soft mineral colors, calligraphic brush textures, elegant jianghu atmosphere.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large monastery islands, tiny hermit islets, crescent island arcs, mist lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include subtle compass seal, brushwork border, ferry routes, temple icons, sect markers and mountain pass symbols without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, misty deltas, estuaries, karst cliffs, reef belts and storm harbors; show many climates and biomes including snowy sacred peaks, bamboo forests, riverlands, deserts, wetlands, lake basins, tea terraces, karst mountains and remote spiritual wastelands.\nAvoid: evenly spaced islands, western medieval fantasy, modern satellite image, cheerful tropical palette, bright UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:29:15.0374562+08:00"
+}

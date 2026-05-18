@@ -1,0 +1,676 @@
+﻿{
+    "run_index":  40,
+    "world_index":  12,
+    "cycle_index":  2,
+    "total_cycles":  3,
+    "orientation_by_cycle":  [
+                                 "landscape",
+                                 "portrait",
+                                 "portrait"
+                             ],
+    "world_queue":  [
+                        "dnd5e",
+                        "pathfinder",
+                        "warhammer_fantasy",
+                        "wh40k",
+                        "shadowrun",
+                        "world_of_darkness",
+                        "call_of_cthulhu",
+                        "iron_kingdoms",
+                        "blades_in_the_dark",
+                        "hearts_of_wulin",
+                        "l5r",
+                        "deadlands",
+                        "mutant_year_zero",
+                        "gloomhaven"
+                    ],
+    "terrain_types":  [
+                          "single_continent",
+                          "dual_continent",
+                          "continent_archipelago",
+                          "diverse_archipelago"
+                      ],
+    "completed_runs":  [
+                           {
+                               "run_index":  1,
+                               "world_id":  "dnd5e",
+                               "world_name":  "D\u0026D 5e - Forgotten Realms",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\dnd5e\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T12:04:28.0766745+08:00"
+                           },
+                           {
+                               "run_index":  2,
+                               "world_id":  "pathfinder",
+                               "world_name":  "Pathfinder - Golarion",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\pathfinder\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T12:38:45.6497360+08:00"
+                           },
+                           {
+                               "run_index":  3,
+                               "world_id":  "warhammer_fantasy",
+                               "world_name":  "Warhammer Fantasy - The Old World",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\warhammer_fantasy\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T13:07:48.9802241+08:00"
+                           },
+                           {
+                               "run_index":  4,
+                               "world_id":  "wh40k",
+                               "world_name":  "Warhammer 40,000 - Dark Imperium",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\wh40k\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T13:38:10.2947337+08:00"
+                           },
+                           {
+                               "run_index":  5,
+                               "world_id":  "shadowrun",
+                               "world_name":  "Shadowrun - Sixth World",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\shadowrun\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T14:12:57.4221747+08:00"
+                           },
+                           {
+                               "run_index":  6,
+                               "world_id":  "world_of_darkness",
+                               "world_name":  "World of Darkness - Vampire: The Masquerade",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\world_of_darkness\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T14:39:56.4492295+08:00"
+                           },
+                           {
+                               "run_index":  7,
+                               "world_id":  "call_of_cthulhu",
+                               "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\call_of_cthulhu\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T15:10:16.7302568+08:00"
+                           },
+                           {
+                               "run_index":  8,
+                               "world_id":  "iron_kingdoms",
+                               "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\iron_kingdoms\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T15:47:08.9655667+08:00"
+                           },
+                           {
+                               "run_index":  9,
+                               "world_id":  "blades_in_the_dark",
+                               "world_name":  "Blades in the Dark - Doskvol",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\blades_in_the_dark\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T16:14:10.1811377+08:00"
+                           },
+                           {
+                               "run_index":  10,
+                               "world_id":  "hearts_of_wulin",
+                               "world_name":  "Hearts of Wulin - Jianghu",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\hearts_of_wulin\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T17:00:01.8548450+08:00"
+                           },
+                           {
+                               "run_index":  11,
+                               "world_id":  "l5r",
+                               "world_name":  "Legend of the Five Rings - Rokugan",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\l5r\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T17:26:50.0653223+08:00"
+                           },
+                           {
+                               "run_index":  12,
+                               "world_id":  "deadlands",
+                               "world_name":  "Deadlands - Weird West",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\deadlands\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T17:41:51.3198038+08:00"
+                           },
+                           {
+                               "run_index":  13,
+                               "world_id":  "mutant_year_zero",
+                               "world_name":  "Mutant: Year Zero - The Ark",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\mutant_year_zero\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T17:56:12.4425996+08:00"
+                           },
+                           {
+                               "run_index":  14,
+                               "world_id":  "gloomhaven",
+                               "world_name":  "Gloomhaven - City of Lions",
+                               "cycle":  1,
+                               "cycle_index":  0,
+                               "orientation":  "landscape",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\gloomhaven\\cycle_1_landscape",
+                               "completed_at":  "2026-05-17T18:31:12.1105192+08:00"
+                           },
+                           {
+                               "run_index":  15,
+                               "world_id":  "dnd5e",
+                               "world_name":  "D\u0026D 5e - Forgotten Realms",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\dnd5e\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T18:58:06.1599637+08:00"
+                           },
+                           {
+                               "run_index":  16,
+                               "world_id":  "pathfinder",
+                               "world_name":  "Pathfinder - Golarion",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\pathfinder\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T20:10:18.1076710+08:00"
+                           },
+                           {
+                               "run_index":  17,
+                               "world_id":  "warhammer_fantasy",
+                               "world_name":  "Warhammer Fantasy - The Old World",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\warhammer_fantasy\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T20:34:38.7459426+08:00"
+                           },
+                           {
+                               "run_index":  18,
+                               "world_id":  "wh40k",
+                               "world_name":  "Warhammer 40,000 - Dark Imperium",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\wh40k\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T21:07:22.9506674+08:00"
+                           },
+                           {
+                               "run_index":  19,
+                               "world_id":  "shadowrun",
+                               "world_name":  "Shadowrun - Sixth World",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\shadowrun\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T21:39:16.1614133+08:00"
+                           },
+                           {
+                               "run_index":  20,
+                               "world_id":  "world_of_darkness",
+                               "world_name":  "World of Darkness - Vampire: The Masquerade",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\world_of_darkness\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T22:10:55.1423265+08:00"
+                           },
+                           {
+                               "run_index":  21,
+                               "world_id":  "call_of_cthulhu",
+                               "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\call_of_cthulhu\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T22:45:35.2687502+08:00"
+                           },
+                           {
+                               "run_index":  22,
+                               "world_id":  "iron_kingdoms",
+                               "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\iron_kingdoms\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T23:19:21.9998033+08:00"
+                           },
+                           {
+                               "run_index":  23,
+                               "world_id":  "blades_in_the_dark",
+                               "world_name":  "Blades in the Dark - Doskvol",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\blades_in_the_dark\\cycle_2_portrait",
+                               "completed_at":  "2026-05-17T23:58:28.7004893+08:00"
+                           },
+                           {
+                               "run_index":  24,
+                               "world_id":  "hearts_of_wulin",
+                               "world_name":  "Hearts of Wulin - Jianghu",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\hearts_of_wulin\\cycle_2_portrait",
+                               "completed_at":  "2026-05-18T00:29:15.0374562+08:00"
+                           },
+                           {
+                               "run_index":  25,
+                               "world_id":  "l5r",
+                               "world_name":  "Legend of the Five Rings - Rokugan",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\l5r\\cycle_2_portrait",
+                               "completed_at":  "2026-05-18T01:07:00.3022186+08:00"
+                           },
+                           {
+                               "run_index":  26,
+                               "world_id":  "deadlands",
+                               "world_name":  "Deadlands - Weird West",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\deadlands\\cycle_2_portrait",
+                               "completed_at":  "2026-05-18T01:35:33.8101793+08:00"
+                           },
+                           {
+                               "run_index":  27,
+                               "world_id":  "mutant_year_zero",
+                               "world_name":  "Mutant: Year Zero - The Ark",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\mutant_year_zero\\cycle_2_portrait",
+                               "completed_at":  "2026-05-18T01:58:34.8055173+08:00"
+                           },
+                           {
+                               "run_index":  28,
+                               "world_id":  "gloomhaven",
+                               "world_name":  "Gloomhaven - City of Lions",
+                               "cycle":  2,
+                               "cycle_index":  1,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\gloomhaven\\cycle_2_portrait",
+                               "completed_at":  "2026-05-18T02:29:20.0102135+08:00"
+                           },
+                           {
+                               "run_index":  29,
+                               "world_id":  "dnd5e",
+                               "world_name":  "D\u0026D 5e - Forgotten Realms",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\dnd5e\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T03:01:02.1080461+08:00"
+                           },
+                           {
+                               "run_index":  30,
+                               "world_id":  "pathfinder",
+                               "world_name":  "Pathfinder - Golarion",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\pathfinder\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T03:33:02.2479033+08:00"
+                           },
+                           {
+                               "run_index":  31,
+                               "world_id":  "warhammer_fantasy",
+                               "world_name":  "Warhammer Fantasy - The Old World",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\warhammer_fantasy\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T04:03:44.4083723+08:00"
+                           },
+                           {
+                               "run_index":  32,
+                               "world_id":  "wh40k",
+                               "world_name":  "Warhammer 40,000 - Dark Imperium",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\wh40k\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T04:36:02.9492937+08:00"
+                           },
+                           {
+                               "run_index":  33,
+                               "world_id":  "shadowrun",
+                               "world_name":  "Shadowrun - Sixth World",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\shadowrun\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T05:09:10.4069814+08:00"
+                           },
+                           {
+                               "run_index":  34,
+                               "world_id":  "world_of_darkness",
+                               "world_name":  "World of Darkness - Vampire: The Masquerade",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\world_of_darkness\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T05:35:14.1795937+08:00"
+                           },
+                           {
+                               "run_index":  35,
+                               "world_id":  "call_of_cthulhu",
+                               "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\call_of_cthulhu\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T06:05:03.4929287+08:00"
+                           },
+                           {
+                               "run_index":  36,
+                               "world_id":  "iron_kingdoms",
+                               "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "terrain_types":  [
+                                                     "single_continent",
+                                                     "dual_continent",
+                                                     "continent_archipelago",
+                                                     "diverse_archipelago"
+                                                 ],
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\iron_kingdoms\\cycle_3_portrait",
+                               "completed_at":  "2026-05-18T06:45:54.1239355+08:00"
+                           },
+                           {
+                               "run_index":  37,
+                               "world_id":  "blades_in_the_dark",
+                               "world_name":  "Blades in the Dark - Doskvol",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\blades_in_the_dark\\cycle_3_portrait",
+                               "terrains":  [
+                                                "single_continent",
+                                                "dual_continent",
+                                                "continent_archipelago",
+                                                "diverse_archipelago"
+                                            ],
+                               "completed_at":  "2026-05-17T23:00:22.9381757Z"
+                           },
+                           {
+                               "run_index":  38,
+                               "world_id":  "hearts_of_wulin",
+                               "world_name":  "Hearts of Wulin - Jianghu",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\hearts_of_wulin\\cycle_3_portrait",
+                               "terrains":  [
+                                                "single_continent",
+                                                "dual_continent",
+                                                "continent_archipelago",
+                                                "diverse_archipelago"
+                                            ],
+                               "completed_at":  "2026-05-17T23:32:30.1150495Z"
+                           },
+                           {
+                               "run_index":  39,
+                               "world_id":  "l5r",
+                               "world_name":  "Legend of the Five Rings - Rokugan",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\l5r\\cycle_3_portrait",
+                               "terrains":  [
+                                                "single_continent",
+                                                "dual_continent",
+                                                "continent_archipelago",
+                                                "diverse_archipelago"
+                                            ],
+                               "completed_at":  "2026-05-18T00:02:07.0390746Z"
+                           },
+                           {
+                               "run_index":  40,
+                               "world_id":  "deadlands",
+                               "world_name":  "Deadlands - Weird West",
+                               "cycle":  3,
+                               "cycle_index":  2,
+                               "orientation":  "portrait",
+                               "output_dir":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\saves\\world_maps_chatgpt_imagegen\\deadlands\\cycle_3_portrait",
+                               "terrains":  [
+                                                "single_continent",
+                                                "dual_continent",
+                                                "continent_archipelago",
+                                                "diverse_archipelago"
+                                            ],
+                               "completed_at":  "2026-05-18T00:32:42.3343124Z"
+                           }
+                       ],
+    "updated_at":  "2026-05-18T00:32:42.3343124Z"
+}

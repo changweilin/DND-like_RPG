@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven - City of Lions",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_landscape_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09979bba4881918419a2647c4acf15.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Gloomhaven / City of Lions inspired world map for the terrain type continent_archipelago.\nScene/backdrop: one dominant dark fantasy continent with a large uneven offshore archipelago in the Misty Sea, grim harbor city, mercenary road network, dungeon entrances, ancient catacombs, demon-infested ruined citadels, frozen peaks, dark forests, cursed swamps, bleak moors, volcanic scarlands, pirate coves and forgotten island ruins.\nStyle/medium: high-resolution illustrated tactical RPG atlas, gloomy overcast atmosphere, muted parchment, inked relief terrain, scenario-map aesthetic, dungeon-crawl iconography, grim mercenary campaign mood.\nComposition/framing: wide landscape map; main continent off-center with an irregular archipelago sweeping around the coast in a diagonal arc; islands include large ruined landmasses, tiny islets, reef belts, crescent island chains, haunted atolls and volcanic outcrops; include compass, route lines, dungeon icons and worn map border without readable text.\nGeography constraints: islands must be irregularly distributed with varied size and shape; coastlines should show peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, marshy estuaries, headlands and fragmented cliffs; span many climates and biomes including snow, dark forest, swamp, rocky desert, misty sea cliffs, haunted ruins and abyssal rift zones.\nAvoid: uniform island grid, cheerful tropical islands, simple round islands, bright heroic fantasy, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T18:31:12.1105192+08:00"
+}

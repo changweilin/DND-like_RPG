@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings - Rokugan",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09f3ceb05081919edc306ba2d5bde4.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Legend of the Five Rings / Rokugan inspired Japanese feudal fantasy atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast misty sea samurai-fantasy world of many island groups and microcontinents, island clan provinces, castle islands, sacred forest isles, shrine roads, fishing villages, elemental spirit islands, cherry blossom archipelagos, volcanic kami peaks, pirate coves, courtly capitals and Shadowlands-tainted far islands.\nStyle/medium: high-resolution illustrated Rokugan-style atlas, Japanese feudal fantasy, parchment and ink wash cartography, elemental rings aesthetic, mon crest ornaments, cherry blossom atmosphere, honor and duty, subtle kami spirit glow.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large clan islands, tiny shrine islets, crescent island arcs, mist lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include compass seal, elegant border, sea routes, province shading, castle icons, shrine symbols and clan crest-like ornaments without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, misty deltas, estuaries, volcanic ridges, reef belts and storm harbors; show many climates and biomes including snowy sacred peaks, temperate forests, rice plains, deserts, wetlands, volcanic lands, sacred groves, spirit valleys and corrupted Shadowlands.\nAvoid: evenly spaced islands, western medieval fantasy, modern satellite image, cheerful tropical palette, bright UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:07:00.3022186+08:00"
+}

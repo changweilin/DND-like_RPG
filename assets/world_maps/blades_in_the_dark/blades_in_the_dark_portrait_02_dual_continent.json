@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "blades_in_the_dark",
+    "world_name":  "Blades in the Dark - Doskvol",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\blades_in_the_dark\\blades_in_the_dark_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a4732ade0819189c52f2bd99f3f6a.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Blades in the Dark inspired gaslamp fantasy setting. Terrain type: dual_continent. Draw two large industrial gothic continents separated by a diagonal S-shaped Void Sea channel, crescent gulfs, fog-choked straits, twisting canals, shoals, and storm narrows; do not split the map into simple left/right halves. One continent centers on walled canal megacities, gang territory borders, dockyards, factories, lightning rail lines, noble districts, Bluecoat precincts, leviathan-blood refineries, and electroplasmic lightning towers. The other continent is harsher: deathlands, demon-haunted moors, drowned forests, ash deserts, ghost-lit ruins, fungal wetlands, black mountain ranges, abandoned fortresses, and occult cult enclaves. Include many climates and biomes in perpetual supernatural darkness: rain coast, cold moors, salt marsh deltas, toxic industrial barrens, storm cliffs, dead tundra, swamp, mountain, and black beaches. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, reefs, and sea caves. Islands must be uneven and varied: smuggler rocks, prison hulks, haunted lighthouse isles, leviathan hunter ports, abandoned dock-forts, and ghost-field reefs. Soot-black parchment, blue electroplasm glow, gothic criminal underworld mood, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:00:22.9381757Z"
+}
