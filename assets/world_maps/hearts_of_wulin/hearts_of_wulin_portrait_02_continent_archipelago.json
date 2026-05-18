@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "hearts_of_wulin",
+    "world_name":  "Hearts of Wulin - Jianghu",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\hearts_of_wulin\\hearts_of_wulin_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a4eea3c6c8191866301e7ff2cd2d5.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution wuxia Jianghu world atlas. Terrain type: continent_archipelago. One dominant continent plus a large irregular offshore archipelago in classical Chinese ink-wash cartography. Mainland: mist mountains, bamboo forest valleys, ancient temple complexes, river market towns, hidden sect strongholds, Five Great Sects territories, imperial roads, cliff monasteries, waterfall passes, lotus lakes, sword schools, tea-house crossroads, forbidden manual vaults, and flowing chi paths. Archipelago: uneven island groups with pirate coves, sea monasteries, hermit isles, spirit shrines, tea ports, coral villages, hidden martial retreats, lighthouse pagodas, and storm-battered fishing kingdoms. Avoid a simple vertical split; separate mainland and islands with a diagonal / C-shaped mist gulf, twisting straits, shoals, reefs, and narrow passages. Many climates: snowy sacred peaks, karst towers, bamboo seas, subtropical deltas, pine forests, loess badlands, highland grasslands, lotus marshes, hot springs, storm cliffs. Complex realistic coastlines with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, reefs, sea caves. Pale parchment, mineral pigments, brush texture, no readable labels, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:32:30.1150495Z"
+}

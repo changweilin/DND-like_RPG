@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "wh40k",
+    "world_name":  "Warhammer 40,000 - Dark Imperium",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\wh40k\\wh40k_landscape_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a09520f56dc8191b3aff1eeab1e04c9.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG planetary atlas map, first batch pass, landscape orientation\nPrimary request: Warhammer 40,000 / Dark Imperium inspired grimdark far-future world map, single huge primary continent.\nScene/backdrop: overhead birds-eye imperial cartographic scan of a hostile hive world, surrounded by toxic ocean and orbital auspex frame.\nSubject: one enormous primary continent with complex realistic coastline: peninsulas, gulfs, bays, capes, fjords, narrow straits, broken coastal shelves, curved shores, polluted river deltas, inland toxic seas, ash deserts, manufactorum belts, hive city mega-structures, underhive slums, promethium refinery zones, voidport complexes, ruined war zones, irradiated tundra, and gothic fortress-spires.\nStyle/medium: imperial sector star map fused with planetary atlas, gothic architecture aesthetic, mechanicus technical overlay, grimdark science-fantasy cartography, highly detailed illustrated RPG sourcebook map.\nComposition/framing: wide 16:9 landscape, full single continent visible with generous toxic ocean border, large high-resolution atlas feel, subtle non-text cogitator grid lines and hazard iconography.\nLighting/mood: brutal grimdark far future, industrial hellscape, toxic ochre atmosphere, holy war and Inquisition dread, every region scarred by conflict.\nColor palette: blackened parchment, toxic ochre, rust red, oil-slick teal seas, ash grey, plasma glow accents, dirty brass and bone.\nMaterials/textures: weathered vellum, metal etched lines, auspex scan noise, engraved coastlines, gothic technical detail.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Make the coastline natural, intricate, and realistic rather than a smooth blob.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T13:38:10.2380471+08:00"
+}

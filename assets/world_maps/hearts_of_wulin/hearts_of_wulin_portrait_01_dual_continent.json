@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "hearts_of_wulin",
+    "world_name":  "Hearts of Wulin - Jianghu",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\hearts_of_wulin\\hearts_of_wulin_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09eb03a8e48191a5688abc84d5bf34.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Hearts of Wulin / Jianghu inspired wuxia ink-wash atlas for the terrain type dual_continent.\nScene/backdrop: two major jianghu continents separated by uneven misty seas and narrow straits, with mist-covered mountain peaks, bamboo forest valleys, ancient temple complexes, river market towns, hidden sect strongholds, imperial border roads, sword schools, forbidden manual caves and wandering hero routes.\nStyle/medium: high-resolution Chinese ink wash atlas, classical landscape painting style, wuxia aesthetic, flowing chi energy trails, soft mineral colors, calligraphic brush textures, poetic martial-world mood.\nComposition/framing: tall portrait map, asymmetric continents of different sizes; the misty sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped channels and jagged straits, not a simple vertical divider; include subtle compass seal, brushwork border, river routes, temple icons, sect markers and mountain pass symbols without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, broken shores, curved coasts, deltas, misty estuaries, inland lakes and varied landforms; span snowy sacred peaks, temperate riverlands, bamboo forests, deserts, wetlands, tea terraces, karst mountains, lake basins and remote spiritual wastelands.\nAvoid: western medieval fantasy, modern satellite image, mirrored continents, bright UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:29:15.0374562+08:00"
+}

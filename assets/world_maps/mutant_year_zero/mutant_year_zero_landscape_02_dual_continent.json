@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "mutant_year_zero",
+    "world_name":  "Mutant: Year Zero - The Ark",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\mutant_year_zero\\mutant_year_zero_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098ec33b2481918ff653e9a6fbbd6a.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Mutant: Year Zero / The Ark inspired world map for the terrain type dual_continent.\nScene/backdrop: two major post-apocalyptic continents separated by uneven contaminated seas and narrow straits, old-world ruin sites, Ark sanctuary regions, mutant clan territories, dead zones of radiation, collapsed metro corridors, scavenger trails, shattered megacity belts, poisoned wetlands, desertified farmlands and cold northern ruin fields.\nStyle/medium: high-resolution illustrated Zone atlas, weathered grey-green parchment, gritty ink and watercolor terrain relief, survival-sector map design, hazard icons, ruin markers, melancholic irradiated wasteland atmosphere.\nComposition/framing: wide landscape world map, asymmetric landmasses of different sizes; the water separation is diagonal and S-shaped with L-shaped flooded channels, C-shaped gulfs and jagged straits, not a simple vertical split; include compass, torn map border, sector symbols and route lines without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, broken shores, curved coasts, deltas, flooded cities, inland seas, eroded industrial coasts and varied landforms; span multiple climates including tundra, mountain snowfields, temperate ruins, toxic forests, wetlands, deserts, crater zones and dead wasteland.\nAvoid: mirrored continents, clean vertical divider, polished fantasy parchment, modern satellite view, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:56:12.4425996+08:00"
+}

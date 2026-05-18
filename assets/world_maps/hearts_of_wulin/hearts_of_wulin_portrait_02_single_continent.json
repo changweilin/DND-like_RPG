@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "hearts_of_wulin",
+    "world_name":  "Hearts of Wulin - Jianghu",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\hearts_of_wulin\\hearts_of_wulin_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a4e3b30c48191bdb1c88038638dee.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution wuxia Jianghu world atlas. Terrain type: single_continent. One immense continent in classical Chinese ink-wash map style with mist mountains, bamboo valleys, ancient temples, river market towns, hidden sect strongholds, Five Great Sects territories, imperial roads, cliff monasteries, waterfall passes, lotus lakes, tea-house crossroads, sword schools, forbidden manual vaults, and subtle flowing chi trails. Many climates: snowy sacred peaks, karst mountains, bamboo seas, subtropical deltas, pine forests, loess badlands, highland grasslands, lotus marshes, hot springs, fertile plains, stormy cliffs. Complex realistic coastline: peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, barrier islands, reefs, lagoons, sea caves. Uneven varied offshore islands: hermit isles, pirate coves, sea monasteries, spirit shrines, tea ports, hidden sect retreats. Elegant ink, mineral pigments, pale parchment, brush texture, no readable labels, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:32:30.1150495Z"
+}

@@ -42,7 +42,7 @@ def _coerce_choice(c):
     return str(c)
 
 
-_MIN_CHOICE_LEN = 8
+_MIN_CHOICE_LEN = 3
 
 def _is_valid_choice(c):
     """A choice is valid if it's non-empty, non-placeholder, and > 8 characters."""
@@ -171,6 +171,8 @@ def _validated_narrative(data):
         "npc_relationship_changes": {},
         # names of NPCs / characters who appear in this scene
         "characters_present": [],
+        # list of quest names the player completed this turn (matched against active quests)
+        "quest_completed": [],
     }
     # String fields — coerce to str so callers can always call len() safely.
     # Empty / whitespace-only strings are treated as missing so defaults survive.
@@ -192,6 +194,13 @@ def _validated_narrative(data):
         defaults["choices"] = (defaults["choices"]
                                + ["Look around", "Wait and observe", "Ask for information"]
                                )[:3]
+    # Coerce list fields — LLM sometimes returns a comma-separated string instead of a list.
+    for _list_key in ("characters_present", "items_found", "quest_completed"):
+        v = defaults[_list_key]
+        if isinstance(v, str):
+            defaults[_list_key] = [s.strip() for s in v.split(',') if s.strip()]
+        elif not isinstance(v, list):
+            defaults[_list_key] = []
     return defaults
 
 def _validated_stat_block(data, entity_name):
@@ -530,7 +539,8 @@ class LLMClient:
             '  "mp_used": 0,\n'
             '  "items_found": [],\n'
             '  "location_change": "",\n'
-            '  "npc_relationship_changes": {}\n'
+            '  "npc_relationship_changes": {},\n'
+            '  "quest_completed": []\n'
             '}'
         )
         # Build adaptive hint from recent choice quality failures

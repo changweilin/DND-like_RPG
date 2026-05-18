@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_landscape_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098b6ca1b88191b3705eb32c12a0d4.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Deadlands / Weird West inspired world map for the terrain type single_continent.\nScene/backdrop: one huge primary continent surrounded by ocean, continent-scale geography, sun-baked desert badlands, haunted canyons, prairie frontiers, mesas, dry salt flats, ghost-rock mine claims, frontier towns and rail stations, sacred spirit lands, flooded maze-like western coast, ominous supernatural regions.\nStyle/medium: high-resolution illustrated atlas and frontier cartography style, sepia parchment, inked coastlines, hand-painted terrain relief, ghost-rock steam-tech details, supernatural western horror mood.\nComposition/framing: wide landscape atlas view, the single continent fills most of the frame with surrounding seas and small offshore fragments; include a compass rose, rail-line symbols, mine symbols, subtle territorial borders and map ornaments without readable text.\nGeography constraints: large world map crossing many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, capes, deltas, canyons and river systems; mountain ranges should shape rain shadows and deserts; add irregular inland seas and frontier river basins.\nAvoid: modern satellite look, clean fantasy theme-park layout, simple oval continent, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:41:51.3198038+08:00"
+}

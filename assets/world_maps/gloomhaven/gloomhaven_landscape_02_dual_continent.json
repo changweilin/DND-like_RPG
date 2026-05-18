@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven - City of Lions",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09970a5c108191811d015a298f430a.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Gloomhaven / City of Lions inspired world map for the terrain type dual_continent.\nScene/backdrop: two major dark fantasy continents separated by uneven misty seas and narrow straits, with grim harbor cities, dungeon entrance networks, ancient catacomb roads, demon-infested ruined citadels, frozen north ranges, dark forests, merchant guild routes, mercenary contract zones, cursed marshes, bleak plains and forgotten empire ruins.\nStyle/medium: high-resolution illustrated dark tactical fantasy atlas, gloomy overcast lighting, muted parchment and iron-grey sea, inked terrain relief, scenario-board map feeling, dungeon-crawl and mercenary campaign symbols.\nComposition/framing: wide landscape map, asymmetric continents of different sizes; the sea separation is diagonal and S-shaped with L-shaped flooded channels, C-shaped bays and jagged straits, not a simple vertical divider; include compass, route lines, dungeon icons, ruin markers and subtle borders without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, fjords, broken shores, curved coasts, deltas, inland seas, marshy estuaries and varied landforms; show multiple climates and biomes including snowy peaks, dark pine forests, swamp deltas, volcanic scarlands, misty coasts, rocky deserts, haunted moors and ruined city belts.\nAvoid: mirrored continents, clean vertical split, bright heroic fantasy, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T18:31:12.1105192+08:00"
+}

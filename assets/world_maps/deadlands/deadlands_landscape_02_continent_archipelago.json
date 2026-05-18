@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_landscape_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098c4fcd7c819186042d97373cf671.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Deadlands / Weird West inspired world map for the terrain type continent_archipelago.\nScene/backdrop: one dominant weird west frontier continent with a large uneven offshore archipelago like a flooded Great Maze, ghost-rock islands, broken coast settlements, haunted reefs, railhead ports, mine claims, desert badlands, canyonlands, prairies, spirit lands and cursed supernatural zones.\nStyle/medium: high-resolution illustrated frontier atlas, sepia parchment, engraved ink coastlines, hand-painted biome relief, old western survey-map ornamentation, ghost-rock steam-tech and horror-fantasy accents.\nComposition/framing: wide landscape map; the main continent sits off-center with an irregular archipelago sweeping around it in a diagonal arc, with channels, reefs, volcanic islands, atolls, tiny islets and several large islands; include rail lines, mine symbols, compass rose and decorative border without readable labels.\nGeography constraints: islands must be irregularly distributed, varied in size and shape, with broken shores and uneven spacing; continental coastline should include peninsulas, bays, gulfs, straits, deltas, capes, flooded canyons, marshy river mouths and curving shorelines; show many climates from desert to mountains, forest, swamp, plains and haunted wasteland.\nAvoid: uniform island grid, simple round islands, single climate, modern satellite view, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:41:51.3198038+08:00"
+}

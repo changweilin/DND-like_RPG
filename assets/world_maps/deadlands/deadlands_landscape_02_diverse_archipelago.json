@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_landscape_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098cdb4fc08191acff5c545bcb2723.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Deadlands / Weird West inspired world map for the terrain type diverse_archipelago.\nScene/backdrop: a vast haunted ocean frontier filled with many island groups and microcontinents, weird west boomtown islands, ghost-rock mining isles, flooded canyon labyrinths, cursed reefs, rail-ferry routes, steam-tech ports, mesa islands, desert islands, forested spirit lands, swamp deltas and supernatural dead zones.\nStyle/medium: high-resolution old frontier atlas, sepia parchment, engraved coastlines, watercolor terrain, weird western horror comedy mood, ghost-rock glow, steam machinery motifs, hand-drawn nautical cartography.\nComposition/framing: wide landscape world map with unevenly distributed island clusters; large islands, tiny islets, crescent island arcs, lagoons, reef belts, remote atolls, narrow straits and fragmented coasts; no grid-like spacing; include a compass rose, decorative border, rail/ferry route symbols and mine icons with no readable text.\nGeography constraints: islands must vary strongly in shape and size, with broken rocky shores, curving bays, peninsulas, canyons, deltas and volcanic ridges; show broad biome diversity across the archipelago including desert, prairie, mountains, pine forest, wetlands, salt flats and cursed wasteland.\nAvoid: uniform round islands, tropical-only mood, clean pirate map cliche, modern satellite look, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:41:51.3198038+08:00"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "hearts_of_wulin",
+    "world_name":  "Hearts of Wulin - Jianghu",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\hearts_of_wulin\\hearts_of_wulin_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a4f616aa88191957e016173b4796c.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution wuxia Jianghu world atlas. Terrain type: diverse_archipelago. Many irregular island chains and scattered landmasses in classical Chinese ink-wash cartography, unevenly distributed with strong variation in size and shape. Wuxia martial world locations: misty mountain islands, bamboo forest valleys, ancient temple complexes, floating river market towns, hidden sect strongholds, sea monasteries, pirate coves, hermit peaks, spirit shrines, tea ports, forbidden manual vaults, sword schools, lotus lake islands, and flowing chi trails. Include many climates and biomes: snowy sacred peak islands, karst tower isles, bamboo seas, subtropical deltas, pine forests, loess badland islands, highland grasslands, lotus marshes, volcanic hot springs, fertile plains, stormy coastal cliffs, coral reefs. Every major island has complex realistic coastlines: peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, lagoons, barrier islands, reefs, shoals, sea caves. Elegant ink, mineral pigments, pale parchment, brush textures, classical Chinese landscape beauty, no readable labels, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:32:30.1150495Z"
+}

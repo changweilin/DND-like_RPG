@@ -13,6 +13,7 @@ saves/
 data/lora_training/*.jsonl
 data
 
-# Keep placeholder dirs
+# Keep placeholder dirs and static data
 !data/srd/.gitkeep
 !data/lora_training/.gitkeep
+!data/monsters.py

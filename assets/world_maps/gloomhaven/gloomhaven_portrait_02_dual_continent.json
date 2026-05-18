@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven - City of Lions",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a070304d48191a463bbd7df8f5870.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Gloomhaven-inspired grim mercenary fantasy RPG setting. Terrain type: dual_continent. Draw two large fictional continents in dark tactical fantasy cartography and scenario-map style, separated by a dramatic non-vertical sea passage: diagonal and S-shaped straits, crescent gulfs, storm narrows, broken shelves, hidden shoals, and twisting channels rather than a simple straight split. One continent contains the grim harbor city, mercenary roads, merchant guild territories, dark forests, ancient catacomb entrances, and ruined citadels; the other contains frozen northern peaks, demon-infested wastelands, monster tunnels, lost Valrath/Quatryl/Aesther ruins, cursed marshes, volcanic highlands, and remote dungeon nodes. Complex realistic coastlines on both continents: peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, sea caves, and barrier islands. Islands are unevenly scattered between and around the continents with varied size and shape, including fortress isles, ruin chains, monster lair islands, and dangerous reefs. Large detailed dark parchment atlas, tactical RPG scenario icons allowed, gloomy overcast palette, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T02:23:14.5967058+08:00"
+}

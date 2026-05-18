@@ -1,0 +1,16 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder �X Golarion",
+    "terrain_type":  "continent_archipelago",
+    "terrain_name":  "Continent and Archipelago",
+    "prompt":  "illustrated pathfinder world map, political regions marked, aged ink-on-parchment, one dominant continent with a large uneven archipelago offshore, island chains distributed irregularly, islands with varied size and shape, scattered reefs, volcanic islands, channels, coastal bays, headlands and fragmented shores, inner sea continent, diverse biomes, ancient ruins, sprawling harbor cities, desert regions, northern frozen wastes, jungle interiors, epic political fantasy, rich nation-state borders, adventurer trade routes, large high-resolution atlas map, overhead birds-eye view, multiple climates and biomes, deserts, wetlands, forests, mountains, tundra, river basins and coastal regions, highly detailed, digital fantasy art, concept art, highly detailed illustration, vibrant colors, artstation quality, dramatic lighting, professional, no readable text labels, no watermark, no characters, no modern UI",
+    "negative_prompt":  "photo, realistic, modern, blurry, low quality, watermark, text, characters, people, text overlay, watermark, blurry, low quality",
+    "status":  "generated",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_landscape_01_continent_archipelago.png",
+    "error":  "",
+    "width":  1536,
+    "height":  1024,
+    "image_style":  "fantasy_art",
+    "image_model":  "chatgpt-imagegen",
+    "updated_at":  "2026-05-17T02:09:34"
+}

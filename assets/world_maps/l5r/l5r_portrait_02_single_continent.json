@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings - Rokugan",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a54e315e881919c62cdab3eb89585.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Legend of the Five Rings / Rokugan-inspired feudal samurai fantasy setting. Terrain type: single_continent. Draw one immense island-continent empire in elegant Japanese feudal fantasy cartography: seven Great Clan provinces, Imperial capital outer rings, castle districts, daimyo roads, shrine routes, sacred forest groves, tea fields, rice plains, monastery mountains, Dragon highlands, Phoenix shugenja temples, Lion battle plains, Crane coastal courts, Scorpion masked valleys, Unicorn steppe roads, Crab Wall and corrupted Shadowlands border to the south, elemental spirit realms beyond the veil. Span many climates and biomes: snowy celestial mountains, cedar forests, cherry blossom valleys, volcanic hot springs, misty rice deltas, coastal wetlands, dry steppe, storm cliffs, bamboo groves, sacred lakes, corrupted southern wasteland. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, reefs, lagoons, and sea caves. Add uneven offshore islands with varied size and shape: shrine islands, pirate coves, monastery isles, fishing towns, spirit gates, castle rocks. Japanese ink and mineral pigment atlas, elemental rings aesthetic, subtle mon-like clan motifs without readable symbols, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:02:07.0390746Z"
+}

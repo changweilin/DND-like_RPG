@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings - Rokugan",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a55cd9de8819184d1fa616c7bca5b.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Legend of the Five Rings / Rokugan-inspired feudal samurai fantasy setting. Terrain type: continent_archipelago. Draw one dominant feudal samurai empire continent plus a large irregular offshore archipelago. Mainland: Imperial capital rings, castle districts, seven Great Clan provinces, sacred forest groves, elemental shrines, mountain monasteries, Crab Wall and corrupted Shadowlands border, Dragon highlands, Phoenix temples, Lion plains, Crane coasts, Scorpion valleys, Unicorn roads, rice fields, tea terraces, cherry blossom valleys, and spirit-realm veils. Archipelago: uneven island chains with shrine islands, pirate coves, monastery isles, fishing domains, castle rocks, pearl villages, spirit gates, volcanic hot spring islands, and storm-battered frontier ports. Avoid simple vertical split; separate mainland and archipelago with a diagonal / C-shaped mist gulf, twisting straits, reefs, shoals, and narrow channels. Include snowy celestial mountains, cedar forests, bamboo groves, mist deltas, dry steppe, marshes, volcanic regions, storm cliffs, sacred lakes, corrupted southern wastes. Realistic complex coastlines with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, reefs, sea caves. Japanese ink and mineral pigments, elemental rings motif, no readable labels, no text, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:02:07.0390746Z"
+}

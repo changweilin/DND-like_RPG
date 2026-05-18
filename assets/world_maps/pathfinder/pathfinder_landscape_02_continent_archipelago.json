@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_landscape_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a09451459588191bca12adc25555736.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, first batch pass, landscape orientation\nPrimary request: Pathfinder / Golarion inspired epic political fantasy world map, continent plus archipelago terrain type.\nScene/backdrop: overhead birds-eye atlas view of one dominant fantasy continent with a large uneven offshore archipelago.\nSubject: one main continent with complex coastlines, peninsulas, gulfs, bays, fjords, broken coasts, river deltas, inland seas, and many irregular island chains offshore. Islands must be unevenly distributed with varied sizes and shapes: large islands, tiny islets, volcanic islands, reef rings, lagoons, narrow channels, and scattered remote atolls. Include sprawling harbor cities, ancient ruins, trade routes, desert regions, northern frozen wastes, jungle interiors, wetlands, forests, mountains, and river basins.\nStyle/medium: illustrated Pathfinder-style fantasy world map, aged ink-on-parchment, political fantasy atlas with subtle border lines and small non-text heraldic region markers, highly detailed hand-painted RPG sourcebook cartography.\nComposition/framing: wide 16:9 landscape, dominant continent offset to one side and archipelago sweeping diagonally around it, no simple grid spacing, full map visible.\nLighting/mood: epic political fantasy, rich nation-state intrigue, adventurer trade routes, old empire ruins, magical harbors and academy cities.\nColor palette: parchment and teal ocean, richly varied biomes including deserts, wetlands, forests, mountains, tundra, volcanic regions, river basins, and coastal marshes.\nMaterials/textures: aged parchment, engraved coastlines, hand-painted terrain, fine atlas detail.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Islands should feel natural and irregular, not evenly spaced.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T12:38:45.6270269+08:00"
+}

@@ -114,6 +114,7 @@ from engine.image_prompts import (
 from ai.llm_client import LLMClient
 from ai.image_gen import ImageGenerator, _PROVIDER_DIFFUSERS, _PROVIDER_OPENAI, _PROVIDER_STABILITY
 from ai.rag_system import RAGSystem
+from ai.audio_gen import AudioGenerator
 from logic.events import EventManager
 
 st.set_page_config(page_title="AI RPG Engine", layout="wide")
@@ -127,6 +128,7 @@ if 'save_manager' not in st.session_state:
         on_vram_acquire=lambda: st.session_state.llm.unload_from_vram(),
         on_vram_release=lambda: st.session_state.llm.preload_to_vram(),
     )
+    st.session_state.audio_gen       = AudioGenerator()
 
     st.session_state.current_session = None
     st.session_state.game_state      = None
@@ -303,6 +305,27 @@ _UI_STRINGS = {
         "appearance_label":  "Appearance",
         "personality_label": "Personality",
         "relations_expander":"🔗 Relations",
+        # Equipment panel
+        "equip_panel_hdr":   "Equipment Slots",
+        "equip_slot_weapon":  "Weapon",
+        "equip_slot_armor":   "Armor",
+        "equip_slot_accessory": "Accessory",
+        "equip_slot_empty":  "(empty)",
+        "equip_btn":         "Equip",
+        "unequip_btn":       "Remove",
+        "equip_backpack_hdr": "Backpack — Equippable Items",
+        "equip_slot_main_hand": "Main Hand",
+        "equip_slot_off_hand":  "Off Hand",
+        "equip_slot_head":      "Head",
+        "equip_slot_body":      "Body",
+        "equip_slot_hands":     "Hands",
+        "equip_slot_feet":      "Feet",
+        "equip_slot_necklace":  "Necklace",
+        "equip_slot_ring":      "Ring",
+        "equip_slot_earring":   "Earring",
+        "equip_row_weapons":    "Weapons",
+        "equip_row_armor":      "Armor",
+        "equip_row_accessories":"Accessories",
         # Relations / NPC tab
         "no_relations":      "No relationship data yet. As the story progresses, character and organization relationships will be automatically recorded here.",
         "no_known_relations":"No known relations",
@@ -369,6 +392,10 @@ _UI_STRINGS = {
         "delete_failed":     "Failed to delete save '{save}'.",
         "overwrite_failed":  "Failed to overwrite.",
         "load_existing_failed": "Failed to load existing save.",
+        # Elixir buff system
+        "active_buffs_title": "Active Buffs",
+        "turns_left":         "turns left",
+        "type_elixir":        "Elixir",
     },
     "繁體中文": {
         "model_expander":      "⚙️ 模型與語言",
@@ -460,6 +487,27 @@ _UI_STRINGS = {
         "appearance_label":  "外觀",
         "personality_label": "性格",
         "relations_expander":"🔗 關係",
+        # Equipment panel
+        "equip_panel_hdr":   "裝備欄位",
+        "equip_slot_weapon":  "武器",
+        "equip_slot_armor":   "防具",
+        "equip_slot_accessory": "飾品",
+        "equip_slot_empty":  "（空）",
+        "equip_btn":         "裝備",
+        "unequip_btn":       "卸下",
+        "equip_backpack_hdr": "背包 — 可裝備物品",
+        "equip_slot_main_hand": "主手",
+        "equip_slot_off_hand":  "副手",
+        "equip_slot_head":      "頭部",
+        "equip_slot_body":      "身體",
+        "equip_slot_hands":     "手部",
+        "equip_slot_feet":      "腳部",
+        "equip_slot_necklace":  "首飾",
+        "equip_slot_ring":      "戒指",
+        "equip_slot_earring":   "耳環",
+        "equip_row_weapons":    "武器",
+        "equip_row_armor":      "防具",
+        "equip_row_accessories":"飾品",
         # Relations / NPC tab
         "no_relations":      "尚無關係資料。隨著故事發展，角色與組織的關係將自動記錄於此。",
         "no_known_relations":"無已知關係",
@@ -526,6 +574,10 @@ _UI_STRINGS = {
         "delete_failed":     "刪除存檔「{save}」失敗。",
         "overwrite_failed":  "覆蓋失敗。",
         "load_existing_failed": "載入現有存檔失敗。",
+        # Elixir buff system
+        "active_buffs_title": "生效中增益",
+        "turns_left":         "回合剩餘",
+        "type_elixir":        "藥劑",
     },
     "日本語": {
         "model_expander":      "⚙️ モデルと言語",
@@ -616,6 +668,27 @@ _UI_STRINGS = {
         "appearance_label":  "外見",
         "personality_label": "性格",
         "relations_expander":"🔗 関係",
+        # Equipment panel
+        "equip_panel_hdr":   "装備スロット",
+        "equip_slot_weapon":  "武器",
+        "equip_slot_armor":   "防具",
+        "equip_slot_accessory": "アクセサリ",
+        "equip_slot_empty":  "（空）",
+        "equip_btn":         "装備",
+        "unequip_btn":       "外す",
+        "equip_backpack_hdr": "バッグ — 装備可能アイテム",
+        "equip_slot_main_hand": "主手",
+        "equip_slot_off_hand":  "副手",
+        "equip_slot_head":      "頭部",
+        "equip_slot_body":      "胴体",
+        "equip_slot_hands":     "手部",
+        "equip_slot_feet":      "足部",
+        "equip_slot_necklace":  "ネックレス",
+        "equip_slot_ring":      "指輪",
+        "equip_slot_earring":   "イヤリング",
+        "equip_row_weapons":    "武器",
+        "equip_row_armor":      "防具",
+        "equip_row_accessories":"アクセサリー",
         # Relations / NPC tab
         "no_relations":      "関係データがまだありません。ストーリーが進むにつれ、キャラクターと組織の関係が自動的に記録されます。",
         "no_known_relations":"既知の関係なし",
@@ -682,6 +755,10 @@ _UI_STRINGS = {
         "delete_failed":     "セーブ「{save}」の削除に失敗しました。",
         "overwrite_failed":  "上書きに失敗しました。",
         "load_existing_failed": "既存のセーブの読み込みに失敗しました。",
+        # Elixir buff system
+        "active_buffs_title": "アクティブバフ",
+        "turns_left":         "ターン残り",
+        "type_elixir":        "エリクサー",
     },
     "Español": {
         "model_expander":      "⚙️ Modelo e Idioma",
@@ -772,6 +849,27 @@ _UI_STRINGS = {
         "appearance_label":  "Apariencia",
         "personality_label": "Personalidad",
         "relations_expander":"🔗 Relaciones",
+        # Equipment panel
+        "equip_panel_hdr":   "Ranuras de equipo",
+        "equip_slot_weapon":  "Arma",
+        "equip_slot_armor":   "Armadura",
+        "equip_slot_accessory": "Accesorio",
+        "equip_slot_empty":  "(vacío)",
+        "equip_btn":         "Equipar",
+        "unequip_btn":       "Desequipar",
+        "equip_backpack_hdr": "Mochila — objetos equipables",
+        "equip_slot_main_hand": "Mano Principal",
+        "equip_slot_off_hand":  "Mano Secundaria",
+        "equip_slot_head":      "Cabeza",
+        "equip_slot_body":      "Cuerpo",
+        "equip_slot_hands":     "Manos",
+        "equip_slot_feet":      "Pies",
+        "equip_slot_necklace":  "Collar",
+        "equip_slot_ring":      "Anillo",
+        "equip_slot_earring":   "Pendiente",
+        "equip_row_weapons":    "Armas",
+        "equip_row_armor":      "Armadura",
+        "equip_row_accessories":"Accesorios",
         # Relations / NPC tab
         "no_relations":      "No hay datos de relaciones todavía. A medida que avance la historia, las relaciones entre personajes y organizaciones se registrarán automáticamente aquí.",
         "no_known_relations":"Sin relaciones conocidas",
@@ -838,6 +936,10 @@ _UI_STRINGS = {
         "delete_failed":     "Error al eliminar '{save}'.",
         "overwrite_failed":  "Error al sobreescribir.",
         "load_existing_failed": "Error al cargar el guardado existente.",
+        # Elixir buff system
+        "active_buffs_title": "Aumentos Activos",
+        "turns_left":         "turnos restantes",
+        "type_elixir":        "Elixir",
     },
     "简体中文": {
         "model_expander":      "⚙️ 模型与语言",
@@ -929,6 +1031,27 @@ _UI_STRINGS = {
         "appearance_label":  "外观",
         "personality_label": "性格",
         "relations_expander":"🔗 关系",
+        # Equipment panel
+        "equip_panel_hdr":   "装备栏位",
+        "equip_slot_weapon":  "武器",
+        "equip_slot_armor":   "防具",
+        "equip_slot_accessory": "饰品",
+        "equip_slot_empty":  "（空）",
+        "equip_btn":         "装备",
+        "unequip_btn":       "卸下",
+        "equip_backpack_hdr": "背包 — 可装备物品",
+        "equip_slot_main_hand": "主手",
+        "equip_slot_off_hand":  "副手",
+        "equip_slot_head":      "头部",
+        "equip_slot_body":      "身体",
+        "equip_slot_hands":     "手部",
+        "equip_slot_feet":      "脚部",
+        "equip_slot_necklace":  "首饰",
+        "equip_slot_ring":      "戒指",
+        "equip_slot_earring":   "耳环",
+        "equip_row_weapons":    "武器",
+        "equip_row_armor":      "防具",
+        "equip_row_accessories":"饰品",
         # Relations / NPC tab
         "no_relations":      "尚无关系资料。随着故事发展，角色与组织的关系将自动记录于此。",
         "no_known_relations":"无已知关系",
@@ -995,6 +1118,10 @@ _UI_STRINGS = {
         "delete_failed":     "删除存档「{save}」失败。",
         "overwrite_failed":  "覆盖失败。",
         "load_existing_failed": "加载现有存档失败。",
+        # Elixir buff system
+        "active_buffs_title": "生效中增益",
+        "turns_left":         "回合剩余",
+        "type_elixir":        "药剂",
     },
     "한국어": {
         "model_expander":      "⚙️ 모델 및 언어",
@@ -1085,6 +1212,27 @@ _UI_STRINGS = {
         "appearance_label":  "외모",
         "personality_label": "성격",
         "relations_expander":"🔗 관계",
+        # Equipment panel
+        "equip_panel_hdr":   "장비 슬롯",
+        "equip_slot_weapon":  "무기",
+        "equip_slot_armor":   "방어구",
+        "equip_slot_accessory": "장신구",
+        "equip_slot_empty":  "(비어있음)",
+        "equip_btn":         "장착",
+        "unequip_btn":       "해제",
+        "equip_backpack_hdr": "가방 — 장착 가능 아이템",
+        "equip_slot_main_hand": "주 무기",
+        "equip_slot_off_hand":  "보조",
+        "equip_slot_head":      "머리",
+        "equip_slot_body":      "몸통",
+        "equip_slot_hands":     "손",
+        "equip_slot_feet":      "발",
+        "equip_slot_necklace":  "목걸이",
+        "equip_slot_ring":      "반지",
+        "equip_slot_earring":   "귀걸이",
+        "equip_row_weapons":    "무기",
+        "equip_row_armor":      "방어구",
+        "equip_row_accessories":"장신구",
         # Relations / NPC tab
         "no_relations":      "관계 데이터가 없습니다. 스토리가 진행되면 캐릭터와 조직의 관계가 자동으로 기록됩니다.",
         "no_known_relations":"알려진 관계 없음",
@@ -1151,6 +1299,10 @@ _UI_STRINGS = {
         "delete_failed":     "저장 '{save}' 삭제에 실패했습니다.",
         "overwrite_failed":  "덮어쓰기에 실패했습니다.",
         "load_existing_failed": "기존 저장 불러오기에 실패했습니다.",
+        # Elixir buff system
+        "active_buffs_title": "활성 버프",
+        "turns_left":         "턴 남음",
+        "type_elixir":        "엘릭서",
     },
     "Français": {
         "model_expander":      "⚙️ Modèle et langue",
@@ -1241,6 +1393,27 @@ _UI_STRINGS = {
         "appearance_label":  "Apparence",
         "personality_label": "Personnalité",
         "relations_expander":"🔗 Relations",
+        # Equipment panel
+        "equip_panel_hdr":   "Emplacements d'équipement",
+        "equip_slot_weapon":  "Arme",
+        "equip_slot_armor":   "Armure",
+        "equip_slot_accessory": "Accessoire",
+        "equip_slot_empty":  "(vide)",
+        "equip_btn":         "Équiper",
+        "unequip_btn":       "Retirer",
+        "equip_backpack_hdr": "Sac — objets équipables",
+        "equip_slot_main_hand": "Main Principale",
+        "equip_slot_off_hand":  "Main Secondaire",
+        "equip_slot_head":      "Tête",
+        "equip_slot_body":      "Corps",
+        "equip_slot_hands":     "Mains",
+        "equip_slot_feet":      "Pieds",
+        "equip_slot_necklace":  "Collier",
+        "equip_slot_ring":      "Anneau",
+        "equip_slot_earring":   "Boucle d'oreille",
+        "equip_row_weapons":    "Armes",
+        "equip_row_armor":      "Armure",
+        "equip_row_accessories":"Accessoires",
         # Relations / NPC tab
         "no_relations":      "Aucune donnée de relation pour l'instant. Au fil de l'histoire, les relations entre personnages et organisations seront automatiquement enregistrées ici.",
         "no_known_relations":"Aucune relation connue",
@@ -1307,6 +1480,10 @@ _UI_STRINGS = {
         "delete_failed":     "Échec de la suppression de '{save}'.",
         "overwrite_failed":  "Échec de l'écrasement.",
         "load_existing_failed": "Échec du chargement de la sauvegarde existante.",
+        # Elixir buff system
+        "active_buffs_title": "Effets Actifs",
+        "turns_left":         "tours restants",
+        "type_elixir":        "Élixir",
     },
     "Deutsch": {
         "model_expander":      "⚙️ Modell & Sprache",
@@ -1397,6 +1574,27 @@ _UI_STRINGS = {
         "appearance_label":  "Aussehen",
         "personality_label": "Persönlichkeit",
         "relations_expander":"🔗 Beziehungen",
+        # Equipment panel
+        "equip_panel_hdr":   "Ausrüstungsplätze",
+        "equip_slot_weapon":  "Waffe",
+        "equip_slot_armor":   "Rüstung",
+        "equip_slot_accessory": "Zubehör",
+        "equip_slot_empty":  "(leer)",
+        "equip_btn":         "Ausrüsten",
+        "unequip_btn":       "Ablegen",
+        "equip_backpack_hdr": "Rucksack — ausrüstbare Gegenstände",
+        "equip_slot_main_hand": "Haupthand",
+        "equip_slot_off_hand":  "Nebenhand",
+        "equip_slot_head":      "Kopf",
+        "equip_slot_body":      "Körper",
+        "equip_slot_hands":     "Hände",
+        "equip_slot_feet":      "Füße",
+        "equip_slot_necklace":  "Halskette",
+        "equip_slot_ring":      "Ring",
+        "equip_slot_earring":   "Ohrring",
+        "equip_row_weapons":    "Waffen",
+        "equip_row_armor":      "Rüstung",
+        "equip_row_accessories":"Zubehör",
         # Relations / NPC tab
         "no_relations":      "Noch keine Beziehungsdaten. Im Laufe der Geschichte werden die Beziehungen zwischen Charakteren und Organisationen automatisch aufgezeichnet.",
         "no_known_relations":"Keine bekannten Beziehungen",
@@ -1463,6 +1661,10 @@ _UI_STRINGS = {
         "delete_failed":     "Spielstand '{save}' konnte nicht gelöscht werden.",
         "overwrite_failed":  "Überschreiben fehlgeschlagen.",
         "load_existing_failed": "Vorhandener Spielstand konnte nicht geladen werden.",
+        # Elixir buff system
+        "active_buffs_title": "Aktive Buffs",
+        "turns_left":         "Runden übrig",
+        "type_elixir":        "Elixier",
     },
 }
 
@@ -2604,34 +2806,53 @@ def main_menu():
         _render_creation_image_preview(ws)
 
     with col2:
+        _from_game_over = st.session_state.pop('_show_load_game', False)
+        if _from_game_over:
+            st.markdown(
+                "<div style='background:#1a2a1a;border:1px solid #4ade80;"
+                "border-radius:6px;padding:8px 12px;margin-bottom:10px;"
+                "color:#86efac;font-size:0.9em'>💾 選擇存檔以繼續冒險</div>",
+                unsafe_allow_html=True,
+            )
         st.header(_t("load_game"))
-        saves = st.session_state.save_manager.list_saves()
+        all_saves = st.session_state.save_manager.list_saves()
+        # Split regular saves from snapshots
+        saves      = [s for s in all_saves if not s.get('is_snapshot')]
+        snapshots  = [s for s in all_saves if s.get('is_snapshot')]
         if not saves:
             st.info(_t("no_saves"))
         else:
-            save_labels = [
-                f"{s['save_name']} — {s['location']} ({s['party_size']}p · turn {s['turns']})"
-                for s in saves
-            ]
+            def _save_label(s):
+                chars = ", ".join(s.get('char_summaries') or []) or f"{s['party_size']}p"
+                diff  = s.get('difficulty', 'Normal')
+                return (
+                    f"**{s['save_name']}**  \n"
+                    f"📍 {s['location']}  ·  Turn {s['turns']}  ·  {diff}  \n"
+                    f"👤 {chars}"
+                )
             save_names   = [s['save_name'] for s in saves]
-            selected_idx = st.selectbox(
-                "Select Save", range(len(saves)),
-                format_func=lambda i: save_labels[i],
+            selected_idx = st.radio(
+                "選擇存檔",
+                range(len(saves)),
+                format_func=lambda i: (
+                    f"{saves[i]['save_name']}  |  {saves[i]['location']}"
+                    f"  |  Turn {saves[i]['turns']}"
+                    + (f"  |  {', '.join(saves[i].get('char_summaries') or [])}" if saves[i].get('char_summaries') else "")
+                ),
                 key="load_select",
             )
-            
-            l_col, d_col = st.columns(2)
-            if l_col.button("Load", use_container_width=True):
+            if saves[selected_idx].get('char_summaries'):
+                st.caption("👤 " + " · ".join(saves[selected_idx]['char_summaries']))
+
+            l_col, snap_col, d_col = st.columns(3)
+            if l_col.button("▶ 讀取", use_container_width=True):
                 selected_save = save_names[selected_idx]
                 party, game_state, session = st.session_state.save_manager.load_game(selected_save)
                 if party and game_state and session:
                     active_idx  = game_state.active_player_index or 0
                     active_char = party[active_idx % len(party)]
-                    # Restore last 2 story pages as history so the player
-                    # can immediately see where the session left off
                     prior_log  = load_story_log(selected_save)
                     prior_hist = restore_history_from_log(prior_log, n=2)
-
                     st.session_state.current_session = session
                     st.session_state.game_state      = game_state
                     st.session_state.party           = party
@@ -2640,13 +2861,11 @@ def main_menu():
                     st.session_state.event_manager   = EventManager(
                         st.session_state.llm, st.session_state.rag, session
                     )
-                    # Reset board state for fresh session
                     st.session_state.world_map        = {}
                     st.session_state.player_positions = {}
                     st.session_state.manual_dice      = {}
                     st.session_state.continent_map    = None
                     st.session_state.portraits        = {}
-                    # Open book at last page on load
                     st.session_state.book_page_idx   = max(0, len(prior_log) - 1)
                     names = ", ".join(c.name for c in party)
                     st.success(_t('loaded_party').format(names=names))
@@ -2654,13 +2873,46 @@ def main_menu():
                 else:
                     st.error(_t('load_failed'))
 
-            if d_col.button("🗑️ Delete", use_container_width=True):
+            if snap_col.button("📸 快照", use_container_width=True, help="建立當前進度快照"):
+                selected_save = save_names[selected_idx]
+                # Need a session to snapshot — load one temporarily
+                _snap_party, _snap_gs, _snap_sess = st.session_state.save_manager.load_game(selected_save)
+                if _snap_sess:
+                    snap = st.session_state.save_manager.create_snapshot(selected_save, _snap_sess)
+                    if snap:
+                        st.success(f"快照已建立: {snap}")
+                    else:
+                        st.info("快照已存在（本回合）")
+                    st.rerun()
+
+            if d_col.button("🗑️ 刪除", use_container_width=True):
                 selected_save = save_names[selected_idx]
                 if st.session_state.save_manager.delete_game(selected_save):
                     st.success(_t('deleted_save').format(save=selected_save))
                     st.rerun()
                 else:
                     st.error(_t('delete_failed').format(save=selected_save))
+
+            # Show snapshots in a collapsible section
+            if snapshots:
+                with st.expander(f"📸 快照 ({len(snapshots)})", expanded=False):
+                    for snap in snapshots:
+                        sc1, sc2 = st.columns([3, 1])
+                        sc1.write(f"**{snap['save_name']}**  — Turn {snap['turns']}")
+                        if sc2.button("讀取", key=f"load_snap_{snap['save_name']}"):
+                            party, game_state, session = st.session_state.save_manager.load_game(snap['save_name'])
+                            if party and game_state and session:
+                                active_idx = game_state.active_player_index or 0
+                                active_char = party[active_idx % len(party)]
+                                st.session_state.current_session = session
+                                st.session_state.game_state      = game_state
+                                st.session_state.party           = party
+                                st.session_state.player          = active_char
+                                st.session_state.history         = []
+                                st.session_state.event_manager   = EventManager(
+                                    st.session_state.llm, st.session_state.rag, session
+                                )
+                                st.rerun()
 
     # ---- Duplicate Save Dialog (popup modal) ----
     if st.session_state.duplicate_save_pending:
@@ -2776,12 +3028,69 @@ def _render_party_sidebar(party, state, active_char):
                 f"{tm.get('gold_name','gold')}: {char.gold}"
             )
 
+        # Equipment slots
+        equipment = getattr(char, 'equipment', None) or {}
+        if equipment:
+            slot_icons = {
+                'main_hand': '⚔️', 'off_hand': '🛡️',
+                'head': '🪖', 'body': '🥋', 'hands': '🧤', 'feet': '👢',
+                'necklace': '📿', 'ring': '💍', 'earring': '💎',
+                # legacy fallbacks
+                'weapon': '⚔️', 'armor': '🥋', 'accessory': '💍',
+            }
+            equip_parts = []
+            for sl, item in equipment.items():
+                if item and isinstance(item, dict) and not item.get('_two_hand_ref'):
+                    icon = slot_icons.get(sl, '📦')
+                    equip_parts.append(f"{icon} {item.get('name', sl)}")
+            if equip_parts:
+                st.sidebar.caption("裝備: " + " · ".join(equip_parts))
+
         if char.inventory:
+            _in_combat_now = bool(getattr(state, 'in_combat', 0))
+            _is_active_char = (char.id == active_char.id)
             inv_names = [
                 it.get('name', it) if isinstance(it, dict) else it
                 for it in char.inventory
             ]
-            st.sidebar.caption("Inventory: " + ", ".join(inv_names))
+            if _in_combat_now and _is_active_char and not is_dead:
+                st.sidebar.caption("🎒 背包（點擊使用）")
+                for _iname in inv_names:
+                    if st.sidebar.button(
+                        f"🧪 {_iname}",
+                        key=f"use_item_{char.id}_{_iname}",
+                        use_container_width=True,
+                    ):
+                        st.session_state['_vram_pending_action'] = f"I use {_iname}"
+                        st.session_state.vram_busy = True
+                        st.rerun()
+            else:
+                st.sidebar.caption("Inventory: " + ", ".join(inv_names))
+
+        # XP / level bar
+        if not is_dead:
+            _render_xp_bar(char)
+
+        # Active status effects on this character
+        if not is_dead:
+            player_buffs = [
+                b for b in (state.known_entities or {}).get('_player_buffs', [])
+                if b.get('turns_remaining', 0) > 0 and not b.get('key', '').startswith('_')
+            ]
+            if char.id == active_char.id:
+                _render_status_badges(player_buffs)
+
+        # Active buffs from elixirs
+        if not is_dead:
+            gs = st.session_state.get('game_state')
+            active_buffs = (gs.active_buffs or []) if gs else []
+            if active_buffs:
+                st.sidebar.markdown("**" + _t('active_buffs_title') + "**")
+                for buff in active_buffs:
+                    val = buff.get('value', 0)
+                    sign = '+' if val >= 0 else ''
+                    st.sidebar.caption(f"⚗️ {buff.get('source','?')}: {sign}{val} {buff.get('stat','?')} ({buff.get('turns_left','?')} {_t('turns_left')})")
+
         st.sidebar.markdown("---")
 
 
@@ -2819,10 +3128,662 @@ def _render_npc_tracker(state):
             st.sidebar.caption(f"  ◎ {goal}")
 
 
+def _render_quest_journal(state):
+    """Sidebar panel showing active and recently completed quests."""
+    quests = getattr(state, 'quests', None) or {}
+    if not quests:
+        return
+    active = [(qid, q) for qid, q in quests.items() if q.get('status') == 'active']
+    completed = [(qid, q) for qid, q in quests.items() if q.get('status') == 'completed']
+    if not active and not completed:
+        return
+    st.sidebar.markdown("---")
+    st.sidebar.write("**📜 任務日誌**")
+    if active:
+        for qid, q in active:
+            with st.sidebar.expander(f"🔹 {q.get('name', qid)}", expanded=False):
+                if q.get('description'):
+                    st.write(q['description'])
+                objectives = q.get('objectives', [])
+                for obj in objectives:
+                    if isinstance(obj, dict):
+                        icon = '✅' if obj.get('done') else '⬜'
+                        st.write(f"{icon} {obj.get('text', '')}")
+                    else:
+                        st.write(f"⬜ {obj}")
+                rw_parts = []
+                if q.get('reward_xp'):
+                    rw_parts.append(f"{q['reward_xp']} XP")
+                if q.get('reward_gold'):
+                    rw_parts.append(f"{q['reward_gold']} 金幣")
+                if rw_parts:
+                    st.caption("獎勵: " + " + ".join(rw_parts))
+    if completed:
+        st.sidebar.caption(f"✅ 已完成 {len(completed)} 個任務")
+
+
+def _render_shop_panel(state, char):
+    """
+    Sidebar shop panel — shows the full catalogue with current prices.
+    Always visible (player can browse even without a merchant nearby).
+    Prices reflect any faction modifier for merchants in the current scene.
+    """
+    from data.shop import SHOP_CATALOGUE, sell_price as base_sell_price
+
+    # Check if a merchant is present to apply faction modifier
+    known_ents  = getattr(state, 'known_entities', None) or {}
+    faction_buy = 1.0
+    faction_sell = 1.0
+    merchant_name = None
+    for key, ent in known_ents.items():
+        if isinstance(ent, dict) and ent.get('type') == 'merchant' and ent.get('alive', True):
+            merchant_name = ent.get('name', key.replace('_', ' ').title())
+            break
+
+    st.sidebar.markdown("---")
+    header = f"🏪 **商店**" + (f" — {merchant_name}" if merchant_name else " （瀏覽）")
+    with st.sidebar.expander(header, expanded=False):
+        if merchant_name:
+            st.caption(f"✅ {merchant_name} 在場 — 聲望修正生效")
+        else:
+            st.caption("商人不在場時可瀏覽價格，但無法交易")
+
+        # Group items by type
+        _TYPE_LABELS = {
+            'consumable':  '🧪 消耗品',
+            'elixir':      '⚗️ ' + _t('type_elixir'),
+            'throwable':   '💣 投擲物',
+            'tool':        '🔧 工具',
+            'skillbook':   '📖 技能書',
+            'scroll':      '📜 法術捲軸',
+            'upgrade':     '🔨 升級套件',
+            'weapon':      '⚔️ 單手武器',
+            'two_handed':  '⚔️⚔️ 雙手武器',
+            'shield':      '🛡️ 盾牌（副手）',
+            'off_hand':    '🔮 副手物品',
+            'helmet':      '🪖 頭盔',
+            'armor':       '🥋 身體防具',
+            'gloves':      '🧤 手套',
+            'boots':       '👢 靴子',
+            'necklace':    '📿 首飾',
+            'ring':        '💍 戒指',
+            'earring':     '💎 耳環',
+        }
+        groups = {}
+        for name, entry in SHOP_CATALOGUE.items():
+            t = entry.get('type', 'other')
+            groups.setdefault(t, []).append((name, entry))
+
+        # Usage hints per item type
+        _TYPE_HINTS = {
+            'tool':      '輸入「使用 {name}」或在對話中描述使用情境',
+            'skillbook': '輸入「使用 {name}」即可永久學習技能熟練加值',
+            'scroll':    '輸入「使用 {name}」即可施放',
+            'upgrade':   '輸入「升級武器」或「升級防具」來消耗套件',
+        }
+
+        for type_key, label in _TYPE_LABELS.items():
+            items_in_group = groups.get(type_key, [])
+            if not items_in_group:
+                continue
+            st.markdown(f"**{label}**")
+            if type_key in _TYPE_HINTS:
+                st.caption(_TYPE_HINTS[type_key].replace('{name}', items_in_group[0][0]
+                                                         if items_in_group else '?'))
+            for name, entry in items_in_group:
+                # Skip Chinese aliases (duplicate entries)
+                if any(ord(c) > 127 for c in name):
+                    continue
+                price = entry['price']
+                desc  = entry.get('description', '')
+                bonuses = []
+                if entry.get('atk_bonus'):
+                    bonuses.append(f"+{entry['atk_bonus']} ATK")
+                if entry.get('def_bonus'):
+                    bonuses.append(f"+{entry['def_bonus']} DEF")
+                if entry.get('hp_bonus'):
+                    bonuses.append(f"+{entry['hp_bonus']} HP")
+                if entry.get('mp_bonus'):
+                    bonuses.append(f"+{entry['mp_bonus']} MP")
+                if entry.get('mov_bonus'):
+                    bonuses.append(f"+{entry['mov_bonus']} MOV")
+                if entry.get('upgrade_stat') and entry.get('upgrade_bonus'):
+                    stat_lbl = {'atk': 'ATK', 'def_stat': 'DEF'}.get(entry['upgrade_stat'], '')
+                    bonuses.append(f"永久 +{entry['upgrade_bonus']} {stat_lbl}")
+                if entry.get('skill_granted') and entry.get('bonus'):
+                    skill_zh = {'athletics': '體能', 'intimidation': '威嚇', 'acrobatics': '特技',
+                                'stealth': '潛行', 'perception': '察覺', 'persuasion': '說服',
+                                'medicine': '醫療', 'arcana': '奧術'}.get(entry['skill_granted'], entry['skill_granted'])
+                    bonuses.append(f"永久 +{entry['bonus']} {skill_zh}熟練")
+                # Elixir temporary buffs
+                if entry.get('type') == 'elixir' and entry.get('buffs'):
+                    buff_strs = []
+                    for b in entry['buffs']:
+                        v = b.get('value', 0)
+                        buff_strs.append(f"{'+' if v >= 0 else ''}{v} {b.get('stat','?')}")
+                    bonuses.append(f"⏳ {', '.join(buff_strs)} ×{entry.get('buff_duration', 3)}T")
+                bonus_str = f"  *({', '.join(bonuses)})*" if bonuses else ''
+                can_afford = (char.gold or 0) >= price
+                price_color = '#4ade80' if can_afford else '#f87171'
+                restriction = entry.get('restricted_to', [])
+                char_class = (char.char_class or '').lower()
+                if restriction:
+                    can_use = char_class in restriction
+                    rest_str = '/'.join(r.capitalize() for r in restriction)
+                    rest_color = '#4ade80' if can_use else '#94a3b8'
+                    restriction_html = (f"<span style='font-size:0.75em;color:{rest_color};"
+                                        f"background:#ffffff11;border-radius:3px;padding:1px 4px'>"
+                                        f"🔒 {rest_str}</span> ")
+                else:
+                    restriction_html = ''
+                st.markdown(
+                    f"<div style='display:flex;justify-content:space-between;"
+                    f"padding:2px 0;font-size:0.88em'>"
+                    f"<span>{restriction_html}{name}{bonus_str}</span>"
+                    f"<span style='color:{price_color};font-weight:bold'>{price}g</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                if desc:
+                    st.caption(desc)
+
+        # Bribe hint
+        st.markdown("---")
+        st.caption("💡 **其他金幣用途：**  \n"
+                   "• `賄賂 [NPC名稱] [金額]` — 提升關係  \n"
+                   "• `升級武器` / `升級防具` — 消耗升級套件永久強化")
+
+        # Sell section — show inventory items with sell prices
+        inventory = list(char.inventory or [])
+        if inventory:
+            st.markdown("**💰 可出售物品**")
+            for it in inventory:
+                iname = it.get('name', it) if isinstance(it, dict) else str(it)
+                sp = base_sell_price(iname)
+                st.markdown(
+                    f"<div style='display:flex;justify-content:space-between;"
+                    f"padding:2px 0;font-size:0.88em'>"
+                    f"<span>{iname}</span>"
+                    f"<span style='color:#fbbf24'>{sp}g</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+
 def _affinity_bar(affinity):
     clamped = max(-100, min(100, affinity))
     filled  = round((clamped + 100) / 200 * 10)
     return '█' * filled + '░' * (10 - filled)
+
+
+# ---------------------------------------------------------------------------
+# Status-effect badge rendering
+# ---------------------------------------------------------------------------
+
+_STATUS_ICONS = {
+    'poisoned':  '☠️',  'burning':  '🔥', 'stunned': '💫',
+    'slowed':    '🐢',  'bleeding': '🩸', 'charmed': '💜',
+    'feared':    '😱',  'weakened': '💔',
+}
+_STATUS_COLORS = {
+    'poisoned':  '#4a0',  'burning':  '#e60',  'stunned':  '#88f',
+    'slowed':    '#0aa',  'bleeding': '#c00',  'charmed':  '#a0a',
+    'feared':    '#880',  'weakened': '#888',
+}
+
+def _render_status_badges(buffs, container=None):
+    """Render coloured inline badge chips for each active status effect."""
+    if not buffs:
+        return
+    try:
+        from engine.combat import STATUS_EFFECTS
+    except ImportError:
+        STATUS_EFFECTS = {}
+
+    badges = []
+    for b in buffs:
+        key  = b.get('key', '')
+        if key.startswith('_'):
+            continue
+        name = STATUS_EFFECTS.get(key, {}).get('cn_name', key)
+        icon = _STATUS_ICONS.get(key, '⚡')
+        col  = _STATUS_COLORS.get(key, '#888')
+        tr   = b.get('turns_remaining', 1)
+        badges.append(
+            f"<span style='background:{col}22;border:1px solid {col};"
+            f"border-radius:4px;padding:1px 5px;font-size:0.8em;color:{col}'>"
+            f"{icon} {name} {tr}t</span>"
+        )
+    if badges:
+        html = " ".join(badges)
+        target = container or st.sidebar
+        target.markdown(html, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Enemy HP tracker — shown in sidebar during combat
+# ---------------------------------------------------------------------------
+
+def _render_enemy_tracker(state):
+    """Sidebar: HP bars for all living enemies in known_entities."""
+    known = state.known_entities or {}
+    enemies = {
+        k: v for k, v in known.items()
+        if not k.startswith('_') and isinstance(v, dict)
+        and v.get('type') in ('monster', 'boss', 'guard')
+    }
+    if not enemies:
+        return
+    st.sidebar.markdown("---")
+    st.sidebar.write("⚔️ **敵人**")
+    for key, entry in enemies.items():
+        hp     = entry.get('hp', 0)
+        max_hp = max(entry.get('max_hp', 1) or 1, 1)
+        alive  = entry.get('alive', True)
+        name   = key.replace('_', ' ').title()
+        hp_pct = int(hp / max_hp * 100)
+        # HP bar colour: green > 60 %, yellow 30–60 %, red < 30 %
+        if not alive or hp <= 0:
+            st.sidebar.markdown(
+                f"~~{name}~~ ☠️",
+            )
+            continue
+        bar_color = '#4caf50' if hp_pct > 60 else ('#ffa500' if hp_pct > 30 else '#c0392b')
+        status_efx = entry.get('status_effects', [])
+        status_html = " ".join(
+            _STATUS_ICONS.get(e.get('key', ''), '⚡') for e in status_efx
+        )
+        special = entry.get('special_ability', '')
+        special_note = f" *({special})*" if special else ''
+        st.sidebar.markdown(
+            f"<b>{name}</b>{special_note} {status_html}  "
+            f"<span style='color:{bar_color}'>{hp}/{max_hp}</span>",
+            unsafe_allow_html=True,
+        )
+        st.sidebar.progress(hp_pct)
+
+
+# ---------------------------------------------------------------------------
+# Combat result banner
+# ---------------------------------------------------------------------------
+
+def _render_combat_banner(combat_result):
+    """Show a colour-coded combat summary above the DM narrative."""
+    if not combat_result:
+        return
+    hit      = combat_result.get('hit')
+    crit     = combat_result.get('critical')
+    target   = combat_result.get('target', '?')
+    ability  = combat_result.get('class_ability')
+    auto_hit = combat_result.get('ability_auto_hit')
+
+    if crit:
+        icon, color = '🟡', '#f1c40f'
+        label = 'CRITICAL HIT'
+    elif hit:
+        icon, color = '🟢', '#2ecc71'
+        label = 'HIT'
+    else:
+        icon, color = '🔴', '#e74c3c'
+        label = 'MISS'
+
+    ability_note = f" [{ability}]" if ability else ''
+    auto_note    = " (auto-hit)" if auto_hit else ''
+    roll_str = (
+        f"{combat_result.get('attack_roll',0)}+{combat_result.get('atk_modifier',0)}"
+        f"={combat_result.get('attack_total',0)} vs DEF {combat_result.get('target_def',0)}"
+    )
+    dmg_str = (
+        f"  ⚔️ {combat_result.get('raw_damage',0)} → net **{combat_result.get('net_damage',0)}**"
+        if hit else ''
+    )
+    status_note = ''
+    if combat_result.get('status_applied'):
+        from engine.combat import STATUS_EFFECTS
+        sname = STATUS_EFFECTS.get(combat_result['status_applied'], {}).get('cn_name', '')
+        sicon = _STATUS_ICONS.get(combat_result['status_applied'], '⚡')
+        status_note = f"  {sicon} {sname} inflicted"
+
+    st.info(
+        f"{icon} **{label}**{ability_note}{auto_note} → {target}  "
+        f"🎲 {roll_str}{dmg_str}{status_note}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Boss encounter banner
+# ---------------------------------------------------------------------------
+
+def _render_boss_encounter_banner(boss_entry):
+    """Full-width warning banner shown when a tier-4 boss first appears."""
+    if not boss_entry:
+        return
+    name       = boss_entry.get('display_name') or boss_entry.get('name', 'Unknown Boss')
+    hp         = boss_entry.get('hp', '?')
+    max_hp     = boss_entry.get('max_hp', hp)
+    special    = boss_entry.get('special_ability', '')
+    resist     = ', '.join(boss_entry.get('resistances', [])) or '—'
+    weak       = ', '.join(boss_entry.get('weaknesses',  [])) or '—'
+    st.markdown(
+        f"<div style='background:linear-gradient(135deg,#1a0a00,#3d0000);"
+        f"border:2px solid #dc2626;border-radius:10px;padding:16px;margin:12px 0'>"
+        f"<div style='font-size:1.4em;font-weight:bold;color:#fca5a5;text-align:center'>"
+        f"⚠️ BOSS 遭遇 — {name}</div>"
+        f"<div style='display:flex;justify-content:space-around;margin-top:10px;"
+        f"font-size:0.9em;color:#fecaca'>"
+        f"<span>❤️ HP: {hp}/{max_hp}</span>"
+        f"<span>🛡️ 抗性: {resist}</span>"
+        f"<span>⚡ 弱點: {weak}</span>"
+        f"</div>"
+        + (f"<div style='margin-top:6px;font-size:0.85em;color:#f87171;text-align:center'>"
+           f"特殊能力: {special}</div>" if special else "")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Loot / XP result banner
+# ---------------------------------------------------------------------------
+
+def _render_loot_xp_banner(loot_xp):
+    """Show XP gained, gold dropped, and loot items after a kill."""
+    if not loot_xp:
+        return
+    xp_gained    = loot_xp.get('xp_gained', 0)
+    loot_dropped = loot_xp.get('loot_dropped', [])
+    gold_gained  = loot_xp.get('gold_gained', 0)
+    leveled_up   = loot_xp.get('leveled_up', False)
+    new_level    = loot_xp.get('new_level', 1)
+    xp_mult      = loot_xp.get('xp_mult', 1.0)
+
+    mult_tag = ''
+    if xp_mult != 1.0:
+        color = '#4ade80' if xp_mult > 1.0 else '#f87171'
+        mult_tag = f" <span style='color:{color};font-size:0.85em'>(×{xp_mult:.2g})</span>"
+
+    xp_line   = f"✨ <b>+{xp_gained} XP</b>{mult_tag}"
+    loot_line = (f"🎁 {', '.join(loot_dropped)}" if loot_dropped else "🎁 無戰利品")
+    gold_tag  = (f"　·　💰 <b style='color:#fbbf24'>+{gold_gained}g</b>" if gold_gained > 0
+                 else "")
+    content   = f"{xp_line}　·　{loot_line}{gold_tag}"
+
+    if leveled_up:
+        st.markdown(
+            f"<div style='background:#052e16;border:1px solid #16a34a;border-radius:6px;"
+            f"padding:10px 14px;margin:6px 0'>"
+            f"🆙 <b>升級！達到 Lv {new_level}！</b> +5 HP · +3 MP · 獲得 2 點屬性點！<br>"
+            f"{content}</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f"<div style='background:#0c1a2e;border:1px solid #1e40af;border-radius:6px;"
+            f"padding:8px 14px;margin:6px 0'>{content}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_trade_banner(utility_result):
+    """Show a visual indicator for buy/sell trade results."""
+    if not utility_result or utility_result.get('trade') not in ('buy', 'sell'):
+        return
+    trade = utility_result['trade']
+    if trade == 'buy':
+        if utility_result.get('bought'):
+            price = utility_result.get('price', 0)
+            item  = utility_result.get('item_name', '')
+            faction_mult = utility_result.get('faction_mult', 1.0)
+            mod_tag = ''
+            if abs(faction_mult - 1.0) >= 0.01:
+                pct = int(abs(faction_mult - 1.0) * 100)
+                if faction_mult < 1.0:
+                    mod_tag = (f" <span style='color:#4ade80;font-size:0.82em'>"
+                               f"(-{pct}% 聲望折扣)</span>")
+                else:
+                    mod_tag = (f" <span style='color:#f87171;font-size:0.82em'>"
+                               f"(+{pct}% 聲望溢價)</span>")
+            st.markdown(
+                f"<div style='background:#0c2310;border:1px solid #16a34a;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"🛒 購入 <b>{item}</b>"
+                f" — <b style='color:#f87171'>-{price}g</b>{mod_tag}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            item   = utility_result.get('item_name', utility_result.get('target', ''))
+            price  = utility_result.get('price', 0)
+            if reason == 'insufficient_gold':
+                msg = f"金幣不足！<b>{item}</b> 需要 {price}g"
+            elif reason == 'not_found':
+                msg = f"商店沒有 <b>{item}</b>"
+            else:
+                msg = f"購買失敗: {item}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>❌ {msg}</div>",
+                unsafe_allow_html=True,
+            )
+    elif trade == 'sell':
+        if utility_result.get('sold'):
+            gold      = utility_result.get('gold', 0)
+            base_gold = utility_result.get('base_gold', gold)
+            item      = utility_result.get('item_name', '')
+            bonus_tag = ''
+            if gold != base_gold:
+                diff = gold - base_gold
+                sign = '+' if diff > 0 else ''
+                bonus_tag = (f" <span style='color:#4ade80;font-size:0.82em'>"
+                             f"({sign}{diff}g 聲望加成)</span>")
+            st.markdown(
+                f"<div style='background:#0c1020;border:1px solid #3b82f6;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"💰 售出 <b>{item}</b>"
+                f" — <b style='color:#fbbf24'>+{gold}g</b>{bonus_tag}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            item   = utility_result.get('item_name', '')
+            if reason == 'not_found':
+                msg = f"背包裡沒有 <b>{item}</b>"
+            elif reason == 'equipped':
+                msg = f"<b>{item}</b> 正在裝備中，請先卸下"
+            else:
+                msg = f"出售失敗: {item}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>❌ {msg}</div>",
+                unsafe_allow_html=True,
+            )
+
+
+def _render_quest_reward_banner(quest_rewards):
+    """Show inline banner for completed quest rewards."""
+    if not quest_rewards:
+        return
+    for rw in quest_rewards:
+        parts = []
+        if rw.get('xp'):
+            parts.append(f"✨ +{rw['xp']} XP")
+        if rw.get('gold'):
+            parts.append(f"💰 +{rw['gold']}g")
+        reward_str = "　·　".join(parts) if parts else "完成！"
+        st.markdown(
+            f"<div style='background:#1a1505;border:1px solid #d97706;"
+            f"border-radius:6px;padding:8px 14px;margin:4px 0'>"
+            f"📜 <b>任務完成：{rw.get('quest_name', '?')}</b>　{reward_str}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_bribe_upgrade_banner(utility_result):
+    """Show inline banners for bribe and upgrade actions."""
+    if not utility_result:
+        return
+    if utility_result.get('bribe'):
+        if utility_result.get('success'):
+            tgt    = utility_result.get('target', '?')
+            amount = utility_result.get('amount', 0)
+            delta  = utility_result.get('affinity_delta', 0)
+            st.markdown(
+                f"<div style='background:#0a1a10;border:1px solid #22c55e;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"🤝 賄賂 <b>{tgt}</b> — "
+                f"<b style='color:#f87171'>-{amount}g</b>　"
+                f"<b style='color:#4ade80'>關係 +{delta}</b></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            msg = "金幣不足" if reason == 'insufficient_gold' else f"失敗: {reason}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>❌ 賄賂失敗：{msg}</div>",
+                unsafe_allow_html=True,
+            )
+    elif utility_result.get('upgrade'):
+        if utility_result.get('upgraded'):
+            stat  = utility_result.get('stat', '')
+            bonus = utility_result.get('bonus', 0)
+            kit   = utility_result.get('kit', '?')
+            stat_label = {'atk': '⚔️ ATK', 'def_stat': '🛡️ DEF'}.get(stat, stat.upper())
+            st.markdown(
+                f"<div style='background:#0d1a2a;border:1px solid #3b82f6;"
+                f"border-radius:6px;padding:8px 14px;margin:4px 0'>"
+                f"🔨 使用 <b>{kit}</b> 升級裝備 — "
+                f"<b style='color:#60a5fa'>{stat_label} +{bonus} 永久</b></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            reason = utility_result.get('reason', '')
+            kit    = utility_result.get('kit', '?')
+            msg = "背包中沒有升級套件" if 'inventory' in reason else f"失敗: {reason}"
+            st.markdown(
+                f"<div style='background:#2c0a0a;border:1px solid #dc2626;"
+                f"border-radius:6px;padding:6px 12px;margin:4px 0'>"
+                f"❌ 升級失敗：{msg}（需要 {kit}）</div>",
+                unsafe_allow_html=True,
+            )
+
+
+def _render_levelup_panel(char, session):
+    """
+    Inline stat-point allocation panel shown when character has pending_stat_points > 0.
+    Player clicks a stat button to spend one point; panel disappears when all points spent.
+    """
+    pending = getattr(char, 'pending_stat_points', 0) or 0
+    if pending <= 0:
+        return
+    st.markdown(
+        f"<div style='background:linear-gradient(135deg,#1a2040,#2a3060);"
+        f"border:2px solid #6c8ebf;border-radius:8px;padding:12px;"
+        f"margin:8px 0;text-align:center'>"
+        f"<span style='color:#a0c4ff;font-size:1.1em;font-weight:bold'>"
+        f"🆙 升級！剩餘屬性點：{pending}</span></div>",
+        unsafe_allow_html=True,
+    )
+    from engine.character import CharacterLogic
+    char_logic = CharacterLogic(session, char)
+    btn_defs = [
+        ('max_hp',   f'❤️ +10 最大HP (現 {char.max_hp})'),
+        ('max_mp',   f'💙 +10 最大MP (現 {char.max_mp})'),
+        ('atk',      f'⚔️ +2 攻擊力 (現 {char.atk})'),
+        ('def_stat', f'🛡️ +2 防禦力 (現 {char.def_stat})'),
+        ('mov',      f'👟 +1 移動速度 (現 {char.mov})'),
+    ]
+    cols = st.columns(len(btn_defs))
+    for col, (stat_key, label) in zip(cols, btn_defs):
+        if col.button(label, key=f"spend_stat_{char.id}_{stat_key}", use_container_width=True):
+            char_logic.spend_stat_point(stat_key)
+            st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Class abilities quick-reference panel (shown when in combat)
+# ---------------------------------------------------------------------------
+
+def _render_class_abilities_panel(char, state):
+    """Show available class abilities with MP cost and description."""
+    try:
+        from engine.combat import CLASS_ABILITIES
+    except ImportError:
+        return
+
+    cls_def  = CLASS_ABILITIES.get((char.char_class or '').lower(), {})
+    if not cls_def:
+        return
+
+    in_combat = bool(getattr(state, 'in_combat', 0))
+    known     = state.known_entities or {}
+    has_enemies = any(
+        v.get('alive', True) and v.get('type') in ('monster', 'boss', 'guard')
+        for k, v in known.items()
+        if not k.startswith('_') and isinstance(v, dict)
+    )
+    if not (in_combat or has_enemies):
+        return
+
+    with st.expander(f"⚔️ {char.char_class} 職業技能", expanded=in_combat):
+        for akey, adef in cls_def.items():
+            mp_cost  = adef.get('mp_cost', 0)
+            can_use  = char.mp >= mp_cost
+            mp_color = '#4caf50' if can_use else '#e74c3c'
+            kw_example = (adef.get('keywords_en') or [''])[0]
+            st.markdown(
+                f"**{adef.get('cn_name', akey)}** "
+                f"<span style='color:{mp_color};font-size:0.85em'>MP {mp_cost}</span>  \n"
+                f"<span style='font-size:0.85em;color:#aaa'>{adef.get('description','')}</span>  \n"
+                f"<span style='font-size:0.8em;color:#666'>輸入關鍵字: *{kw_example}*</span>",
+                unsafe_allow_html=True,
+            )
+        # Spell compendium for this class
+        try:
+            from data.spells import CLASS_SPELLS, SPELL_COMPENDIUM
+            spell_list = CLASS_SPELLS.get((char.char_class or '').lower(), [])
+            if spell_list:
+                st.markdown("---")
+                st.markdown("**✨ 法術手冊**")
+                for sname in spell_list:
+                    sdata = SPELL_COMPENDIUM.get(sname, {})
+                    mp_cost = sdata.get('mp_cost', 0)
+                    can_cast = char.mp >= mp_cost
+                    mp_clr = '#4caf50' if can_cast else '#e74c3c'
+                    dmg_txt = f" · {sdata['damage_dice']}" if sdata.get('damage_dice') else ''
+                    heal_txt = f" · 回復{sdata['heal_dice']}" if sdata.get('heal_dice') else ''
+                    aoe_txt = " (AoE)" if sdata.get('aoe') else ''
+                    st.markdown(
+                        f"**{sname}**{aoe_txt} "
+                        f"<span style='color:{mp_clr};font-size:0.85em'>MP {mp_cost}</span>"
+                        f"{dmg_txt}{heal_txt}  \n"
+                        f"<span style='font-size:0.8em;color:#666'>輸入: *cast {sname}*</span>",
+                        unsafe_allow_html=True,
+                    )
+        except ImportError:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# XP / Level progress bar
+# ---------------------------------------------------------------------------
+
+def _render_xp_bar(char):
+    """Render an XP progress bar toward the next level."""
+    try:
+        from engine.combat import LEVEL_XP_TABLE, MAX_LEVEL
+    except ImportError:
+        return
+    level    = max(1, char.level or 1)
+    xp       = char.xp or 0
+    if level >= MAX_LEVEL:
+        st.sidebar.caption(f"Lv {level} (MAX)  XP {xp:,}")
+        return
+    xp_cur   = LEVEL_XP_TABLE[level - 1]
+    xp_next  = LEVEL_XP_TABLE[level]
+    progress = min(1.0, max(0.0, (xp - xp_cur) / max(xp_next - xp_cur, 1)))
+    st.sidebar.caption(f"Lv **{level}**  XP {xp:,} / {xp_next:,}")
+    st.sidebar.progress(int(progress * 100))
 
 # ---------------------------------------------------------------------------
 # Board tab — world map, dice roller, score board
@@ -2927,6 +3888,42 @@ def _render_score_board(party, state):
         st.caption(f"⚔ {dmg}dmg  💚 {heal}heal  🎯 {chks}chk  ↩ {turns}t  💰 {char.gold}g")
 
 
+def _render_dungeon_map(dungeon, current_location):
+    """
+    Render a simple ASCII-style dungeon map using Streamlit markdown.
+    Rooms are shown as boxes; corridors as lines.
+    Visited rooms are bright; unvisited rooms are dimmed.
+    Current location room is highlighted.
+    """
+    if not dungeon:
+        st.info("地城地圖尚未生成。")
+        return
+
+    lines = []
+    for rid, room in dungeon.items():
+        visited   = room.get('visited', False)
+        is_here   = (room.get('name', '').lower() == (current_location or '').lower())
+        icon      = "📍" if is_here else ("🟩" if visited else "⬛")
+        name      = room.get('name', rid)
+        neighbors = [dungeon[cid]['name'] for cid in room.get('connections', []) if cid in dungeon]
+        conn_str  = " → " + ", ".join(neighbors) if neighbors else ""
+        has_enemies = bool(room.get('enemies'))
+        has_loot    = bool(room.get('loot'))
+        tags = ("⚔️" if has_enemies else "") + ("💰" if has_loot else "")
+        lines.append(f"{icon} **{name}**{(' ' + tags) if tags else ''}{conn_str}")
+
+    st.markdown("\n\n".join(lines))
+
+    # Show description for current room
+    for room in dungeon.values():
+        if room.get('name', '').lower() == (current_location or '').lower():
+            st.caption(f"📜 {room.get('description', '')}")
+            adj = [dungeon[cid]['name'] for cid in room.get('connections', []) if cid in dungeon]
+            if adj:
+                st.caption("🚪 通往：" + "、".join(adj))
+            break
+
+
 def _render_game_board_tab(party, state, active_char, active_idx):
     """Tab 1 — 遊戲板: continent image + grid map + score board + dice roller."""
     flag    = config.PLAYER_FLAGS[active_idx] if active_idx < len(config.PLAYER_FLAGS) else '👤'
@@ -2995,6 +3992,26 @@ def _render_game_board_tab(party, state, active_char, active_idx):
     st.markdown(f"#### {_t('relation_graph')}")
     _render_relation_graph(state, party)
 
+    # ── Dungeon map ────────────────────────────────────────────────────────
+    dungeon = getattr(state, 'dungeon_map', None) or {}
+    if dungeon:
+        st.divider()
+        st.markdown("#### 🗺️ 地城地圖")
+        _render_dungeon_map(dungeon, state.current_location)
+    else:
+        if st.button("🗺️ 生成地城地圖", key="gen_dungeon_btn"):
+            from engine.world import WorldManager
+            _wm = WorldManager(st.session_state.current_session, state)
+            dungeon = _wm.generate_dungeon(
+                room_count=8,
+                seed=getattr(state, 'id', None),
+            )
+            # Move player to first room
+            first_room = list(dungeon.values())[0]
+            state.current_location = first_room['name']
+            st.session_state.current_session.commit()
+            st.rerun()
+
 # ---------------------------------------------------------------------------
 # Story tab — narrative history + branching choices + action input
 # ---------------------------------------------------------------------------
@@ -3041,6 +4058,12 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
             else:
                 _render_scene_label(scene_type)
             _render_dice_result(item.get('dice_result'))
+            _render_boss_encounter_banner(item.get('boss_encounter'))
+            _render_combat_banner(item.get('combat_result'))
+            _render_loot_xp_banner(item.get('loot_xp'))
+            _render_trade_banner(item.get('_utility_result'))
+            _render_bribe_upgrade_banner(item.get('_utility_result'))
+            _render_quest_reward_banner(item.get('_quest_rewards'))
             label = f"**{dm_lbl}:**" if not item.get('is_prologue') else f"**{dm_lbl} 開場白:**"
             st.markdown(f"{label} {item['content']}")
             if item.get('image'):
@@ -3056,6 +4079,53 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                          caption=item.get('cinematic_label') or "Scene",
                          use_container_width=True)
 
+    # ---- Level-up stat allocation panel ----
+    _cur_session = st.session_state.get('current_session')
+    if _cur_session:
+        _render_levelup_panel(active_char, _cur_session)
+
+    # ---- Class abilities quick-reference (only shown when enemies are present) ----
+    _render_class_abilities_panel(active_char, state)
+
+    # ---- Combat quick-action bar (shown when in_combat=1 and enemies alive) ----
+    _combat_quick_action = None
+    if getattr(state, 'in_combat', 0) and active_char.hp > 0:
+        _known = state.known_entities or {}
+        _living = [
+            (k, v) for k, v in _known.items()
+            if not k.startswith('_') and isinstance(v, dict)
+            and v.get('alive', True)
+            and v.get('type') in ('monster', 'boss', 'guard')
+        ]
+        if _living:
+            # Pick the first living enemy as the default target
+            _primary_key = _living[0][0]
+            _primary_name = _primary_key.replace('_', ' ').title()
+            st.markdown(
+                "<div style='font-size:0.9em;color:#fca5a5;font-weight:bold;"
+                "margin-bottom:4px'>⚔️ 戰鬥快捷</div>",
+                unsafe_allow_html=True,
+            )
+            _qcols = st.columns(3)
+            if _qcols[0].button(
+                f"⚔️ 攻擊 {_primary_name}",
+                key="qaction_attack",
+                use_container_width=True,
+            ):
+                _combat_quick_action = f"I attack the {_primary_key}"
+            if _qcols[1].button(
+                "✨ 使用技能",
+                key="qaction_skill",
+                use_container_width=True,
+            ):
+                _combat_quick_action = "I use my class ability"
+            if _qcols[2].button(
+                "🏃 逃跑",
+                key="qaction_flee",
+                use_container_width=True,
+            ):
+                _combat_quick_action = "I flee from combat"
+
     # ---- Action input ----
     current_choices = []
     if st.session_state.history and st.session_state.history[-1]['role'] == 'dm':
@@ -3063,9 +4133,64 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
 
     # Restore action deferred from previous run (VRAM lock pattern)
     action_taken = st.session_state.pop('_vram_pending_action', None)
+    # Combat quick-action bar takes priority over free-text / choices
+    if _combat_quick_action and not action_taken:
+        action_taken = _combat_quick_action
 
     if active_char.hp <= 0:
-        st.warning(f"**{active_char.name}** {_t('char_fallen')}")
+        # Gather death-penalty info from the last history entry if available
+        _dp = None
+        for _hi in reversed(st.session_state.get('history', [])):
+            if _hi.get('role') == 'dm' and _hi.get('_death_penalty'):
+                _dp = _hi['_death_penalty']
+                break
+        _penalty_lines = []
+        if _dp:
+            _diff_label = {'easy': 'Easy', 'normal': 'Normal',
+                           'hard': 'Hard', 'deadly': 'Deadly'}.get(
+                _dp.get('difficulty', 'normal'), 'Normal')
+            if _dp.get('gold_lost', 0) > 0:
+                _penalty_lines.append(f"💰 損失 {_dp['gold_lost']} 金幣")
+            if _dp.get('xp_lost', 0) > 0:
+                _penalty_lines.append(f"✨ 損失 {_dp['xp_lost']} XP")
+            if _dp.get('item_dropped'):
+                _penalty_lines.append(f"🎒 掉落：{_dp['item_dropped']}")
+            if not _penalty_lines:
+                _penalty_lines.append("無懲罰（Easy 模式）")
+        _penalty_html = (
+            "<div style='margin-top:10px;font-size:0.9em;color:#fca5a5'>"
+            + "　".join(_penalty_lines)
+            + "</div>"
+        ) if _penalty_lines else ""
+        st.markdown(
+            "<div style='background:#1a0000;border:2px solid #7f1d1d;border-radius:10px;"
+            "padding:24px;text-align:center;margin:16px 0'>"
+            "<div style='font-size:2.5em'>💀</div>"
+            "<div style='font-size:1.6em;color:#ef4444;font-weight:bold;margin:8px 0'>"
+            f"GAME OVER</div>"
+            f"<div style='color:#fca5a5'>{active_char.name} 已陣亡。</div>"
+            f"{_penalty_html}"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        go_col1, go_col2 = st.columns(2)
+        if go_col1.button("🔄 重新開始（新遊戲）", use_container_width=True):
+            for key in ('current_session', 'game_state', 'player', 'event_manager'):
+                st.session_state[key] = None
+            st.session_state.party             = []
+            st.session_state['_menu_needs_restore'] = True
+            st.session_state.history           = []
+            st.session_state.world_map         = {}
+            st.session_state.player_positions  = {}
+            st.rerun()
+        if go_col2.button("💾 讀取存檔", use_container_width=True):
+            for key in ('current_session', 'game_state', 'player', 'event_manager'):
+                st.session_state[key] = None
+            st.session_state.party             = []
+            st.session_state['_show_load_game'] = True
+            st.session_state['_menu_needs_restore'] = True
+            st.session_state.history           = []
+            st.rerun()
 
     elif current_choices:
         # Branching narrative choices — display prominently (≥3 choices, 3-col layout)
@@ -3129,6 +4254,27 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
                     action_taken, state, active_char, party=party
                 )
             )
+            # --- Game Over ---
+            if turn_data.get('game_over'):
+                st.session_state.audio_gen.play_cue('game_over')
+                st.session_state.history.append({
+                    "role":        "dm",
+                    "content":     response,
+                    "choices":     [],
+                    "scene_type":  "combat",
+                    "dice_result": dice_result,
+                    "combat_result": turn_data.get('_combat_result'),
+                    "loot_xp":     None,
+                    "image":       None,
+                    "image_path":  "",
+                    "is_cinematic": False,
+                    "cinematic_label": None,
+                    "turn":        state.turn_count or 0,
+                    "game_over":   True,
+                })
+                st.session_state.vram_busy = False
+                st.rerun()
+
             # Update world map if player moved
             if turn_data.get('location_change'):
                 _move_player_on_map(active_char, turn_data['location_change'])
@@ -3207,17 +4353,32 @@ def _render_story_tab(party, state, active_char, active_idx, ws_id):
         finally:
             st.session_state.vram_busy = False
 
+        # Audio cues for this turn (stub — logs intent, plays when backend wired)
+        _audio_cues = st.session_state.audio_gen.on_scene_change(
+            scene_type=turn_data.get('scene_type', 'exploration'),
+            combat_result=turn_data.get('_combat_result'),
+            flee_result=turn_data.get('_flee_result'),
+            loot_xp=turn_data.get('_loot_xp'),
+        )
+
         st.session_state.history.append({
             "role":            "dm",
             "content":         response,
             "choices":         choices,
             "scene_type":      turn_data.get('scene_type', 'exploration'),
             "dice_result":     dice_result,
+            "combat_result":   turn_data.get('_combat_result'),
+            "loot_xp":         turn_data.get('_loot_xp'),
+            "boss_encounter":  turn_data.get('_boss_encounter'),
+            "_death_penalty":  turn_data.get('_death_penalty'),
+            "_utility_result": turn_data.get('_utility_result'),
+            "_quest_rewards":  turn_data.get('_quest_rewards'),
             "image":           scene_image,
             "image_path":      scene_image_path,
             "is_cinematic":    is_cinematic,
             "cinematic_label": cinematic_label,
             "turn":            state.turn_count or 0,
+            "audio_cues":      _audio_cues,
         })
 
         # Persist compressed story log after every turn
@@ -3324,7 +4485,12 @@ def _render_characters_tab(party, state, active_char):
                     if char.skills:
                         st.markdown(f"**{_t('skills_label')}:**")
                         for skill in char.skills:
-                            st.write(f"  • {skill}")
+                            if isinstance(skill, dict):
+                                sname = skill.get('skill', '?').capitalize()
+                                sbonus = skill.get('bonus', 0)
+                                st.write(f"  • {sname} +{sbonus}")
+                            else:
+                                st.write(f"  • {skill}")
                     if char.inventory:
                         st.markdown(f"**{_t('inventory_label')}:**")
                         for item in char.inventory:
@@ -3335,26 +4501,120 @@ def _render_characters_tab(party, state, active_char):
                     if char.personality:
                         st.caption(f"{_t('personality_label')}: {char.personality}")
 
+            # ── Equipment panel ──────────────────────────────────────────────
+            st.divider()
+            st.markdown(f"**{_t('equip_panel_hdr')}**")
+            _db_eq   = st.session_state.save_manager.db
+            _sess_eq = _db_eq.get_session()
+            try:
+              from engine.character import CharacterLogic
+              from data.shop import get_shop_item
+              _char_logic = CharacterLogic(_sess_eq, char)
+              _equipment  = dict(char.equipment or {})
+
+            def _render_equip_slot(slot, icon, label, col):
+                equipped_item = _equipment.get(slot)
+                with col:
+                    st.markdown(f"**{icon} {label}**")
+                    if isinstance(equipped_item, dict) and equipped_item.get('_two_hand_ref'):
+                        st.caption(f"🔒 {equipped_item['_two_hand_ref']}")
+                    elif equipped_item and isinstance(equipped_item, dict):
+                        item_nm = equipped_item.get('name', slot)
+                        entry   = get_shop_item(item_nm) or {}
+                        bonus_parts = []
+                        for k, lbl in [('atk_bonus','ATK'),('def_bonus','DEF'),
+                                       ('mp_bonus','MP'),('mov_bonus','MOV'),('hp_bonus','HP')]:
+                            if entry.get(k):
+                                bonus_parts.append(f"+{entry[k]} {lbl}")
+                        st.write(item_nm)
+                        if bonus_parts:
+                            st.caption(", ".join(bonus_parts))
+                        if st.button(_t('unequip_btn'), key=f"unequip_{char.id}_{slot}",
+                                     use_container_width=True):
+                            _char_logic.unequip(slot)
+                            st.rerun()
+                    else:
+                        st.caption(_t('equip_slot_empty'))
+
+            # Row 1 — Weapons (2 cols)
+            st.caption(f"── {_t('equip_row_weapons')} ──")
+            _r1 = st.columns(2)
+            _render_equip_slot('main_hand', '⚔️', _t('equip_slot_main_hand'), _r1[0])
+            _render_equip_slot('off_hand',  '🛡️', _t('equip_slot_off_hand'),  _r1[1])
+
+            # Row 2 — Armor (4 cols)
+            st.caption(f"── {_t('equip_row_armor')} ──")
+            _r2 = st.columns(4)
+            _render_equip_slot('head',  '🪖', _t('equip_slot_head'),  _r2[0])
+            _render_equip_slot('body',  '🥋', _t('equip_slot_body'),  _r2[1])
+            _render_equip_slot('hands', '🧤', _t('equip_slot_hands'), _r2[2])
+            _render_equip_slot('feet',  '👢', _t('equip_slot_feet'),  _r2[3])
+
+            # Row 3 — Accessories (3 cols)
+            st.caption(f"── {_t('equip_row_accessories')} ──")
+            _r3 = st.columns(3)
+            _render_equip_slot('necklace', '📿', _t('equip_slot_necklace'), _r3[0])
+            _render_equip_slot('ring',     '💍', _t('equip_slot_ring'),     _r3[1])
+            _render_equip_slot('earring',  '💎', _t('equip_slot_earring'),  _r3[2])
+
+            # Backpack — equippable items with Equip button
+            _equippable_types = {
+                'weapon', 'two_handed', 'shield', 'off_hand',
+                'helmet', 'armor', 'gloves', 'boots',
+                'necklace', 'ring', 'earring',
+            }
+            _equippable_inv   = [
+                it for it in (char.inventory or [])
+                if isinstance(it, dict) and
+                (get_shop_item(it.get('name', '')) or {}).get('type', it.get('type', ''))
+                in _equippable_types
+            ]
+            if _equippable_inv:
+                st.caption(f"**{_t('equip_backpack_hdr')}**")
+                for it in _equippable_inv:
+                    item_nm   = it.get('name', '')
+                    entry     = get_shop_item(item_nm) or {}
+                    b_parts   = []
+                    for k, lbl in [('atk_bonus','ATK'),('def_bonus','DEF'),
+                                   ('mp_bonus','MP'),('mov_bonus','MOV'),('hp_bonus','HP')]:
+                        if entry.get(k):
+                            b_parts.append(f"+{entry[k]} {lbl}")
+                    bonus_str = f"  ({', '.join(b_parts)})" if b_parts else ''
+                    ic, ib = st.columns([4, 1])
+                    with ic:
+                        st.write(f"• {item_nm}{bonus_str}")
+                    with ib:
+                        if st.button(_t('equip_btn'),
+                                     key=f"equip_{char.id}_{item_nm}",
+                                     use_container_width=True):
+                            _char_logic.equip(item_nm)
+                            st.rerun()
+            finally:
+                _sess_eq.close()
+
             # ── Relations for this character ─────────────────────────────
             try:
                 _db      = st.session_state.save_manager.db
                 _sess    = _db.get_session()
-                _world   = WorldManager(_sess, state)
-                char_key = str(char.name).lower()
-                char_rels = _world.get_relations('char', char_key)
-                if not char_rels:
-                    # also try by id string in case edges were stored that way
-                    char_rels = _world.get_relations('char', str(char.id))
-                if char_rels:
-                    # Build a lookup from org + NPC names
-                    _lk = {o['name'].lower(): o['name']
-                           for o in _world.list_organizations()}
-                    for npc in (state.relationships or {}):
-                        _lk[npc.lower()] = npc
-                    for c in party:
-                        _lk[c.name.lower()] = c.name
-                    with st.expander(_t('relations_expander'), expanded=False):
-                        _render_relation_rows(char_rels, char_key, _lk)
+                try:
+                    _world   = WorldManager(_sess, state)
+                    char_key = str(char.name).lower()
+                    char_rels = _world.get_relations('char', char_key)
+                    if not char_rels:
+                        # also try by id string in case edges were stored that way
+                        char_rels = _world.get_relations('char', str(char.id))
+                    if char_rels:
+                        # Build a lookup from org + NPC names
+                        _lk = {o['name'].lower(): o['name']
+                               for o in _world.list_organizations()}
+                        for npc in (state.relationships or {}):
+                            _lk[npc.lower()] = npc
+                        for c in party:
+                            _lk[c.name.lower()] = c.name
+                        with st.expander(_t('relations_expander'), expanded=False):
+                            _render_relation_rows(char_rels, char_key, _lk)
+                finally:
+                    _sess.close()
             except Exception:
                 pass
 
@@ -4152,7 +5412,29 @@ def game_loop():
         f"**Turn:** {state.turn_count or 0}  "
         f"*(memory: last {config.SESSION_MEMORY_WINDOW})*"
     )
+    _render_enemy_tracker(state)
+    if getattr(state, 'in_combat', 0):
+        st.sidebar.markdown(
+            "<div style='background:#7f1d1d;color:#fca5a5;padding:6px 10px;"
+            "border-radius:6px;font-weight:bold;text-align:center'>"
+            "⚔️ 戰鬥中</div>",
+            unsafe_allow_html=True,
+        )
     _render_npc_tracker(state)
+    _render_quest_journal(state)
+    _render_shop_panel(state, active_char)
+    # ── Save indicator + quick snapshot ────────────────────────────────────
+    st.sidebar.markdown("---")
+    _turn_now = getattr(state, 'turn_count', 0) or 0
+    st.sidebar.caption(f"💾 Turn {_turn_now} 已自動儲存")
+    if st.sidebar.button("📸 建立快照", key="sidebar_snapshot", use_container_width=True,
+                          help="將目前進度儲存為可回溯的快照"):
+        _snap_sess = st.session_state.get('current_session')
+        _snap_name = getattr(state, 'save_name', None)
+        if _snap_sess and _snap_name:
+            snap = st.session_state.save_manager.create_snapshot(_snap_name, _snap_sess)
+            if snap:
+                st.sidebar.success(f"快照: {snap}")
     _render_language_switcher()
     _render_model_switcher()
     _render_image_model_selector()
@@ -4262,14 +5544,27 @@ def game_loop():
             "content":    action_text,
             "all_choices": [],
         })
+        _ai_audio = st.session_state.audio_gen.on_scene_change(
+            scene_type=turn_data.get('scene_type', 'exploration'),
+            combat_result=turn_data.get('_combat_result'),
+            flee_result=turn_data.get('_flee_result'),
+            loot_xp=turn_data.get('_loot_xp'),
+        )
         st.session_state.history.append({
-            "role":        "dm",
-            "content":     response,
-            "choices":     choices,
-            "scene_type":  turn_data.get('scene_type', 'exploration'),
-            "dice_result": dice_result,
-            "image":       None,
-            "image_path":  '',
+            "role":           "dm",
+            "content":        response,
+            "choices":        choices,
+            "scene_type":     turn_data.get('scene_type', 'exploration'),
+            "dice_result":    dice_result,
+            "combat_result":  turn_data.get('_combat_result'),
+            "loot_xp":        turn_data.get('_loot_xp'),
+            "boss_encounter":  turn_data.get('_boss_encounter'),
+            "_death_penalty":  turn_data.get('_death_penalty'),
+            "_utility_result": turn_data.get('_utility_result'),
+            "_quest_rewards":  turn_data.get('_quest_rewards'),
+            "audio_cues":     _ai_audio,
+            "image":          None,
+            "image_path":     '',
         })
         st.rerun()
 
@@ -4596,7 +5891,13 @@ def _render_god_mode_tab(party, state):
                 st.caption("背包為空")
             skills = char.skills or []
             if skills:
-                st.caption("技能: " + ", ".join(str(s) for s in skills))
+                skill_parts = []
+                for s in skills:
+                    if isinstance(s, dict):
+                        skill_parts.append(f"{s.get('skill','?').capitalize()} +{s.get('bonus',0)}")
+                    else:
+                        skill_parts.append(str(s))
+                st.caption("技能: " + ", ".join(skill_parts))
 
     # ----------------------------------------------------------------
     # ChromaDB RAG collections

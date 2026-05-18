@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "pathfinder",
+    "world_name":  "Pathfinder - Golarion",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\pathfinder\\pathfinder_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a14e05dc4819187370ccd9a656ed3.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Pathfinder Golarion inspired epic political fantasy RPG setting. Terrain type: single_continent. Draw one immense fictional Inner Sea style continent in illustrated Pathfinder world map style, aged ink-on-parchment, richly detailed political fantasy cartography. Include diverse nation-state borders implied by color and iconography, sprawling harbor cities, Absalom-like central metropolis, Pathfinder Society expedition routes, ancient god-war ruins, magical academies, desert kingdoms, northern frozen wastes, jungle interiors, volcanic scars, haunted grave-kingdoms, trade roads, river cities, mountain citadels, and dangerous dungeon sites. The continent must span many climates and biomes: temperate farmlands, deep forests, arid deserts, lush jungles, alpine highlands, tundra, volcanic badlands, swamps, steppe, and stormy coasts. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, sea caves, and varied landforms. Include irregular offshore islands in uneven clusters, all different sizes and shapes, some with city-states, ruins, temples, and pirate ports. Large detailed atlas composition, political-region tinting allowed, ornate compass and border allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T03:22:16.6831412+08:00"
+}

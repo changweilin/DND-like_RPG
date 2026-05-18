@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09db9bbcb88191bfa9af285671f3f7.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Iron Kingdoms / Full Metal Fantasy inspired steampunk military-fantasy atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast iron-grey sea filled with many island groups and microcontinents, mechanikal factory-islands, steam-vented ruins, blighted marsh chains, warjack assembly ports, arcane storm fronts, fortified naval bases, coal refinery islets, alchemist enclaves, mercenary freeports and rival kingdom outposts.\nStyle/medium: high-resolution illustrated Iron Kingdoms atlas, aged parchment with brass-and-iron mechanikal overlay, steam and magic intertwined, warjack smoke plumes, arcane lightning, industrial military fantasy atmosphere.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large factory islands, tiny mechanik islets, crescent island arcs, oily lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include brass compass rose, riveted border, sea routes, factory icons, fortress markers and arcane storm symbols without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, smoky deltas, blighted estuaries, fjords, volcanic forge ridges and industrial harbors; show many climates and regions including snowbound islands, temperate river isles, blighted swamps, mountain holds, forests, industrial basins and arcane-scorched wastelands.\nAvoid: evenly spaced islands, clean heroic fantasy, cheerful tropical palette, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:19:21.9998033+08:00"
+}

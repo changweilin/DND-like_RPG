@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "mutant_year_zero",
+    "world_name":  "Mutant: Year Zero - The Ark",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\mutant_year_zero\\mutant_year_zero_landscape_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098e3a675481919b7be8d2bd837be9.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Mutant: Year Zero / The Ark inspired world map for the terrain type single_continent.\nScene/backdrop: one huge primary continent surrounded by polluted ocean, a post-apocalyptic Zone of ruined old-world cities, the Ark ruins encampment, dead zones of radiation, mutant clan territories, scavenger trails, collapsed highways, broken dams, rusted industrial basins, toxic forests, crater lakes, abandoned military complexes and survival zone sectors.\nStyle/medium: high-resolution illustrated atlas and survival zone map, grey-green toxic sky mood, weathered paper, gritty ink relief, hazard markings, ruin symbols, scavenged cartography, melancholic post-apocalyptic wasteland tone.\nComposition/framing: wide landscape atlas view, single continent filling most of the frame with surrounding seas and scattered offshore wreckage islands; include compass, subtle grid fragments, ruin markers and survival-sector symbols without readable text.\nGeography constraints: large world map spanning many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, marshy river mouths, flooded suburbs, eroded cliffs and varied landforms; include forests reclaiming cities, deserts, tundra, wetlands, mountains, toxic swamps and irradiated wasteland.\nAvoid: clean fantasy map, hopeful utopia, modern satellite image, simple oval continent, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:56:12.4425996+08:00"
+}

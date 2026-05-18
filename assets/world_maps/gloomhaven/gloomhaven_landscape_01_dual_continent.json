@@ -1,0 +1,17 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven — City of Lions",
+    "terrain_type":  "dual_continent",
+    "terrain_name":  "Dual Continents",
+    "prompt":  "gloomhaven area map, dungeon locations, tactical rpg aesthetic, scenario map style, two major continents separated by uneven seas and narrow straits, not a simple vertical split, using diagonal, S-shaped, L-shaped or C-shaped ocean channels, asymmetric landmass sizes, complex coastlines, peninsulas, bays and inland seas, gloomhaven city harbor, dungeon entrance locations, ancient catacomb networks, demon-infested ruined citadels, frozen north peaks, dark forest regions, dark tactical fantasy, gloomy overcast atmosphere, ancient evil awakening, large high-resolution atlas map, overhead birds-eye view, multiple climates and biomes, deserts, wetlands, forests, mountains, tundra, river basins and coastal regions, highly detailed, digital fantasy art, concept art, highly detailed illustration, vibrant colors, artstation quality, dramatic lighting, professional, no readable text labels, no watermark, no characters, no modern UI",
+    "negative_prompt":  "photo, realistic, modern, blurry, low quality, watermark, text, characters, people, text overlay, watermark, blurry, low quality",
+    "status":  "generated",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_landscape_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e31b3-7d25-72d2-ba20-a0a358a6f8be\\ig_09c7539f2ea8b785016a09089df01881919c11fbf3f2e0a65e.png",
+    "error":  "",
+    "width":  1536,
+    "height":  1024,
+    "image_style":  "fantasy_art",
+    "image_model":  "chatgpt-imagegen",
+    "updated_at":  "2026-05-17T08:22:32"
+}

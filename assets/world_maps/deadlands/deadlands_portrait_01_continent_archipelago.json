@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_portrait_01_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a09fb2cb6b48191a776f4497a22fe3a.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Deadlands-inspired Weird West RPG setting. Terrain type: continent_archipelago. Draw one dominant fictional continent plus a large irregular offshore archipelago, in aged sepia parchment and Weird West frontier cartography. The mainland should include ghost-rock mine claims, haunted desert badlands, red mesa canyons, prairie rail corridors, boom towns, sacred spirit lands, pine mountains, bayou wetlands, storm coasts, and volcanic ghost-rock scars. The archipelago should evoke a flooded Great Maze: many broken islands and channels in uneven clusters, diverse island sizes and shapes, jagged cliffs, shoals, lighthouses, ghost-rock rigs, rail ferry routes, and strange supernatural glow. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a C-shaped / diagonal coastal gulf with twisting straits and bays. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, and barrier islands. Large detailed atlas map, ornate compass and frontier survey decorations allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:35:33.8101793+08:00"
+}

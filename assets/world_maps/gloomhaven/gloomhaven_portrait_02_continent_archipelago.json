@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "gloomhaven",
+    "world_name":  "Gloomhaven - City of Lions",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\gloomhaven\\gloomhaven_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a07a2907481919d1008d6f12d338c.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Gloomhaven-inspired grim mercenary fantasy RPG setting. Terrain type: continent_archipelago. Draw one dominant fictional continent plus a large irregular offshore archipelago in dark tactical fantasy cartography, scenario-map style. The mainland should include the grim harbor city on the Misty Sea, dungeon entrance locations, ancient catacomb networks, demon-infested ruined citadels, frozen northern peaks, dark forests, mercenary guild roads, merchant enclaves, cursed marshes, bleak highlands, monster-infested tunnels, and old imperial ruins full of forgotten magic. The archipelago should be uneven and varied: fortress islands, broken ruin chains, sea caves, monster lair isles, sunken temple rocks, foggy reef clusters, smugglers ports, and haunted lighthouse islands. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a diagonal / C-shaped storm gulf with twisting straits, bays, shoals, and broken coastal shelves. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, sea caves, reefs, and shoals. Large detailed dark parchment atlas, tactical RPG scenario symbols allowed, gloomy overcast palette, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T02:25:52.5889032+08:00"
+}

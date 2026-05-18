@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "warhammer_fantasy",
+    "world_name":  "Warhammer Fantasy - The Old World",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\warhammer_fantasy\\warhammer_fantasy_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09b50bc2c08191bb34e5dc5eeba65c.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer Fantasy / The Old World inspired grimdark world map for the terrain type diverse_archipelago.\nScene/backdrop: a vast stormy old-world sea filled with many grim island groups and microcontinents, empire harbor city-states, fortress islands, dwarf mountain isles, Chaos-tainted dark forests, northern frozen islands, blighted marsh chains, plague reefs, ruined citadels, pirate havens, witch-hunter outposts and blasted corrupted wastelands.\nStyle/medium: high-resolution illustrated dark fantasy atlas, old world parchment cartography, inked relief terrain, oppressive threatening sky, corruption scars, grim and perilous campaign map atmosphere.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large islands, tiny islets, crescent island arcs, lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include compass rose, severe map border, sea routes, fortress icons and corruption symbols without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, fjords, deltas, marshy estuaries, volcanic ridges and storm-wrecked coasts; show many climates and biomes across the archipelago including frozen wastes, temperate empire lands, dark forests, mountains, swamps, moors, plague marshes and chaos-blasted badlands.\nAvoid: evenly spaced islands, simple round islands, cheerful tropical palette, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T20:34:38.7459426+08:00"
+}

@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_landscape_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a096eabf2048191915973ca257ef498.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG steampunk fantasy atlas map, first batch pass, landscape orientation\nPrimary request: Iron Kingdoms / Full Metal Fantasy inspired steampunk world map, single huge primary continent.\nScene/backdrop: overhead birds-eye atlas view of Western Immoren-like industrial fantasy continent surrounded by stormy sea.\nSubject: one enormous primary continent with complex realistic coastline: peninsulas, industrial gulfs, bays, capes, narrow straits, broken rocky shores, curved coasts, river deltas, inland seas, and varied landforms. Include mechanikal factory-cities, steam-vented ruins, warjack assembly ports, arcane storm fronts, rival nation borders, rail lines, river cities, blighted marshes, coal mountains, forests, tundra, deserts, wetlands, and coastal dockyards.\nStyle/medium: Iron Kingdoms continent map, steampunk fantasy aesthetic, mechanikal detail overlay, aged industrial parchment, highly detailed illustrated RPG sourcebook cartography.\nComposition/framing: wide 16:9 landscape, full single continent visible with generous ocean border, large high-resolution atlas feel, clean top-down readability.\nLighting/mood: full metal fantasy, steam and magic intertwined, warjack smoke plumes, arcane lightning, national warfare, mechaniks and alchemists at work in the margins as tiny map motifs.\nColor palette: aged brass, soot grey, copper, storm blue, arcane cyan, muted green forests, iron red foundries, parchment tan.\nMaterials/textures: stained parchment, brass-etched coastlines, blueprint overlays, riveted border details, hand-painted terrain, fine cartographic ink.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Make the coastline natural, intricate, and realistic rather than a smooth blob.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T15:47:08.9074326+08:00"
+}

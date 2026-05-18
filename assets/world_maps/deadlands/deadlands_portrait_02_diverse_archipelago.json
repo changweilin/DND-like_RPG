@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a5d728ddc819184ae60b4edbbfecb.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Deadlands-inspired Weird West supernatural frontier setting. Terrain type: diverse_archipelago. Draw many irregular island chains and scattered landmasses across a haunted frontier sea and flooded canyon maze, unevenly distributed with strong variation in size and shape. Weird West details: ghost rock mine islands, boomtown ports, railroad trestle islands, outlaw coves, haunted canyon rocks, spirit shrine islands, mad science foundries, steamship wrecks, lighthouse forts, cursed graveyard isles, undead outlaw territories, salt-flat atolls, volcanic black-rock islands, prairie islands, pine mountain islands, swamp deltas, storm cliffs, and desert mesa chains. Include many climates and biomes: red deserts, sagebrush plains, snowy ranges, pine forests, ghost swamps, river deltas, salt flats, volcanic basins, flooded maze canyons, stormy coasts, cold northern rocks, reefs and lagoons. Every major island has realistic complex coastlines with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, reefs, shoals, sea caves. Sepia parchment frontier atlas, ghost-rock green glow, rail survey marks without readable labels, no legible text, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:32:42.3343124Z"
+}

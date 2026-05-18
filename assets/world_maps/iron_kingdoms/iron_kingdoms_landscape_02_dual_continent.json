@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "iron_kingdoms",
+    "world_name":  "Iron Kingdoms - Full Metal Fantasy",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\iron_kingdoms\\iron_kingdoms_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a096f232c408191a66e36db638ed141.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG steampunk fantasy atlas map, first batch pass, landscape orientation\nPrimary request: Iron Kingdoms / Full Metal Fantasy inspired steampunk world map, dual-continent terrain type.\nScene/backdrop: overhead birds-eye atlas view with two industrial fantasy continents separated by uneven seas and narrow straits.\nSubject: two asymmetric continents divided by a diagonal S-shaped and L-bending sea corridor, not a simple vertical split. Include island-studded straits, inland seas, industrial gulfs, capes, broken rocky coasts, river deltas, jagged peninsulas, mechanikal factory-cities, warjack assembly ports, rail networks, river cities, rival nation fortresses, steam-vented ruins, blighted marshes, coal mountains, arcane storm fronts, forests, tundra, deserts, wetlands, and coastal dockyards.\nStyle/medium: Iron Kingdoms continent map, steampunk fantasy aesthetic, mechanikal detail overlay, aged industrial parchment, brass and blueprint cartography, highly detailed illustrated RPG sourcebook map.\nComposition/framing: wide 16:9 landscape map, both continents fully visible, diagonal/S/L-shaped sea separation, generous ocean border, top-down map clarity.\nLighting/mood: full metal fantasy, steam and magic intertwined, warjack smoke plumes, arcane lightning, perpetual national warfare, mercenary routes and industrial logistics.\nColor palette: aged brass, soot grey, copper, storm blue, arcane cyan, muted green forests, iron red foundries, parchment tan, coal black.\nMaterials/textures: stained parchment, brass-etched coastlines, blueprint overlays, riveted border details, hand-painted terrain, fine cartographic ink.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Avoid mirrored symmetry and avoid a clean vertical division.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T15:47:08.9399495+08:00"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "l5r",
+    "world_name":  "Legend of the Five Rings - Rokugan",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\l5r\\l5r_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a56467e848191b87898777f1e91b4.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Legend of the Five Rings / Rokugan-inspired feudal samurai fantasy setting. Terrain type: diverse_archipelago. Draw many irregular island chains and scattered landmasses across a misty elemental sea, unevenly distributed with strong variation in size and shape. Japanese feudal fantasy cartography: samurai clan castles, shrine islands, court towns, monastery peaks, elemental kami groves, spirit gates, fishing domains, pirate coves, pearl villages, volcanic hot spring islands, Crab Wall fortress-islands, corrupted Shadowlands isles, Dragon mountain islands, Phoenix temple islands, Crane garden coasts, Lion battlefields, Scorpion hidden valleys, Unicorn horse plains. Include many climates and biomes: snowy celestial peaks, cedar forests, bamboo groves, cherry blossom valleys, rice terraces, mist deltas, coastal wetlands, dry steppe islands, volcanic ash isles, sacred lakes, storm cliffs, corrupted wastelands, reefs, lagoons. Every major island has realistic complex coastlines with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, lagoons, barrier islands, reefs, shoals, sea caves. Japanese ink wash and mineral pigments, elemental rings atmosphere, subtle mon-like emblems without readable symbols, no readable labels, no legible text, no logos, no satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:02:07.0390746Z"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "mutant_year_zero",
+    "world_name":  "Mutant: Year Zero - The Ark",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\mutant_year_zero\\mutant_year_zero_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a011fa2c08191ad4ae8def0907685.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Mutant: Year Zero inspired post-apocalyptic RPG setting. Terrain type: diverse_archipelago. Draw an entire ruined world made of many irregular island chains and scattered landmasses, unevenly distributed across the page, in post-apocalyptic Zone map style. The islands must vary strongly in size and shape: broad overgrown city islands, crescent toxic marsh islands, tiny debris reef specks, long broken highway ridge islands, bunker mountain islands, irradiated desert atolls, frozen northern ruins, volcanic ash islands, quarantine isles, old-world military platforms, mutant clan settlements, Ark-like sanctuary enclaves, and rot-contaminated dead zones. Include multiple climates and biomes across the archipelago: irradiated deserts, drowned urban wetlands, pine regrowth, toxic marsh, snowfields, storm coasts, salt flats, ruined suburbs, industrial rust belts, and green reclaimed refuges. Coastlines on every major island should be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, reefs, shoals, and wreck channels. Make the island distribution asymmetrical and natural, with dense clusters in some regions and wide empty contaminated seas elsewhere. Large detailed survival atlas, grey-green radiation haze palette, sector grids and hazard symbols allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:58:04.5773219+08:00"
+}

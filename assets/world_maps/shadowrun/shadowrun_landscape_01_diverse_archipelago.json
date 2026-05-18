@@ -1,0 +1,17 @@
+﻿{
+    "world_id":  "shadowrun",
+    "world_name":  "Shadowrun — Sixth World",
+    "terrain_type":  "diverse_archipelago",
+    "terrain_name":  "Diverse Archipelago",
+    "prompt":  "cyberpunk city district map, matrix overlay hexagons, neon highlights on dark map, many island groups and microcontinents across a broad ocean, uneven distribution, large islands, tiny islets, curved island arcs, lagoons, reef belts, straits, remote atolls and fragmented coastlines with no grid-like spacing, sprawling metropolitan districts, megacorp arcology towers, barrens slums, matrix access node hubs, gang territory borders, smuggling docks, cyberpunk dystopia, rain-slicked neon streets, corporate logo lights, holo-billboard advertisements, perpetual night, large high-resolution atlas map, overhead birds-eye view, multiple climates and biomes, deserts, wetlands, forests, mountains, tundra, river basins and coastal regions, highly detailed, digital fantasy art, concept art, highly detailed illustration, vibrant colors, artstation quality, dramatic lighting, professional, no readable text labels, no watermark, no characters, no modern UI",
+    "negative_prompt":  "photo, realistic, modern, blurry, low quality, watermark, text, characters, people, text overlay, watermark, blurry, low quality",
+    "status":  "generated",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\shadowrun\\shadowrun_landscape_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e31b3-7d25-72d2-ba20-a0a358a6f8be\\ig_09c7539f2ea8b785016a08c757981481919242f785a5688b67.png",
+    "error":  "",
+    "width":  1536,
+    "height":  1024,
+    "image_style":  "fantasy_art",
+    "image_model":  "chatgpt-imagegen",
+    "updated_at":  "2026-05-17T03:39:36"
+}

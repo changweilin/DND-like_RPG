@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "mutant_year_zero",
+    "world_name":  "Mutant: Year Zero - The Ark",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\mutant_year_zero\\mutant_year_zero_landscape_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a098ff0addc81919146390f3c77a37d.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, landscape orientation\nPrimary request: Mutant: Year Zero / The Ark inspired world map for the terrain type diverse_archipelago.\nScene/backdrop: a vast polluted ocean Zone filled with many island groups and microcontinents: drowned skyscraper islands, Ark sanctuaries, mutant clan territories, ruined labs, reactor islands, wreck-strewn reefs, scavenger routes, dead radiation sectors, overgrown urban isles, toxic marsh chains, desert atolls, cold mountain islands and old-world military remnants.\nStyle/medium: high-resolution post-apocalyptic survival atlas, grey-green irradiated palette, weathered paper, gritty ink relief, hazard symbols, ruin markers, scavenged hand-drawn cartography, bleak Mutant: Year Zero tone.\nComposition/framing: wide landscape world map with unevenly distributed island clusters; include large islands, tiny islets, crescent island arcs, lagoons, reef belts, narrow straits, remote atolls, broken bridge chains and fragmented coastlines with no grid-like spacing; include a compass and worn map border without readable text.\nGeography constraints: islands must vary strongly in shape and size, with broken concrete shores, curved bays, peninsulas, deltas, flooded suburbs, rusted ports, crater lakes and volcanic scars; show many climates and biomes across the archipelago including toxic forest, swamp, wasteland, desert, tundra, mountains, reclaimed ruins and barren dead zones.\nAvoid: evenly spaced islands, cheerful tropical colors, pirate treasure map cliche, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T17:56:12.4425996+08:00"
+}

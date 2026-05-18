@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a09faf64e9c81919ad94d8042b1c6fd.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Deadlands-inspired Weird West RPG setting. Terrain type: dual_continent. Draw two large fictional continents in aged sepia parchment frontier cartography, separated by a dramatic non-vertical ocean passage: diagonal and S-shaped straits with gulfs, narrows, shoals, broken coast shelves, and twisting channels rather than a simple straight split. The northern/eastern landmass has snowy mountains, pine frontier, ghost-rock rail towns, haunted mining basins, and storm cliffs; the southern/western landmass has desert badlands, red mesas, dry canyons, bayou deltas, sacred spirit lands, and undead outlaw territories. Complex realistic coastlines on both continents: peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons. Islands are unevenly scattered between and around the continents with varied size and shape, including a flooded Great Maze archipelago feel. Add frontier rails, mine markers, occult survey symbols, ghost-rock steam-tech mood, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:35:33.8101793+08:00"
+}

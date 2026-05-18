@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a5c09d15081919e440dc5dce5f8f2.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Deadlands-inspired Weird West supernatural frontier setting. Terrain type: single_continent. Draw one immense frontier continent in sepia parchment cartography with ghost-rock steam-tech symbols, railroad survey lines, boom towns, frontier forts, ghost rock mine claims, haunted canyons, sun-baked desert badlands, cattle trails, ruined missions, strange science laboratories, cursed burial grounds, spirit lands, undead outlaw territories, and Reckoning-scarred wastelands. Include many climates and biomes: arid mesas, red deserts, sagebrush plains, snowy mountains, pine forests, black-rock volcanic basins, flooded maze canyons, salt flats, river deltas, ghost swamps, prairie grasslands, stormy coasts, and cold northern ranges. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, reefs, lagoons, and sea caves. Add uneven offshore islands with varied size and shape: mining islands, haunted lighthouse rocks, outlaw coves, flooded canyon isles, rail ferry ports, spirit shrine islands. Weird West territory map, sepia tones, faint green ghost-rock glow, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T00:32:42.3343124Z"
+}

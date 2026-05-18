@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "call_of_cthulhu",
+    "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\call_of_cthulhu\\call_of_cthulhu_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a3a4a00a48191b95ba6d14334f6c8.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Call of Cthulhu 1920s Lovecraftian cosmic horror RPG setting. Terrain type: continent_archipelago. Draw one dominant fictional continent plus a large irregular offshore archipelago in aged parchment investigative map style. The mainland should include New England-like coastline, Arkham-style town streets, Miskatonic river delta, old colonial architecture, lighthouse coast, fog-shrouded rocky hills, black pine forests, ancient standing stones, forbidden libraries, cult ruins, decaying mansions, rail towns, haunted wetlands, and stormy harbors. The archipelago should be uneven and varied: lighthouse islands, fishing villages, ruined chapels, occult stone-circle isles, forbidden dig-site islands, tiny reef specks, broad foggy island towns, and storm-battered ports. Avoid a simple vertical split; make the continent-and-archipelago separation curve in a diagonal / C-shaped foggy gulf with twisting straits, bays, shoals, sea caves, and broken coastal shelves. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, reefs, and shoals. Large detailed sepia horror atlas, hand-annotation marks but no readable text, creeping cosmic dread, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T06:05:03.4929287+08:00"
+}

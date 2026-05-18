@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "dnd5e",
+    "world_name":  "D\u0026D 5e - Forgotten Realms",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\dnd5e\\dnd5e_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a099cacbe4c81918c3c9a11b04dfbaf.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: D\u0026D 5e / Forgotten Realms inspired heroic high fantasy world map for the terrain type single_continent.\nScene/backdrop: one huge primary continent surrounded by ocean, rolling hills, deep ancient forests, jagged mountain ranges, scattered dungeon entrances, frontier towns and hamlets, winding rivers, coastal harbors, ancient ruins, magical leyline regions, dragon-haunted peaks and enchanted wilderness.\nStyle/medium: high-resolution illustrated fantasy atlas, cartographic parchment style, inked relief terrain, hand-painted biomes, heroic high fantasy atmosphere, glowing rune stones, distant dragon silhouettes, classic adventure campaign map mood.\nComposition/framing: tall portrait atlas view, the single continent fills most of the vertical frame with surrounding seas and small offshore fragments; include compass rose, decorative border, trade roads, dungeon icons and subtle realm boundaries without readable text.\nGeography constraints: large world map crossing many climates and biomes; complex realistic coastline with peninsulas, bays, gulfs, straits, broken shores, curved coasts, fjords, capes, deltas, marshy river mouths and varied landforms; include snowy mountains, temperate forests, plains, deserts, jungles, wetlands, volcanic regions and magical wastelands.\nAvoid: simple oval continent, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T18:58:06.1599637+08:00"
+}

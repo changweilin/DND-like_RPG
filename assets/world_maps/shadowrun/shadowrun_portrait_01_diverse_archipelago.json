@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "shadowrun",
+    "world_name":  "Shadowrun - Sixth World",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\shadowrun\\shadowrun_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09c41b8ab48191bea6790f08e609a7.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Shadowrun / Sixth World inspired cyberpunk urban-fantasy atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast black ocean cyberpunk world of many island groups and microcontinents, megacorp arcology island-cities, barrens slum ports, Matrix access node hubs, smuggling docks, gang territory islands, awakened forest isles, toxic industrial atolls, dragon-owned enclaves, neon ferry routes and extraterritorial corporate platforms.\nStyle/medium: high-resolution illustrated cyberpunk atlas, dark neon cartography, rain-slicked perpetual night, holo-billboard glow, corporate light pollution, Matrix overlay hexagons, urban fantasy district-map aesthetic.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large island sprawls, tiny smuggler islets, crescent island arcs, black lagoons, reef belts, narrow straits, remote artificial atolls, fragmented cliffs and microcontinents with no grid-like spacing; include digital compass, circuit border, sea routes, gang-zone markings, corporate icons and Matrix node overlays without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, polluted deltas, toxic estuaries, seawalls, artificial platforms and storm docks; show many climates and regions including awakened forests, deserts, mountain arcologies, toxic wetlands, industrial barrens, neon megacity sprawl and smuggling coastlines.\nAvoid: evenly spaced islands, clean utopian sci-fi, cheerful tropical palette, medieval fantasy map, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T21:39:16.1614133+08:00"
+}

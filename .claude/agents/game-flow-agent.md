@@ -8,6 +8,8 @@ description: |
   _extract_and_register_organizations(), AIPlayerController decision tree,
   dice rolling (DiceRoller), CharacterLogic stat mutations,
   intent_parser deterministic rule matching, and any combat math.
+  Also owns engine/combat.py (CombatEngine: resolve_attack, resolve_flee,
+  resolve_enemy_counter_attack, apply_status_to_entity, tick_status_effects).
 model: sonnet
 tools:
   - Read

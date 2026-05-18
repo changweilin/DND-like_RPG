@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "blades_in_the_dark",
+    "world_name":  "Blades in the Dark - Doskvol",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\blades_in_the_dark\\blades_in_the_dark_portrait_02_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_027dccca55cf6c98016a0a47a5349c8191bc41971bbc6b0774.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Blades in the Dark inspired gaslamp fantasy setting. Terrain type: continent_archipelago. Draw one dominant industrial gothic continent plus a large irregular offshore archipelago across the Void Sea. The mainland contains walled canal city districts, dockyards, lightning rail lines, gang territory borders, noble house estates, factories, electroplasmic lightning towers, leviathan-blood refineries, Bluecoat fortresses, occult courts, ghost-lit sectors, and deathlands beyond the walls. The archipelago is uneven and varied: smuggler coves, leviathan hunter ports, prison islands, haunted lighthouse rocks, abandoned dock-forts, refinery isles, cult monastery ruins, tiny shoals, black reef chains, and large storm-battered island provinces. Avoid a simple vertical split; make the continent and archipelago separated by a diagonal / C-shaped fog-dark gulf with twisting straits, canals, shoals, and narrow passages. Include multiple biomes and climates under supernatural darkness: rain coast, salt marsh deltas, fungal wetlands, drowned forest, ash wastes, cold moors, jagged mountains, toxic industrial barrens, storm cliffs, and black beaches. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, reefs, and sea caves. Soot-black parchment atlas with blue electroplasmic glow, smog, fog, gaslamp pinpoints, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T23:00:22.9381757Z"
+}

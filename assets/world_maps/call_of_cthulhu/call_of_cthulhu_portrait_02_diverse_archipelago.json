@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "call_of_cthulhu",
+    "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\call_of_cthulhu\\call_of_cthulhu_portrait_02_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a3accf23881918b3e46613c57ae60.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Call of Cthulhu 1920s Lovecraftian cosmic horror RPG setting. Terrain type: diverse_archipelago. Draw an entire Lovecraftian world made of many irregular island chains and scattered landmasses, unevenly distributed across the page, in aged parchment 1920s investigative cartography. The islands must vary strongly in size and shape: broad foggy colonial town islands, crescent marsh islands, tiny reef specks, long rocky ridge islands, lighthouse coasts, old fishing villages, ruined chapel islands, Miskatonic-style expedition outposts, ancient standing-stone isles, forbidden dig-site rocks, black pine wilderness islands, volcanic blacklands, icy northern islands, and occult sea caves. Include multiple climates and biomes across the archipelago: foggy New England coasts, cold mountains, deep forests, haunted wetlands, bleak moors, arid badlands, volcanic shores, icy north, river deltas, storm harbors, and isolated black-water seas. Coastlines on every major island should be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, sea caves, reefs, shoals, and hidden coves. Make the island distribution asymmetrical and natural, with dense haunted clusters in some regions and wide ominous seas elsewhere. Large detailed sepia horror atlas, hand-annotation marks but no readable text, creeping cosmic dread, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T06:05:03.4929287+08:00"
+}

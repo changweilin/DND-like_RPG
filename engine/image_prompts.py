@@ -171,6 +171,43 @@ _WORLD_MAP_AESTHETICS = {
     ),
 }
 
+# Terrain layout variants for large-scale world maps. Keep these prompt-only so
+# they remain usable by Streamlit, CLI tools, and future image generators.
+MAP_TERRAIN_TYPES = {
+    'single_continent': {
+        'name': 'Single Continent',
+        'description': (
+            'one huge primary continent surrounded by ocean, continent-scale geography, '
+            'complex realistic coastline with peninsulas, gulfs, bays, capes, fjords, '
+            'straits, broken coastal shelves, curved shores and river deltas'
+        ),
+    },
+    'dual_continent': {
+        'name': 'Dual Continents',
+        'description': (
+            'two major continents separated by uneven seas and narrow straits, not a simple '
+            'vertical split, using diagonal, S-shaped, L-shaped or C-shaped ocean channels, '
+            'asymmetric landmass sizes, complex coastlines, peninsulas, bays and inland seas'
+        ),
+    },
+    'continent_archipelago': {
+        'name': 'Continent and Archipelago',
+        'description': (
+            'one dominant continent with a large uneven archipelago offshore, island chains '
+            'distributed irregularly, islands with varied size and shape, scattered reefs, '
+            'volcanic islands, channels, coastal bays, headlands and fragmented shores'
+        ),
+    },
+    'diverse_archipelago': {
+        'name': 'Diverse Archipelago',
+        'description': (
+            'many island groups and microcontinents across a broad ocean, uneven distribution, '
+            'large islands, tiny islets, curved island arcs, lagoons, reef belts, straits, '
+            'remote atolls and fragmented coastlines with no grid-like spacing'
+        ),
+    },
+}
+
 # ---------------------------------------------------------------------------
 # World-setting portrait aesthetics
 # ---------------------------------------------------------------------------
@@ -244,7 +281,7 @@ def _infer_expression(personality):
 # Public API
 # ---------------------------------------------------------------------------
 
-def build_map_prompt(ws, image_style='fantasy_art', custom_suffix=''):
+def build_map_prompt(ws, image_style='fantasy_art', custom_suffix='', terrain_type='single_continent'):
     """
     Build an image generation prompt for a continent world map.
 
@@ -252,6 +289,7 @@ def build_map_prompt(ws, image_style='fantasy_art', custom_suffix=''):
         ws            (dict): World setting dict (from config.WORLD_SETTINGS).
         image_style   (str):  Key from IMAGE_STYLES.
         custom_suffix (str):  User-supplied extra suffix (overrides style suffix if non-empty).
+        terrain_type  (str):  Key from MAP_TERRAIN_TYPES.
 
     Returns:
         str — positive prompt.
@@ -263,12 +301,16 @@ def build_map_prompt(ws, image_style='fantasy_art', custom_suffix=''):
     )
     style = IMAGE_STYLES.get(image_style, IMAGE_STYLES['fantasy_art'])
     suf   = custom_suffix.strip() or style['suffix']
+    terrain_layout = MAP_TERRAIN_TYPES.get(terrain_type, MAP_TERRAIN_TYPES['single_continent'])
 
     return (
         f"{map_label}, "
+        f"{terrain_layout['description']}, "
         f"{terrain}, "
         f"{atmosphere}, "
-        f"overhead birds-eye view, highly detailed, "
+        f"large high-resolution atlas map, overhead birds-eye view, "
+        f"multiple climates and biomes, deserts, wetlands, forests, mountains, "
+        f"tundra, river basins and coastal regions, highly detailed, "
         f"{suf}"
     )
 

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "mutant_year_zero",
+    "world_name":  "Mutant: Year Zero - The Ark",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\mutant_year_zero\\mutant_year_zero_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a09ffefd8408191b530cdfcb322972a.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Mutant: Year Zero inspired post-apocalyptic RPG setting. Terrain type: dual_continent. Draw two large ruined-world continents in post-apocalyptic Zone map style, separated by a dramatic non-vertical ocean passage: diagonal and S-shaped irradiated straits, flooded highway causeways, toxic gulfs, broken continental shelves, shoals, quarantine channels, and wreck-strewn narrows rather than a simple straight split. One landmass contains the Ark sanctuary, overgrown city ruins, mutant clan territories, bunker highlands, frozen wastes, and scavenger routes; the other contains irradiated badlands, dead zones, rusted industrial megasites, toxic marshes, old-world military ruins, and hostile survivor enclaves. Complex realistic coastlines on both continents: peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands. Islands are unevenly scattered between and around the continents with varied size and shape, including ruined city-islands, contaminated quarantine isles, reef-like debris fields, and reclaimed green refuge islands. Large detailed survival atlas, grey-green radiation haze palette, hazard symbols and sector grids allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:52:58.2597233+08:00"
+}

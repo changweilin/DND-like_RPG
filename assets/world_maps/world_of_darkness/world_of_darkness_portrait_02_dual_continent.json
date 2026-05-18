@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "world_of_darkness",
+    "world_name":  "World of Darkness - Vampire: The Masquerade",
+    "cycle":  3,
+    "cycle_index":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\world_of_darkness\\world_of_darkness_portrait_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a0a32df3aa88191b27d933584e752fc.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a World of Darkness: Vampire the Masquerade inspired gothic-punk modern horror RPG setting. Terrain type: dual_continent. Draw two large fictional continents as nocturnal gothic vampire domain maps on dark parchment, separated by diagonal and S-shaped moonlit straits, crescent gulfs, fog narrows, shoals, broken coastal shelves, and twisting black-water channels, not a simple vertical split. One continent has Camarilla court cities, opulent Elysium districts, cathedral spires, old-money havens, haunted cemeteries, fog-filled parks, and sewer warrens. The other has Anarch free states, Sabbat-infested ruins, werewolf wilderness preserves, mage cabal observatories, decaying industrial ports, occult badlands, and blood-moon moors. Coastlines must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, capes, lagoons, barrier islands, and sea caves. Islands are unevenly scattered with varied size and shape: abandoned resort Elysiums, occult lighthouse islands, vampire haven rocks, cemetery isles, storm-battered ports. Large detailed noir gothic atlas, crimson moon accents, visual domain territories, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T05:35:14.1795937+08:00"
+}

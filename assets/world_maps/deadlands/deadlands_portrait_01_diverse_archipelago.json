@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "deadlands",
+    "world_name":  "Deadlands - Weird West",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\deadlands\\deadlands_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a09fb6a86f481919b8fa289206af7de.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Deadlands-inspired Weird West RPG setting. Terrain type: diverse_archipelago. Draw an entire fictional world made of many irregular island chains and scattered landmasses, unevenly distributed across the page, in aged sepia parchment frontier cartography style. The islands must vary strongly in size and shape: long broken ridges, crescent volcanic islands, tiny reef specks, broad mesa islands, swampy deltas, snow-capped highland islands, haunted canyon isles, ghost-rock mining platforms, sacred spirit islands, rail-and-ferry frontier towns, and flooded Great Maze channels. Include multiple climates and biomes across the archipelago: desert badlands, prairie islands, pine mountains, bayous, storm coasts, volcanic ghost-rock fields, salt flats, cold northern cliffs, and eerie supernatural territories. Coastlines on every major island should be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, deltas, fjords, lagoons, barrier islands, reefs, and shoals. Make the island distribution asymmetrical and natural, with dense clusters in some regions and open ocean gaps elsewhere. Weird West supernatural frontier mood, ghost-rock steam-tech details, undead outlaw ambience, ornate compass and map border allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:35:33.8101793+08:00"
+}

@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "world_of_darkness",
+    "world_name":  "World of Darkness - Vampire: The Masquerade",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "diverse_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\world_of_darkness\\world_of_darkness_portrait_01_diverse_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09cb8a44688191ae94636ce3b1f385.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: World of Darkness / Vampire: The Masquerade inspired gothic-punk horror atlas for the terrain type diverse_archipelago.\nScene/backdrop: a vast black sea gothic-punk world of many island groups and microcontinents under eternal night, vampire clan domain islands, Elysium city-isles, haunted cemetery islands, sewer-warren ports, cathedral spire cities, fog-filled midnight parks, Anarch havens, Camarilla courts, Sabbat war-isles, occult wilderness and blood-moon coastlines.\nStyle/medium: high-resolution illustrated gothic vampire atlas, noir cartography, dark parchment, silver ink, deep crimson accents, fog and shadows, ornate gothic border, domain territory markings, political horror mood.\nComposition/framing: tall portrait world map with unevenly distributed island clusters; include large gothic city islands, tiny haunted islets, crescent island arcs, black lagoons, reef belts, narrow straits, remote atolls, fragmented cliffs and microcontinents with no grid-like spacing; include black compass rose, sea routes, clan-domain boundary shading, cemetery icons, Elysium symbols and hidden sewer-route traces without readable text.\nGeography constraints: islands must vary strongly in size and shape, with realistic complex coastlines, broken shores, curved bays, peninsulas, foggy deltas, dark estuaries, cliff coasts and storm harbors; show many climates and regions including old forests, moors, mountains, wetlands, snowfields, plague-dark farmlands, ruined cities and haunted coastal harbors.\nAvoid: evenly spaced islands, bright heroic fantasy, cheerful tropical palette, modern tourist map, modern satellite image, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T22:10:55.1423265+08:00"
+}

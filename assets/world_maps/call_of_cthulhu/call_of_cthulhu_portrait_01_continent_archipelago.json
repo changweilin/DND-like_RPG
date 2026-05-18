@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "call_of_cthulhu",
+    "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "continent_archipelago",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\call_of_cthulhu\\call_of_cthulhu_portrait_01_continent_archipelago.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09d2095c5481918864516517546f1d.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Call of Cthulhu / 1920s Lovecraftian inspired cosmic horror atlas for the terrain type continent_archipelago.\nScene/backdrop: one dominant New England-like continent with a large uneven offshore archipelago, Arkham-style towns, Miskatonic river delta, foggy rocky hills, old colonial harbors, lighthouse coast, cult-haunted fishing villages, forbidden standing stones, marsh islands, old rail lines, shipwreck reefs and hidden ruins connected to cosmic dread.\nStyle/medium: high-resolution illustrated 1920s investigative atlas, aged parchment with hand annotations, sepia ink, fog-stained paper, creeping cosmic dread, occult diagram margins, subtle impossible geometry.\nComposition/framing: tall portrait map; main continent off-center with an irregular archipelago sweeping along the coast in a diagonal arc; islands include tiny haunted islets, lighthouse rocks, reef belts, large fishing islands, crescent island chains, marsh islands and storm-battered atolls; include compass rose, hand-drawn border, ship routes, rail routes, lighthouse icons, standing stone symbols and investigator annotations without readable text.\nGeography constraints: islands must be irregularly distributed and varied in size and shape, with channels, dark lagoons, reefs, wreck fields, atolls and broken shores; continental coastline should include peninsulas, bays, gulfs, straits, curved coasts, deltas, salt marshes, foggy estuaries, capes, cliff coasts and fragmented rocks; show rocky coasts, dark forests, farmlands, mountains, wetlands, cold islands, moors and uncanny wastelands.\nAvoid: uniform island grid, heroic fantasy, visible monster centerpiece, simple round islands, modern satellite image, clean tourist map, readable labels, UI, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T22:45:35.2687502+08:00"
+}

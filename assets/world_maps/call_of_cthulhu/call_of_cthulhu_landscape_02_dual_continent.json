@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "call_of_cthulhu",
+    "world_name":  "Call of Cthulhu - 1920s Lovecraftian",
+    "cycle":  1,
+    "orientation":  "landscape",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\call_of_cthulhu\\call_of_cthulhu_landscape_02_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0d135af84ff3b4ac016a0967f228288191b76cadeb2fc799f7.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG 1920s cosmic-horror atlas map, first batch pass, landscape orientation\nPrimary request: Call of Cthulhu / 1920s Lovecraftian inspired world map, dual-continent terrain type.\nScene/backdrop: overhead birds-eye aged parchment atlas view with two fog-shrouded landmasses separated by uneven seas and narrow straits.\nSubject: two asymmetric continents divided by a diagonal S-shaped and C-bending cold ocean corridor, not a simple vertical split. Include island-studded straits, inland lakes, misty gulfs, rocky capes, broken shores, marshy river deltas, jagged peninsulas, Arkham-like university towns, Miskatonic-style river delta settlements, old colonial ports, lighthouse coasts, foggy hills, ancient standing stones, forbidden cult sites, graveyards, forests, wetlands, tundra, mountains, and bleak coastal regions.\nStyle/medium: 1920s New England town map expanded to continental scale, Lovecraftian horror, aged parchment with hand annotations but no readable text, occult cartography, highly detailed illustrated RPG sourcebook map.\nComposition/framing: wide 16:9 landscape map, both continents fully visible, diagonal/S/C-shaped sea separation, generous dark ocean border, top-down map clarity.\nLighting/mood: creeping cosmic dread, Jazz Age antiquarian mystery, fog, impossible shadows, ancient gods slumbering beneath earth and sea, sanity-eroding atmosphere.\nColor palette: aged sepia parchment, cold grey-blue ocean, faded ink, sickly green occult accents, fog grey, dark pine forests, autumn browns.\nMaterials/textures: brittle paper, ink wash, etched coastlines, faint coffee stains, marginal occult sigils without readable lettering.\nConstraints: no text labels, no letters, no readable words, no legend, no compass text, no watermark, no UI, no characters or portraits. Avoid mirrored symmetry and avoid a clean vertical division.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T15:10:16.6949470+08:00"
+}

@@ -1,0 +1,13 @@
+﻿{
+    "world_id":  "mutant_year_zero",
+    "world_name":  "Mutant: Year Zero - The Ark",
+    "cycle":  2,
+    "cycle_index":  1,
+    "orientation":  "portrait",
+    "terrain_type":  "single_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\mutant_year_zero\\mutant_year_zero_portrait_02_single_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0113cfeede9b99be016a09ff5bcec4819196ac11e3df994e98.png",
+    "prompt":  "Vertical portrait 9:16 high-resolution atlas world map for a Mutant: Year Zero inspired post-apocalyptic RPG setting. Terrain type: single_continent. Draw one immense fictional continent as a post-apocalyptic Zone map: the Ark ruins encampment at the heart of a shattered old-world region, dead zones of radiation, mutant clan territories, collapsed highways, scavenger trails, old world ruin sites, survival zone sectors, contaminated rivers, bunker fields, rusted industrial belts, and grey-green toxic skies implied through the map palette. The continent must span many climates and biomes: irradiated deserts, drowned city wetlands, overgrown forests, frozen northern wastes, cracked salt plains, toxic marsh, ruined suburbs, mountain refuges, volcanic ash fields, and storm-battered coasts. Coastline must be realistic and complex with peninsulas, bays, gulfs, straits, broken shores, curved coasts, river deltas, fjords, barrier islands, and varied landforms. Include irregular offshore islands in uneven clusters, different sizes and shapes, some as ruined city fragments or contaminated quarantine isles. Large detailed atlas composition, survival cartography style with hazard symbols and sector grids allowed, no readable labels, no legible text, no logos, no modern satellite style.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-18T01:50:29.3410449+08:00"
+}

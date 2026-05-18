@@ -1,0 +1,12 @@
+﻿{
+    "world_id":  "warhammer_fantasy",
+    "world_name":  "Warhammer Fantasy - The Old World",
+    "cycle":  2,
+    "orientation":  "portrait",
+    "terrain_type":  "dual_continent",
+    "image_path":  "C:\\Users\\user\\Documents\\Python\\DND-like_Plan\\DND-like_RPG\\assets\\world_maps\\warhammer_fantasy\\warhammer_fantasy_portrait_01_dual_continent.png",
+    "source_image_path":  "C:\\Users\\user\\.codex\\generated_images\\019e33f6-6d26-7d72-bf56-c4919f32802f\\ig_0bc85e92ee915168016a09b3e67168819196e1ce76c7a2c29e.png",
+    "prompt":  "Use case: stylized-concept\nAsset type: project-bound RPG world atlas map, portrait orientation\nPrimary request: Warhammer Fantasy / The Old World inspired grimdark world map for the terrain type dual_continent.\nScene/backdrop: two major grimdark continents separated by uneven stormy seas and narrow straits, old world empire cities, river trading towns, dark forests of Chaos taint, northern wastes, chaos storm fronts, dwarf mountain holds, blighted marshes, ruined border forts, plague coasts and sinister wilderness territories.\nStyle/medium: high-resolution illustrated dark fantasy atlas, old world parchment cartography, inked topographic relief, oppressive sky, corruption spreading from the north, battle-worn and perilous campaign map tone.\nComposition/framing: tall portrait map, asymmetric continents of different sizes; the sea separation is diagonal and S-shaped with C-shaped gulfs, L-shaped channels and jagged straits, not a simple vertical divider; include compass rose, severe border, road lines, fortress icons, corruption markings and regional boundaries without readable text.\nGeography constraints: realistic complex coastlines with peninsulas, bays, gulfs, capes, fjords, broken shores, curved coasts, deltas, inland seas, marshy estuaries and varied landforms; span many climates including frozen northern wastes, temperate empire riverlands, dark pine forests, swamps, mountains, moors, plague marshes and blasted chaos badlands.\nAvoid: mirrored continents, clean vertical split, bright heroic fantasy, modern satellite image, board-game UI, readable labels, watermark, logo, real-world map copy.",
+    "generated_by":  "ChatGPT image_gen built-in",
+    "updated_at":  "2026-05-17T20:34:38.7459426+08:00"
+}
